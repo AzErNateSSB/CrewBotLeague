@@ -1,0 +1,12 @@
+﻿# Tokens et secrets
+.env
+credentials.json
+token.json
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Logs
+*.log
