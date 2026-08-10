@@ -11,6 +11,7 @@ from cogs.teams import (
 from utils.sheets_log import log_command, update_log
 from utils.i18n import t
 from utils.teams_lu import refresh_team_lu
+from utils.players_stats import create_team_stats_post, create_player_stats_post
 
 PANELS_FILE        = os.path.join("data", "panels.json")
 CHANNEL_CREATETEAM = 1532064361324089525
@@ -172,11 +173,24 @@ class CreateTeamModal(discord.ui.Modal, title="Créer mon équipe"):
             ),
         }
 
+        overwrites_tasks = {
+            guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            role: discord.PermissionOverwrite(
+                view_channel=True, send_messages=False, read_message_history=True,
+            ),
+            guild.me: discord.PermissionOverwrite(
+                view_channel=True, send_messages=True,
+                read_message_history=True, manage_channels=True,
+            ),
+        }
+
         try:
-            category = await guild.create_category(name=f"〔{full_sigle}〕", overwrites=overwrites)
-            general  = await guild.create_text_channel( name=f"〔{full_sigle}〕général",    category=category)
-            forum    = await guild.create_forum(         name=f"〔{full_sigle}〕historique", category=category)
-            vocal    = await guild.create_voice_channel( name=f"〔{full_sigle}〕vocal",      category=category)
+            category     = await guild.create_category(name=f"〔{full_sigle}〕", overwrites=overwrites)
+            tasks        = await guild.create_text_channel( name=f"〔{full_sigle}〕tasks",          category=category, overwrites=overwrites_tasks)
+            general      = await guild.create_text_channel( name=f"〔{full_sigle}〕général",        category=category)
+            forum        = await guild.create_forum(         name=f"〔{full_sigle}〕historique",     category=category)
+            players_stat = await guild.create_forum(         name=f"〔{full_sigle}〕players--stats", category=category)
+            vocal        = await guild.create_voice_channel( name=f"〔{full_sigle}〕vocal",          category=category)
         except Exception as e:
             await role.delete()
             await interaction.followup.send(f"❌ Erreur création des salons : {e}", ephemeral=True)
@@ -189,9 +203,11 @@ class CreateTeamModal(discord.ui.Modal, title="Créer mon équipe"):
             "role_id":     role.id,
             "category_id": category.id,
             "channels": {
-                "general":    general.id,
-                "historique": forum.id,
-                "vocal":      vocal.id,
+                "general":       general.id,
+                "historique":    forum.id,
+                "tasks":         tasks.id,
+                "players_stats": players_stat.id,
+                "vocal":         vocal.id,
             },
             "members":    [user.id],
             "league":     None,
@@ -203,6 +219,10 @@ class CreateTeamModal(discord.ui.Modal, title="Créer mon équipe"):
         player["team"] = full_sigle
         save_player(player)
         await refresh_team_lu(interaction.client, interaction.guild_id, team_data)
+        await create_team_stats_post(interaction.client, interaction.guild_id, team_data)
+        from cogs.teams import load_team as lt
+        team_data = lt(full_sigle) or team_data
+        await create_player_stats_post(interaction.client, interaction.guild_id, team_data, user)
 
         embed = discord.Embed(title=f"⚔️ Équipe **{full_sigle}** créée !", color=discord.Color.blurple())
         embed.add_field(name="Leader", value=user.mention, inline=True)
@@ -216,6 +236,11 @@ class CreateTeamModal(discord.ui.Modal, title="Créer mon équipe"):
             f"🎉 Bienvenue dans le salon de **{full_sigle}** ! "
             f"{user.mention} en est le leader.\n"
             f"Les membres peuvent rejoindre l'équipe via le salon <#{CHANNEL_JOINTEAM}>."
+        )
+        await tasks.send(
+            f"📋 Ce salon sert aux actions qui nécessitent le **leader** de l'équipe "
+            f"(demandes pour rejoindre l'équipe, etc.). "
+            f"Les membres ont accès en lecture seule."
         )
         await log_command(user.display_name, cmd_label, "Completed",
                           f"La Team **{full_sigle}** a été créée avec **{user.display_name}** pour Leader")
@@ -270,9 +295,9 @@ class JoinTeamModal(discord.ui.Modal, title="Rejoindre une équipe"):
                               f"L'équipe **{sigle}** est introuvable")
             return
 
-        general_channel = interaction.guild.get_channel(team["channels"]["general"])
-        if not general_channel:
-            await interaction.followup.send("❌ Salon général de l'équipe introuvable.", ephemeral=True)
+        tasks_channel = interaction.guild.get_channel(team["channels"].get("tasks") or team["channels"]["general"])
+        if not tasks_channel:
+            await interaction.followup.send("❌ Salon de l'équipe introuvable.", ephemeral=True)
             return
 
         log_row = await log_command(
@@ -285,7 +310,7 @@ class JoinTeamModal(discord.ui.Modal, title="Rejoindre une équipe"):
 
         from cogs.teams import JoinRequestView
         view = JoinRequestView(applicant=user, team=team, gid=gid, log_row=log_row)
-        msg  = await general_channel.send(
+        msg  = await tasks_channel.send(
             f"{leader_mention} — {t(gid, 'join_request_received', player=user.display_name, team=sigle)}",
             view=view,
         )

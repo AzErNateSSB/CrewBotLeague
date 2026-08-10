@@ -1,5 +1,9 @@
 {
   "discord_id": 847882608254910544,
   "name": "Shishi",
-  "team": "LT"
+  "team": "LT",
+  "stats_thread_id": 1536050276530655346,
+  "stats": {
+    "main": "<:06_Kirby:1438443173125816361>"
+  }
 }

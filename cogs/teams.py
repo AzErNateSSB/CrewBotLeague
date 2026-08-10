@@ -8,6 +8,10 @@ import os
 from utils.i18n import t
 from utils.sheets_log import log_command, update_log
 from utils.teams_lu import refresh_team_lu, delete_team_lu, rebuild_teams_lu
+from utils.players_stats import (
+    create_player_stats_post, create_team_stats_post,
+    delete_player_stats_post, refresh_team_stats_post,
+)
 
 TEAMS_DIR   = os.path.join("data", "teams")
 PLAYERS_DIR = os.path.join("data", "players")
@@ -206,11 +210,25 @@ async def cbl_newteam(
         ),
     }
 
+    # Permissions tasks : membres en lecture seule, leader en écriture
+    overwrites_tasks = {
+        guild.default_role: discord.PermissionOverwrite(view_channel=False),
+        role: discord.PermissionOverwrite(
+            view_channel=True, send_messages=False, read_message_history=True,
+        ),
+        guild.me: discord.PermissionOverwrite(
+            view_channel=True, send_messages=True,
+            read_message_history=True, manage_channels=True,
+        ),
+    }
+
     try:
-        category = await guild.create_category(name=f"〔{sigle}〕", overwrites=overwrites)
-        general  = await guild.create_text_channel( name=f"〔{sigle}〕général",    category=category)
-        forum    = await guild.create_forum(         name=f"〔{sigle}〕historique", category=category)
-        vocal    = await guild.create_voice_channel( name=f"〔{sigle}〕vocal",      category=category)
+        category     = await guild.create_category(name=f"〔{sigle}〕", overwrites=overwrites)
+        tasks        = await guild.create_text_channel( name=f"〔{sigle}〕tasks",          category=category, overwrites=overwrites_tasks)
+        general      = await guild.create_text_channel( name=f"〔{sigle}〕général",        category=category)
+        forum        = await guild.create_forum(         name=f"〔{sigle}〕historique",     category=category)
+        players_stat = await guild.create_forum(         name=f"〔{sigle}〕players--stats", category=category)
+        vocal        = await guild.create_voice_channel( name=f"〔{sigle}〕vocal",          category=category)
     except discord.Forbidden:
         await role.delete()
         await interaction.followup.send("❌ Permission refusée pour créer les salons.", ephemeral=True)
@@ -229,9 +247,11 @@ async def cbl_newteam(
         "role_id":     role.id,
         "category_id": category.id,
         "channels": {
-            "general":    general.id,
-            "historique": forum.id,
-            "vocal":      vocal.id,
+            "general":       general.id,
+            "historique":    forum.id,
+            "tasks":         tasks.id,
+            "players_stats": players_stat.id,
+            "vocal":         vocal.id,
         },
         "members":    [user.id],
         "league":     None,
@@ -243,6 +263,10 @@ async def cbl_newteam(
     player["team"] = sigle
     save_player(player)
     await refresh_team_lu(interaction.client, interaction.guild_id, team_data)
+    await create_team_stats_post(interaction.client, interaction.guild_id, team_data)
+    # Recharger team_data après create_team_stats_post (qui enregistre le stats_thread_id)
+    team_data = load_team(sigle) or team_data
+    await create_player_stats_post(interaction.client, interaction.guild_id, team_data, user)
 
     embed = discord.Embed(title=f"⚔️ Équipe **{sigle}** créée !", color=discord.Color.blurple())
     embed.add_field(name="Leader", value=user.mention, inline=True)
@@ -258,6 +282,11 @@ async def cbl_newteam(
         f"🎉 Bienvenue dans le salon de **{sigle}** ! "
         f"{user.mention} en est le leader.\n"
         f"Les membres peuvent rejoindre l'équipe via `/cbl_join {sigle}`."
+    )
+    await tasks.send(
+        f"📋 Ce salon sert aux actions qui nécessitent le **leader** de l'équipe "
+        f"(demandes pour rejoindre l'équipe, etc.). "
+        f"Les membres ont accès en lecture seule."
     )
 
     await log_command(
@@ -322,6 +351,7 @@ class JoinRequestView(discord.ui.View):
                 pass
 
         await refresh_team_lu(interaction.client, interaction.guild_id, team)
+        await create_player_stats_post(interaction.client, interaction.guild_id, team, self.applicant)
         await self._disable()
         await interaction.response.send_message(
             t(self.gid, "join_accepted", player=self.applicant.display_name, team=team["sigle"])
@@ -383,11 +413,11 @@ async def cbl_join(interaction: discord.Interaction, sigle: str):
                           f"L'équipe **{sigle}** est introuvable")
         return
 
-    general_channel = interaction.guild.get_channel(team["channels"]["general"])
-    if not general_channel:
-        await interaction.response.send_message("❌ Salon général de l'équipe introuvable.", ephemeral=True)
+    tasks_channel = interaction.guild.get_channel(team["channels"].get("tasks") or team["channels"]["general"])
+    if not tasks_channel:
+        await interaction.response.send_message("❌ Salon de l'équipe introuvable.", ephemeral=True)
         await log_command(user.display_name, cmd_label, "Failed",
-                          f"Salon #général de **{sigle}** introuvable")
+                          f"Salon tasks/général de **{sigle}** introuvable")
         return
 
     # Log In Progress — sera mis à jour par la View
@@ -400,7 +430,7 @@ async def cbl_join(interaction: discord.Interaction, sigle: str):
     leader_mention = leader.mention if leader else f"<@{team['leader_id']}>"
 
     view = JoinRequestView(applicant=user, team=team, gid=gid, log_row=log_row)
-    msg  = await general_channel.send(
+    msg  = await tasks_channel.send(
         f"{leader_mention} — {t(gid, 'join_request_received', player=user.display_name, team=sigle)}",
         view=view,
     )
@@ -451,6 +481,8 @@ async def _remove_player_from_team(
             pass
 
     await refresh_team_lu(interaction.client, interaction.guild_id, team)
+    await delete_player_stats_post(interaction.client, interaction.guild_id, target.id)
+    await refresh_team_stats_post(interaction.client, interaction.guild_id, team_sigle)
     await interaction.followup.send(
         f"✅ **{target.display_name}** a été retiré de l'équipe **{team_sigle}**.", ephemeral=True
     )
@@ -718,6 +750,23 @@ async def cbl_adm_rename_team(interaction: discord.Interaction, sigle: str, nouv
 
 
 @app_commands.command(
+    name="cbl_rebuild_stats",
+    description="[ADMIN] Recrée tous les posts players-stats (purge + reconstruction complète)",
+)
+async def cbl_rebuild_stats(interaction: discord.Interaction):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("❌ Réservé aux administrateurs.", ephemeral=True)
+        return
+
+    await interaction.response.defer(ephemeral=True)
+    from utils.players_stats import rebuild_all_stats
+    report = await rebuild_all_stats(interaction.client, interaction.guild_id)
+    await interaction.followup.send(f"✅ Reconstruction terminée :\n{report}", ephemeral=True)
+    await log_command(interaction.user.display_name, "cbl_rebuild_stats", "Completed",
+                      f"Posts players-stats reconstruits par **{interaction.user.display_name}**")
+
+
+@app_commands.command(
     name="cbl_refresh_teams_lu",
     description="[ADMIN] Reconstruit le salon teams-lu (un embed par équipe existante)",
 )
@@ -747,6 +796,7 @@ class Teams(commands.Cog):
         self.bot.tree.add_command(cbl_adm_del_team)
         self.bot.tree.add_command(cbl_adm_rename_team)
         self.bot.tree.add_command(cbl_refresh_teams_lu)
+        self.bot.tree.add_command(cbl_rebuild_stats)
 
 
 async def setup(bot: commands.Bot):

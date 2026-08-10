@@ -1,0 +1,1508 @@
+=== ANALYSE DU SERVEUR : Crew Battle Ligue FR ===
+    Membres : 283
+    Salons   : 228
+
+📁 CATÉGORIE PRINCIPALE : Crew Battle (ID 1472927998863741066)
+  └─ #how-to-cbl  (ID 1533799848623734916  type=TextChannel)
+  (aucun message bot intéressant)
+  └─ #〔📖〕calendrier  (ID 1480872579194425374  type=TextChannel)
+  (aucun message bot intéressant)
+  └─ #create-team  (ID 1532064361324089525  type=TextChannel)
+  📨 Message ID: 1533146262457815213  —  2026-08-01 16:15
+     Embed #1 : titre='⚔️ Créer une équipe'  couleur=#5865f2
+               desc : Tu souhaites créer une équipe pour l'événement ?  Clique sur le bouton ci-dessous, renseigne le sigl…
+     [BUTTON] label='🛡️ Créer mon équipe' | custom_id='panel_create_team' | style=primary
+  └─ #join-team  (ID 1532064572167553174  type=TextChannel)
+  📨 Message ID: 1533146266232553654  —  2026-08-01 16:15
+     Embed #1 : titre='🎮 Rejoindre une équipe'  couleur=#2ecc71
+               desc : Tu veux participer à l'événement ?  Clique sur le bouton ci-dessous, indique le sigle de l'équipe qu…
+     [BUTTON] label='🎮 Rejoindre une équipe' | custom_id='panel_join_team' | style=primary
+  └─ #cb-freeplay  (ID 1532382640223551640  type=TextChannel)
+  📨 Message ID: 1533146263988605162  —  2026-08-01 16:15
+     Embed #1 : titre='⚔️ Freeplay CrewBattle'  couleur=#e74c3c
+               desc : Tu veux faire une CrewBattle en dehors du calendrier officiel ?  Clique sur le bouton ci-dessous pou…
+     [BUTTON] label='⚔️ Chercher un adversaire' | custom_id='panel_freeplay_search' | style=primary
+  └─ #teams-lu  (ID 1532892553786036496  type=TextChannel)
+  📨 Message ID: 1532895259418169525  —  2026-07-31 23:38
+     Embed #1 : titre='〔3QI〕'  couleur=#5865f2
+               champ [Leader] : <@466499959139729409>
+               champ [Effectif (1)] : <@466499959139729409> 👑
+  📨 Message ID: 1532895263604347112  —  2026-07-31 23:38
+     Embed #1 : titre='〔LT〕'  couleur=#5865f2
+               champ [Leader] : <@847882608254910544>
+               champ [Effectif (13)] : <@847882608254910544> 👑
+<@537682091098505216>
+<@474636251933179905>
+<@6633422212
+  📨 Message ID: 1532895265877655625  —  2026-07-31 23:38
+     Embed #1 : titre='〔OXVI〕'  couleur=#5865f2
+               champ [Leader] : <@531209977042436107>
+               champ [Effectif (2)] : <@531209977042436107> 👑
+<@1292405826312601601>
+  📨 Message ID: 1532895267303461098  —  2026-07-31 23:38
+     Embed #1 : titre='〔RC〕'  couleur=#5865f2
+               champ [Leader] : <@1161362172664885268>
+               champ [Effectif (10)] : <@1161362172664885268> 👑
+<@611514263353294859>
+<@1288991546577911840>
+<@89459780
+  📨 Message ID: 1532897426367582209  —  2026-07-31 23:47
+     Embed #1 : titre='〔MST〕'  couleur=#5865f2
+               champ [Leader] : <@792859756590137405>
+               champ [Effectif (11)] : <@792859756590137405> 👑
+<@1146535698665570354>
+<@972114343950966794>
+<@917863307
+  📨 Message ID: 1533168930493829224  —  2026-08-01 17:45
+     Embed #1 : titre='〔SSL〕'  couleur=#5865f2
+               champ [Leader] : <@671725835514019840>
+               champ [Effectif (7)] : <@671725835514019840> 👑
+<@1066425568880504944>
+<@413741813049065484>
+<@471657156
+  📨 Message ID: 1533242000055210015  —  2026-08-01 22:36
+     Embed #1 : titre='〔ARK〕'  couleur=#5865f2
+               champ [Leader] : <@359004851788578816>
+               champ [Effectif (10)] : <@359004851788578816> 👑
+<@695364555836227595>
+<@330679355850358786>
+<@8377171099
+  📨 Message ID: 1533383808571801733  —  2026-08-02 07:59
+     Embed #1 : titre='〔HoJ〕'  couleur=#5865f2
+               champ [Leader] : <@461601543121010691>
+               champ [Effectif (3)] : <@461601543121010691> 👑
+<@1325398811119456277>
+<@1282934454876110868>
+  📨 Message ID: 1534216814911950858  —  2026-08-04 15:09
+     Embed #1 : titre='〔JRJ〕'  couleur=#5865f2
+               champ [Leader] : <@524742723828187151>
+               champ [Effectif (1)] : <@524742723828187151> 👑
+  📨 Message ID: 1534668322052903123  —  2026-08-05 21:04
+     Embed #1 : titre='〔SU〕'  couleur=#5865f2
+               champ [Leader] : <@933811445395771422>
+               champ [Effectif (5)] : <@933811445395771422> 👑
+<@1180919736402460674>
+<@228887241626353664>
+<@653293437
+  📨 Message ID: 1535719028944015424  —  2026-08-08 18:39
+     Embed #1 : titre='〔ADN〕'  couleur=#5865f2
+               champ [Leader] : <@712373643300306974>
+               champ [Effectif (7)] : <@712373643300306974> 👑
+<@599937833427533825>
+<@826189015044587532>
+<@3429960692
+  📨 Message ID: 1535719780135469127  —  2026-08-08 18:42
+     Embed #1 : titre='〔POM〕'  couleur=#5865f2
+               champ [Leader] : <@565169985203470348>
+               champ [Effectif (1)] : <@565169985203470348> 👑
+
+============================================================
+📂 TOUTES LES CATÉGORIES ET SALONS AVEC MESSAGES BOT
+============================================================
+
+📁 Bots  (ID 1476173468482539664)
+  └─ #〔⚙️〕adm-commandes-bot  (ID 1476173379055910925)
+      📨 Message ID: 1483410511256096869  —  2026-03-17 10:23
+         Contenu : 🎲 **RAD | AzErNate** used `2` - ❌ **Error**: Invalid dice expression: 2
+      📨 Message ID: 1483410538640707635  —  2026-03-17 10:23
+         Contenu : 🎲 **RAD | AzErNate** Request: `d2` Roll: `[1]` = **1**
+      📨 Message ID: 1483750420861157538  —  2026-03-18 08:54
+         Embed #1 : titre='Success :white_check_mark:'  couleur=#6ef273
+                   desc : <#1476174534003396619>  set as the active channel.…
+      📨 Message ID: 1483750536225361993  —  2026-03-18 08:54
+         Embed #1 : titre='Success :white_check_mark:'  couleur=#6ef273
+                   desc : Message set.…
+      📨 Message ID: 1483750624851001435  —  2026-03-18 08:55
+         Embed #1 : titre='Success :white_check_mark:'  couleur=#6ef273
+                   desc : <@&1472929422075236404> added with the emoji ✅…
+      📨 Message ID: 1487143616374902825  —  2026-03-27 17:37
+         Embed #1 : titre='Success :white_check_mark:'  couleur=#6ef273
+                   desc : <#1487142124964155423>  set as the active channel.…
+      📨 Message ID: 1487143686230904982  —  2026-03-27 17:38
+         Embed #1 : titre='Success :white_check_mark:'  couleur=#6ef273
+                   desc : Message set.…
+      📨 Message ID: 1487143827348131994  —  2026-03-27 17:38
+         Embed #1 : titre='Error :warning:'  couleur=#fff780
+                   desc : I can't use this emoji. Please make sure the emoji can be found in Discord's emoji picker. If it's i…
+      📨 Message ID: 1487144130684391434  —  2026-03-27 17:39
+         Embed #1 : titre='Success :white_check_mark:'  couleur=#6ef273
+                   desc : <@&1487141760630259904> added with the emoji 🍿…
+      📨 Message ID: 1487144781825052783  —  2026-03-27 17:42
+         Embed #1 : titre='Success :white_check_mark:'  couleur=#6ef273
+                   desc : <@&1487141892658303156> added with the emoji 👊…
+  └─ #〔🛡️〕raidprotect-logs  (ID 1476172138242375781)
+      📨 Message ID: 1476172139156476079  —  2026-02-25 11:01
+         Embed #1 : titre='Thanks for installing RaidProtect <:iconHeart:1349478794674704446>'  couleur=#d35f5f
+                   desc : **To get started, we recommend that you [consult our documentation](https://docs.raidprotect.bot/en/…
+         [BUTTON] label='Setup' | custom_id='setup' | style=primary
+         [BUTTON] label='View documentation' | style=link
+         [BUTTON] label='Join our Discord server' | style=link
+      📨 Message ID: 1476172218320031847  —  2026-02-25 11:01
+         Contenu : RaidProtect #updates
+      📨 Message ID: 1476173882422722601  —  2026-02-25 11:07
+         Contenu : [<t:1772017678:T>] :arrows_counterclockwise: The **Minimum Age** has been changed from `Disabled` to `2d` by <@461601543
+      📨 Message ID: 1476174025737768971  —  2026-02-25 11:08
+         Contenu : [<t:1772017713:T>] :white_check_mark: **Captcha** has been initialized and enabled by <@461601543121010691> (`@azernate`
+      📨 Message ID: 1476339644927840329  —  2026-02-25 22:06
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@1003665406667522098> vient de rejoindre le serveur.** Son compte a été créé le <t:1659362880:d>,…
+      📨 Message ID: 1476339677035237397  —  2026-02-25 22:06
+         Contenu : :white_check_mark: **<@1003665406667522098> a passé la vérification !**
+      📨 Message ID: 1478164722732896419  —  2026-03-02 22:58
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@407917771591254049> vient de rejoindre le serveur.** Son compte a été créé le <t:1517325575:d>, …
+      📨 Message ID: 1478164773806936208  —  2026-03-02 22:59
+         Contenu : :white_check_mark: **<@407917771591254049> a passé la vérification !**
+      📨 Message ID: 1478481954465779755  —  2026-03-03 19:59
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@526491562897702923> vient de rejoindre le serveur.** Son compte a été créé le <t:1545595770:d>, …
+      📨 Message ID: 1478481991899811973  —  2026-03-03 19:59
+         Contenu : :white_check_mark: **<@526491562897702923> a passé la vérification !**
+      📨 Message ID: 1478658919533379655  —  2026-03-04 07:42
+         Contenu : [<t:1772610158:T>] :no_entry_sign: **<@1459921732533092509> (`lixxpktesban`) est en dessous de l'âge de compte requis po
+      📨 Message ID: 1478748874628661335  —  2026-03-04 13:40
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@1459921732533092509> vient de rejoindre le serveur.** Son compte a été créé le <t:1768142865:d>,…
+      📨 Message ID: 1478748949778141317  —  2026-03-04 13:40
+         Contenu : :white_check_mark: **<@1459921732533092509> a passé la vérification !**
+      📨 Message ID: 1480248043684102246  —  2026-03-08 16:57
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@233626517471494144> vient de rejoindre le serveur.** Son compte a été créé le <t:1475771302:d>, …
+      📨 Message ID: 1480248132951605519  —  2026-03-08 16:57
+         Contenu : :white_check_mark: **<@233626517471494144> a passé la vérification !**
+      📨 Message ID: 1480696409731895296  —  2026-03-09 22:38
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@213777396984315904> vient de rejoindre le serveur.** Son compte a été créé le <t:1471038903:d>, …
+      📨 Message ID: 1480696480472760361  —  2026-03-09 22:39
+         Contenu : :white_check_mark: **<@213777396984315904> a passé la vérification !**
+      📨 Message ID: 1480995686278500353  —  2026-03-10 18:28
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@1277610571545575438> vient de rejoindre le serveur.** Son compte a été créé le <t:1724676497:d>,…
+      📨 Message ID: 1480995821905379522  —  2026-03-10 18:28
+         Contenu : :white_check_mark: **<@1277610571545575438> a passé la vérification !**
+      📨 Message ID: 1481018766942015703  —  2026-03-10 19:59
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@369044575513477128> vient de rejoindre le serveur.** Son compte a été créé le <t:1508057483:d>, …
+      📨 Message ID: 1481018898336976999  —  2026-03-10 20:00
+         Contenu : :no_entry_sign: **undefined a échoué à compléter le captcha `2` fois et a été expulsé !**
+      📨 Message ID: 1481018931610386452  —  2026-03-10 20:00
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@369044575513477128> vient de rejoindre le serveur.** Son compte a été créé le <t:1508057483:d>, …
+      📨 Message ID: 1481018990536163469  —  2026-03-10 20:00
+         Contenu : :white_check_mark: **<@369044575513477128> a passé la vérification !**
+      📨 Message ID: 1481219017908817953  —  2026-03-11 09:15
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@653293437612851210> vient de rejoindre le serveur.** Son compte a été créé le <t:1575827693:d>, …
+      📨 Message ID: 1481219121554391142  —  2026-03-11 09:15
+         Contenu : :white_check_mark: **<@653293437612851210> a passé la vérification !**
+      📨 Message ID: 1481229549642711133  —  2026-03-11 09:57
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@396711816807317504> vient de rejoindre le serveur.** Son compte a été créé le <t:1514653867:d>, …
+      📨 Message ID: 1481229658136772759  —  2026-03-11 09:57
+         Contenu : :white_check_mark: **<@396711816807317504> a passé la vérification !**
+      📨 Message ID: 1481273355264065658  —  2026-03-11 12:51
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@557908105565044736> vient de rejoindre le serveur.** Son compte a été créé le <t:1553086057:d>, …
+      📨 Message ID: 1481273415821295691  —  2026-03-11 12:51
+         Contenu : :white_check_mark: **<@557908105565044736> a passé la vérification !**
+      📨 Message ID: 1481277146344198194  —  2026-03-11 13:06
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@1385947659642081310> vient de rejoindre le serveur.** Son compte a été créé le <t:1750506071:d>,…
+      📨 Message ID: 1481277183745069212  —  2026-03-11 13:06
+         Contenu : :white_check_mark: **<@1385947659642081310> a passé la vérification !**
+      📨 Message ID: 1482103662439305308  —  2026-03-13 19:50
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@310478915162341376> vient de rejoindre le serveur.** Son compte a été créé le <t:1494094341:d>, …
+      📨 Message ID: 1482103735353348096  —  2026-03-13 19:51
+         Contenu : :white_check_mark: **<@310478915162341376> a passé la vérification !**
+      📨 Message ID: 1482431458097238210  —  2026-03-14 17:33
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@1312470981574393958> vient de rejoindre le serveur.** Son compte a été créé le <t:1732987866:d>,…
+      📨 Message ID: 1482431527139676412  —  2026-03-14 17:33
+         Contenu : :white_check_mark: **<@1312470981574393958> a passé la vérification !**
+      📨 Message ID: 1482706757582065768  —  2026-03-15 11:47
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@877506317076541440> vient de rejoindre le serveur.** Son compte a été créé le <t:1629284209:d>, …
+      📨 Message ID: 1482706811588186266  —  2026-03-15 11:47
+         Contenu : :white_check_mark: **<@877506317076541440> a passé la vérification !**
+      📨 Message ID: 1482892187405652199  —  2026-03-16 00:04
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@1248421759506448537> vient de rejoindre le serveur.** Son compte a été créé le <t:1717717342:d>,…
+      📨 Message ID: 1482892222960767158  —  2026-03-16 00:04
+         Contenu : :white_check_mark: **<@1248421759506448537> a passé la vérification !**
+      📨 Message ID: 1483530769149333514  —  2026-03-17 18:21
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@1317616006520115210> vient de rejoindre le serveur.** Son compte a été créé le <t:1734214536:d>,…
+      📨 Message ID: 1483530804901712024  —  2026-03-17 18:21
+         Contenu : :white_check_mark: **<@1317616006520115210> a passé la vérification !**
+      📨 Message ID: 1485601237691924560  —  2026-03-23 11:28
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@308577320845836298> vient de rejoindre le serveur.** Son compte a été créé le <t:1493640966:d>, …
+      📨 Message ID: 1485601289478996078  —  2026-03-23 11:29
+         Contenu : :white_check_mark: **<@308577320845836298> a passé la vérification !**
+      📨 Message ID: 1485785073776201790  —  2026-03-23 23:39
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@884495451317993492> vient de rejoindre le serveur.** Son compte a été créé le <t:1630950548:d>, …
+      📨 Message ID: 1485785102809305304  —  2026-03-23 23:39
+         Contenu : :white_check_mark: **<@884495451317993492> a passé la vérification !**
+      📨 Message ID: 1485792911089205332  —  2026-03-24 00:10
+         [SectionComponent]
+         [SeparatorComponent]
+         [TextDisplay]
+         [TextDisplay]
+         [TextDisplay]
+         [TextDisplay]
+         [MediaGalleryComponent]
+         [SectionComponent]
+      📨 Message ID: 1485913554426265631  —  2026-03-24 08:09
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@501483755949785090> vient de rejoindre le serveur.** Son compte a été créé le <t:1539633444:d>, …
+      📨 Message ID: 1485913580300664893  —  2026-03-24 08:10
+         Embed #1 : titre=None  couleur=None
+                   desc : **<@1006112733923639296> vient de rejoindre le serveur.** Son compte a été créé le <t:1659946368:d>,…
+      📨 Message ID: 1485913609929494539  —  2026-03-24 08:10
+         Contenu : :white_check_mark: **<@501483755949785090> a passé la vérification !**
+      📨 Message ID: 1485913649297096784  —  2026-03-24 08:10
+         Contenu : :white_check_mark: **<@1006112733923639296> a passé la vérification !**
+
+📁 Admins  (ID 1475939217879335217)
+  └─ #〔🫧〕moderator-only  (ID 1476187268539613276)
+      📨 Message ID: 1476187269139529868  —  2026-02-25 12:01
+         Embed #1 : titre=None  couleur=None
+                   champ [notification_type] : activity_alerts_enabled
+                   champ [action_by_user_id] : 461601543121010691
+      📨 Message ID: 1476187269814550630  —  2026-02-25 12:01
+         Contenu : This channel has been set up to receive official Discord announcements for admins and moderators of Community servers. W
+      📨 Message ID: 1485954940986720310  —  2026-03-24 10:54
+         Embed #1 : titre=None  couleur=None
+                   champ [raid_datetime] : 2026-03-24 10:54:25.682780+00:00
+                   champ [raid_type] : JOIN_RAID
+                   champ [join_attempts] : 25
+                   champ [resolved_reason] : LEGITIMATE_ACTIVITY
+      📨 Message ID: 1486371321914064966  —  2026-03-25 14:28
+         Embed #1 : titre=None  couleur=None
+                   champ [raid_datetime] : 2026-03-25 14:28:58.577912+00:00
+                   champ [raid_type] : JOIN_RAID
+                   champ [join_attempts] : 25
+                   champ [resolved_reason] : LEGITIMATE_ACTIVITY
+      📨 Message ID: 1487071214047334564  —  2026-03-27 12:50
+         Embed #1 : titre=None  couleur=None
+                   champ [raid_datetime] : 2026-03-27 12:50:05.927366+00:00
+                   champ [raid_type] : JOIN_RAID
+                   champ [join_attempts] : 25
+                   champ [resolved_reason] : LEGITIMATE_ACTIVITY
+  └─ #〔🔔〕adm-annonces  (ID 1487148485915574464)
+      📨 Message ID: 1490673470307303484  —  2026-04-06 11:24
+         Contenu : <@&1475928958070685696>  Aujourd'hui commence la 2e semaine du 1er tour de la CBL !  Le temps passe vite, alors pensez à
+         Embed #1 : titre='Soumettre votre LineUp'  couleur=None
+                   desc : Les Choses se concrétisent !  Vous êtes Maintenant amené à faire vos CrewBattle ! Pour cela, vous de…
+      📨 Message ID: 1503485807229665391  —  2026-05-11 19:55
+         Contenu : # <@&1475928958070685696>  # Voici le formulaire pour ajouter des Joueurs à votre liste ! Mais attention vous n'avez qu'
+         Embed #1 : titre="Formulaire d'ajout de joueur dans la LineUp"  couleur=None
+                   desc : Vous êtes maintenant à la moitié de la première saison de la CrewBattle League !  Il vous est possib…
+  └─ #graphiste  (ID 1499160891663450112)
+      📨 Message ID: 1499161141086261328  —  2026-04-29 21:31
+         Contenu : https://tenor.com/view/cat-tongue-out-flight-flight-reacts-cat-tongue-gif-5336416477717479720
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1499395207379030067  —  2026-04-30 13:01
+         Contenu : https://tenor.com/view/lock-in-satono-diamond-diamond-dia-satono-gif-12451338661730344631
+         Embed #1 : titre=None  couleur=None
+  └─ #〔⚙️〕test-bot  (ID 1520071761314582718)
+      📨 Message ID: 1520072286973988925  —  2026-06-26 14:24
+         Embed #1 : titre='⚔️ CrewBattle lancée !'  couleur=#3498db
+                   champ [Team A] : • A1
+• A2
+• A3
+• A4
+• A5
+                   champ [Team B] : • B1
+• B2
+• B3
+• B4
+• B5
+                   champ [Vies de départ] : `15` — `15`
+      📨 Message ID: 1520072289042038845  —  2026-06-26 14:24
+         Contenu : 📢 <@461601543121010691> (Team A) et <@461601543121010691> (Team B), choisissez votre premier joueur !
+         [BUTTON] label='✅ Team A — A2 prêt' | custom_id='313141d77ae29d162a0a2852c21f56fd' | style=success | DISABLED
+         [BUTTON] label='✅ Team B — B5 prêt' | custom_id='8f606fc7f1d4062647d3622b5ae54301' | style=success | DISABLED
+      📨 Message ID: 1520072449075445954  —  2026-06-26 14:25
+         Embed #1 : titre='⚔️ Set 1 — Matchup'  couleur=#3498db
+                   desc : **A2** (Roy) — (Marth) **B5**…
+      📨 Message ID: 1520072450795241535  —  2026-06-26 14:25
+         Embed #1 : titre='🗺️ Sélection du stage'  couleur=#f1c40f
+                   desc : Stage sélectionné : **Pokémon Stadium 2**…
+                   champ [Bannis (7)] : ❌ Kalos Pokémon League
+❌ Yoshi's Story
+❌ Northern Cave
+❌ Battlefield
+❌ Hollow Ba
+                   champ [Disponibles (2)] : • Final Destination
+• Pokémon Stadium 2
+                   champ [Stage choisi] : 🎮 **Pokémon Stadium 2**
+         [BUTTON] label='❌ Battlefield' | custom_id='0e2b7411176eb869e5b4f8865eec4565' | style=danger | DISABLED
+         [BUTTON] label='Final Destination' | custom_id='9a1357e1b2dc0e48f6d2ab6c54e28b11' | style=secondary | DISABLED
+         [BUTTON] label='✅ Pokémon Stadium 2' | custom_id='400b98a0923813e6c1fe32b19b6fb6c2' | style=success | DISABLED
+         [BUTTON] label='❌ Smashville' | custom_id='397adce1556167fd966a7fd24d4f9657' | style=danger | DISABLED
+         [BUTTON] label='❌ Town and City' | custom_id='e03ecbcc72e029558bbfc56d836de205' | style=danger | DISABLED
+         [BUTTON] label='❌ Kalos Pokémon League' | custom_id='d4eb830c00d7485da758f135c0acba7d' | style=danger | DISABLED
+         [BUTTON] label='❌ Hollow Bastion' | custom_id='e3a0288644f5a1518bc4d3124c1b9005' | style=danger | DISABLED
+         [BUTTON] label='❌ Northern Cave' | custom_id='5c03beacaf68ce2667debf4101cb75d2' | style=danger | DISABLED
+         [BUTTON] label="❌ Yoshi's Story" | custom_id='6e61a82345cd831b30115d7374afcef2' | style=danger | DISABLED
+         [BUTTON] label='Valider (1/1)' | custom_id='4b02de14e25f309faec3450e8316435e' | style=success | DISABLED
+      📨 Message ID: 1520074593853771998  —  2026-06-26 14:33
+         Embed #1 : titre='🎮 Set 1 — Pokémon Stadium 2'  couleur=#2ecc71
+                   desc : **A2** (Roy) — (Marth) **B5**…
+      📨 Message ID: 1520074595107864807  —  2026-06-26 14:33
+         Contenu : Quel est le résultat du match ? **A2** `[score]` — `[score]` **B5** *(vies perdues par chaque joueur, entre 0 et 3)*
+         [BUTTON] label='📝 Entrer les scores' | custom_id='cdfff76055449d539ddb6443cc34cff3' | style=primary | DISABLED
+      📨 Message ID: 1520074649625563288  —  2026-06-26 14:33
+         Contenu : ⚔️ **Team A** — choisissez votre prochain joueur !
+         [BUTTON] label='⚔️ Team A — Envoyer votre joueur' | custom_id='8e1ee919e516fd4acdb4f3a67d7f1321' | style=primary | DISABLED
+      📨 Message ID: 1520075766824439879  —  2026-06-26 14:38
+         Embed #1 : titre='⚔️ Set 2 — Matchup'  couleur=#3498db
+                   desc : **A4** ??? — (Marth) **B5**…
+      📨 Message ID: 1520075768288378901  —  2026-06-26 14:38
+         Embed #1 : titre='🗺️ Sélection du stage'  couleur=#f1c40f
+                   desc : Stage sélectionné : **Kalos Pokémon League**…
+                   champ [Bannis (3)] : ❌ Battlefield
+❌ Yoshi's Story
+❌ Northern Cave
+                   champ [Disponibles (6)] : • Final Destination
+• Pokémon Stadium 2
+• Smashville
+• Town and City
+• Kalos Pok
+                   champ [Stage choisi] : 🎮 **Kalos Pokémon League**
+         [BUTTON] label='❌ Battlefield' | custom_id='aa7b5463d4888397671e5fe78ea44d07' | style=danger | DISABLED
+         [BUTTON] label='Final Destination' | custom_id='fb7d96e50f7ebbcfd033e243f0f94045' | style=secondary | DISABLED
+         [BUTTON] label='Pokémon Stadium 2' | custom_id='eb7ecc2f4360e52c02d3c5e45ba02cef' | style=secondary | DISABLED
+         [BUTTON] label='Smashville' | custom_id='1ecb24d8c15ccfcfd92aa2e5e0807fff' | style=secondary | DISABLED
+         [BUTTON] label='Town and City' | custom_id='5903abe566ba4cacec5a4ab6d23f4045' | style=secondary | DISABLED
+         [BUTTON] label='✅ Kalos Pokémon League' | custom_id='12411abcf0e23107ad40473a5ec1deb5' | style=success | DISABLED
+         [BUTTON] label='Hollow Bastion' | custom_id='531338c11395a1ad6cd3e877fe1293a3' | style=secondary | DISABLED
+         [BUTTON] label='❌ Northern Cave' | custom_id='ac69cc03c5dc57f0397d45be75beb16a' | style=danger | DISABLED
+         [BUTTON] label="❌ Yoshi's Story" | custom_id='cb14c0820cb3f03ca9dbdbecf7ca4d2d' | style=danger | DISABLED
+         [BUTTON] label='Valider (1/1)' | custom_id='c0bf8126574a516dcf6ba8bb8c80c1b9' | style=success | DISABLED
+      📨 Message ID: 1520076383563284491  —  2026-06-26 14:40
+         Embed #1 : titre='🎮 Set 2 — Kalos Pokémon League'  couleur=#2ecc71
+                   desc : (3♥) **A4** (Lucas) — (Marth) **B5** (1♥)…
+      📨 Message ID: 1520076384985284708  —  2026-06-26 14:40
+         Contenu : Quel est le résultat du match ? **A4** `[score]` — `[score]` **B5** *(vies perdues par chaque joueur, entre 0 et 3)*
+         [BUTTON] label='📝 Entrer les scores' | custom_id='63936d8ab76c27274cfdb6b30f821a77' | style=primary | DISABLED
+      📨 Message ID: 1520077338614829098  —  2026-06-26 14:44
+         Contenu : ⚔️ **Team B** — choisissez votre prochain joueur !
+         [BUTTON] label='⚔️ Team B — Envoyer votre joueur' | custom_id='26bc9901ff2e8bdbb485c30a1fc8533b' | style=primary | DISABLED
+      📨 Message ID: 1520077428448432189  —  2026-06-26 14:45
+         Embed #1 : titre='⚔️ Set 3 — Matchup'  couleur=#3498db
+                   desc : **A4** (Lucas) — ??? **B1**…
+      📨 Message ID: 1520077429652062362  —  2026-06-26 14:45
+         Embed #1 : titre='🗺️ Sélection du stage'  couleur=#f1c40f
+                   desc : Stage sélectionné : **Pokémon Stadium 2**…
+                   champ [Bannis (3)] : ❌ Kalos Pokémon League
+❌ Yoshi's Story
+❌ Northern Cave
+                   champ [Disponibles (6)] : • Battlefield
+• Final Destination
+• Pokémon Stadium 2
+• Smashville
+• Town and Ci
+                   champ [Stage choisi] : 🎮 **Pokémon Stadium 2**
+         [BUTTON] label='Battlefield' | custom_id='e49fa63dc50b70ef25939d794f2b2158' | style=secondary | DISABLED
+         [BUTTON] label='Final Destination' | custom_id='268669ef74d21bfb9e4d6f95d660f416' | style=secondary | DISABLED
+         [BUTTON] label='✅ Pokémon Stadium 2' | custom_id='66edca931b5e709e8fccf30ed6ec580c' | style=success | DISABLED
+         [BUTTON] label='Smashville' | custom_id='1dce5dd907355c64989e98036afad5b4' | style=secondary | DISABLED
+         [BUTTON] label='Town and City' | custom_id='e67db18020ec210da678514b575d9d7a' | style=secondary | DISABLED
+         [BUTTON] label='❌ Kalos Pokémon League' | custom_id='b7bb7af71b1160be71314e762582f3e5' | style=danger | DISABLED
+         [BUTTON] label='Hollow Bastion' | custom_id='2b9377a888ea68f6e02e357eee1ffd30' | style=secondary | DISABLED
+         [BUTTON] label='❌ Northern Cave' | custom_id='c448b04995e06f08bc72a40b167887a6' | style=danger | DISABLED
+         [BUTTON] label="❌ Yoshi's Story" | custom_id='87052adfc24ab3a1a69629cc910225ec' | style=danger | DISABLED
+         [BUTTON] label='Valider (1/1)' | custom_id='1a8ff23a4ab73f886cdcf98a4f119b58' | style=success | DISABLED
+      📨 Message ID: 1520077499160068262  —  2026-06-26 14:45
+         Embed #1 : titre='🎮 Set 3 — Pokémon Stadium 2'  couleur=#2ecc71
+                   desc : (2♥) **A4** (Lucas) — (Ness) **B1** (3♥)…
+      📨 Message ID: 1520077500481405039  —  2026-06-26 14:45
+         Contenu : Quel est le résultat du match ? **A4** `[score]` — `[score]` **B1** *(vies perdues par chaque joueur, entre 0 et 3)*
+         [BUTTON] label='📝 Entrer les scores' | custom_id='0d3b96224419fa1f69f72d828d118235' | style=primary | DISABLED
+      📨 Message ID: 1520077541346509141  —  2026-06-26 14:45
+         Contenu : ⚔️ **Team A** — choisissez votre prochain joueur !
+         [BUTTON] label='⚔️ Team A — Envoyer votre joueur' | custom_id='c31143e47a6530408c5e5486bc92b800' | style=primary | DISABLED
+      📨 Message ID: 1520077611391389778  —  2026-06-26 14:45
+         Embed #1 : titre='⚔️ Set 4 — Matchup'  couleur=#3498db
+                   desc : **A5** ??? — (Ness) **B1**…
+      📨 Message ID: 1520077611840049325  —  2026-06-26 14:45
+         Embed #1 : titre='🗺️ Sélection du stage'  couleur=#f1c40f
+                   desc : Stage sélectionné : **Battlefield**…
+                   champ [Bannis (3)] : ❌ Kalos Pokémon League
+❌ Hollow Bastion
+❌ Northern Cave
+                   champ [Disponibles (6)] : • Battlefield
+• Final Destination
+• Pokémon Stadium 2
+• Smashville
+• Town and Ci
+                   champ [Stage choisi] : 🎮 **Battlefield**
+         [BUTTON] label='✅ Battlefield' | custom_id='4083105830efd91c998f82feb9f5522b' | style=success | DISABLED
+         [BUTTON] label='Final Destination' | custom_id='2aa3cedaaa6f98675b6c62a788f1f958' | style=secondary | DISABLED
+         [BUTTON] label='Pokémon Stadium 2' | custom_id='a8a481e3bbb29849ad952362ebae558e' | style=secondary | DISABLED
+         [BUTTON] label='Smashville' | custom_id='1054beaac6637d369a64f5ebd608931f' | style=secondary | DISABLED
+         [BUTTON] label='Town and City' | custom_id='d63cc5f03d258e0e615dfa36aa53b7f1' | style=secondary | DISABLED
+         [BUTTON] label='❌ Kalos Pokémon League' | custom_id='de249f432c4a710fa5ca30c6dd34f358' | style=danger | DISABLED
+         [BUTTON] label='❌ Hollow Bastion' | custom_id='5dd141d635b6b08546134b2f2004d59e' | style=danger | DISABLED
+         [BUTTON] label='❌ Northern Cave' | custom_id='8ec4051ca90be5a7cf62e59baff7631c' | style=danger | DISABLED
+         [BUTTON] label="Yoshi's Story" | custom_id='c61fed021eca0470a854441394283f99' | style=secondary | DISABLED
+         [BUTTON] label='Valider (1/1)' | custom_id='0325131164363a6042f98527f847e0f0' | style=success | DISABLED
+      📨 Message ID: 1520077654051655741  —  2026-06-26 14:45
+         Embed #1 : titre='🎮 Set 4 — Battlefield'  couleur=#2ecc71
+                   desc : (3♥) **A5** (Mario) — (Ness) **B1** (1♥)…
+      📨 Message ID: 1520077655221731358  —  2026-06-26 14:45
+         Contenu : Quel est le résultat du match ? **A5** `[score]` — `[score]` **B1** *(vies perdues par chaque joueur, entre 0 et 3)*
+         [BUTTON] label='📝 Entrer les scores' | custom_id='5ef05439aebe71cfc76350ba8a4afcc5' | style=primary | DISABLED
+      📨 Message ID: 1520077694316839133  —  2026-06-26 14:46
+         Contenu : ⚔️ **Team B** — choisissez votre prochain joueur !
+         [BUTTON] label='⚔️ Team B — Envoyer votre joueur' | custom_id='865eb79e80ff12c087545032a10235fc' | style=primary | DISABLED
+      📨 Message ID: 1520077749723861018  —  2026-06-26 14:46
+         Embed #1 : titre='⚔️ Set 5 — Matchup'  couleur=#3498db
+                   desc : **A5** (Mario) — ??? **B2**…
+      📨 Message ID: 1520077750852124973  —  2026-06-26 14:46
+         Embed #1 : titre='🗺️ Sélection du stage'  couleur=#f1c40f
+                   desc : Stage sélectionné : **Pokémon Stadium 2**…
+                   champ [Bannis (3)] : ❌ Kalos Pokémon League
+❌ Battlefield
+❌ Yoshi's Story
+                   champ [Disponibles (6)] : • Final Destination
+• Pokémon Stadium 2
+• Smashville
+• Town and City
+• Hollow Ba
+                   champ [Stage choisi] : 🎮 **Pokémon Stadium 2**
+         [BUTTON] label='❌ Battlefield' | custom_id='af0df2b1f78c3b67283f5cfada2bff94' | style=danger | DISABLED
+         [BUTTON] label='Final Destination' | custom_id='45b5c3a85be5c95a8c801ef9aeb1304a' | style=secondary | DISABLED
+         [BUTTON] label='✅ Pokémon Stadium 2' | custom_id='17e40d8481ddf00630e74ae2568ef251' | style=success | DISABLED
+         [BUTTON] label='Smashville' | custom_id='57c4bc64e06656103246230c7367efd3' | style=secondary | DISABLED
+         [BUTTON] label='Town and City' | custom_id='880e6d98a1eb7739802258ca12e6f38f' | style=secondary | DISABLED
+         [BUTTON] label='❌ Kalos Pokémon League' | custom_id='708400a9c98478ae5811332fb1d5a698' | style=danger | DISABLED
+         [BUTTON] label='Hollow Bastion' | custom_id='f5a79a62ecc2ede10c2fec2cf43950ed' | style=secondary | DISABLED
+         [BUTTON] label='Northern Cave' | custom_id='71bde0ba9254ff903e3775bfb97e7a92' | style=secondary | DISABLED
+         [BUTTON] label="❌ Yoshi's Story" | custom_id='55a8d26f21c07a1e8f062caeb6eb1c0e' | style=danger | DISABLED
+         [BUTTON] label='Valider (1/1)' | custom_id='e57a0785073c245de0c0188965254f9f' | style=success | DISABLED
+      📨 Message ID: 1520077812806193316  —  2026-06-26 14:46
+         Embed #1 : titre='🎮 Set 5 — Pokémon Stadium 2'  couleur=#2ecc71
+                   desc : (2♥) **A5** (Mario) — (Luigi) **B2** (3♥)…
+      📨 Message ID: 1520077816773742733  —  2026-06-26 14:46
+         Contenu : Quel est le résultat du match ? **A5** `[score]` — `[score]` **B2** *(vies perdues par chaque joueur, entre 0 et 3)*
+         [BUTTON] label='📝 Entrer les scores' | custom_id='0080ba5a00baaeff088b7cbfeccec1ea' | style=primary | DISABLED
+      📨 Message ID: 1520077852656144516  —  2026-06-26 14:46
+         Contenu : ⚔️ **Team A** — choisissez votre prochain joueur !
+         [BUTTON] label='⚔️ Team A — Envoyer votre joueur' | custom_id='015874ed741e26b1ec68f228b015f3e9' | style=primary | DISABLED
+      📨 Message ID: 1520077900571742429  —  2026-06-26 14:46
+         Embed #1 : titre='⚔️ Set 6 — Matchup'  couleur=#3498db
+                   desc : **A3** ??? — (Luigi) **B2**…
+      📨 Message ID: 1520077902085886064  —  2026-06-26 14:46
+         Embed #1 : titre='🗺️ Sélection du stage'  couleur=#f1c40f
+                   desc : Stage sélectionné : **Pokémon Stadium 2**…
+                   champ [Bannis (3)] : ❌ Kalos Pokémon League
+❌ Battlefield
+❌ Smashville
+                   champ [Disponibles (6)] : • Final Destination
+• Pokémon Stadium 2
+• Town and City
+• Hollow Bastion
+• North
+                   champ [Stage choisi] : 🎮 **Pokémon Stadium 2**
+         [BUTTON] label='❌ Battlefield' | custom_id='d64051cece5e71d986cd6cd564492c55' | style=danger | DISABLED
+         [BUTTON] label='Final Destination' | custom_id='fa490908293bb42449e358933f6bbb72' | style=secondary | DISABLED
+         [BUTTON] label='✅ Pokémon Stadium 2' | custom_id='1f3dff6924c68d55fccb8357fdfa904b' | style=success | DISABLED
+         [BUTTON] label='❌ Smashville' | custom_id='8c1e73351ebe55a51af694914fa37db5' | style=danger | DISABLED
+         [BUTTON] label='Town and City' | custom_id='157d2b898c0bcc116cf3e461a61aa0b8' | style=secondary | DISABLED
+         [BUTTON] label='❌ Kalos Pokémon League' | custom_id='676d678197989ea4d39d09a8b5d3948c' | style=danger | DISABLED
+         [BUTTON] label='Hollow Bastion' | custom_id='6edd8b69b8bec08dd26cfee061c56c4d' | style=secondary | DISABLED
+         [BUTTON] label='Northern Cave' | custom_id='61947cdb3cde37905176be60abfced0d' | style=secondary | DISABLED
+         [BUTTON] label="Yoshi's Story" | custom_id='886436b8420fe24979896a1881f947ee' | style=secondary | DISABLED
+         [BUTTON] label='Valider (1/1)' | custom_id='4834d84225132d3d381750392aed361a' | style=success | DISABLED
+      📨 Message ID: 1520077955844280412  —  2026-06-26 14:47
+         Embed #1 : titre='🎮 Set 6 — Pokémon Stadium 2'  couleur=#2ecc71
+                   desc : (3♥) **A3** (Wario) — (Luigi) **B2** (1♥)…
+      📨 Message ID: 1520077957484253225  —  2026-06-26 14:47
+         Contenu : Quel est le résultat du match ? **A3** `[score]` — `[score]` **B2** *(vies perdues par chaque joueur, entre 0 et 3)*
+         [BUTTON] label='📝 Entrer les scores' | custom_id='519a18b79a9bf4c17776861682125262' | style=primary | DISABLED
+      📨 Message ID: 1520077987209285724  —  2026-06-26 14:47
+         Contenu : ⚔️ **Team B** — choisissez votre prochain joueur !
+         [BUTTON] label='⚔️ Team B — Envoyer votre joueur' | custom_id='8e47e7b9c82a4a40fa585a03ccac551f' | style=primary | DISABLED
+      📨 Message ID: 1520078028187631682  —  2026-06-26 14:47
+         Embed #1 : titre='⚔️ Set 7 — Matchup'  couleur=#3498db
+                   desc : **A3** (Wario) — ??? **B4**…
+      📨 Message ID: 1520078032012836937  —  2026-06-26 14:47
+         Embed #1 : titre='🗺️ Sélection du stage'  couleur=#f1c40f
+                   desc : Stage sélectionné : **Pokémon Stadium 2**…
+                   champ [Bannis (3)] : ❌ Kalos Pokémon League
+❌ Final Destination
+❌ Hollow Bastion
+                   champ [Disponibles (6)] : • Battlefield
+• Pokémon Stadium 2
+• Smashville
+• Town and City
+• Northern Cave
+•
+                   champ [Stage choisi] : 🎮 **Pokémon Stadium 2**
+         [BUTTON] label='Battlefield' | custom_id='ab35a1c506731ebb6f6ab539348d1f87' | style=secondary | DISABLED
+         [BUTTON] label='❌ Final Destination' | custom_id='9f092ce3187800f0140df8431db558a1' | style=danger | DISABLED
+         [BUTTON] label='✅ Pokémon Stadium 2' | custom_id='0dd338a3e3e77da2f8e3348bce7ccbdc' | style=success | DISABLED
+         [BUTTON] label='Smashville' | custom_id='535ec34c6ed698353b80b55fb151c8df' | style=secondary | DISABLED
+         [BUTTON] label='Town and City' | custom_id='239a37ffb5c3f2633854e5cacffbae9c' | style=secondary | DISABLED
+         [BUTTON] label='❌ Kalos Pokémon League' | custom_id='db40702c33bb991486ca6a6b9ea39b73' | style=danger | DISABLED
+         [BUTTON] label='❌ Hollow Bastion' | custom_id='dde45e1bb7ce7ddc2627da07fe29760e' | style=danger | DISABLED
+         [BUTTON] label='Northern Cave' | custom_id='7d7317796461024bcf10ae3c689d0e36' | style=secondary | DISABLED
+         [BUTTON] label="Yoshi's Story" | custom_id='3264ef3b1c69efe21c83238539c110ef' | style=secondary | DISABLED
+         [BUTTON] label='Valider (1/1)' | custom_id='3f7fd56e334e5d94e8e120f8160d024e' | style=success | DISABLED
+      📨 Message ID: 1520078084932636694  —  2026-06-26 14:47
+         Embed #1 : titre='🎮 Set 7 — Pokémon Stadium 2'  couleur=#2ecc71
+                   desc : (2♥) **A3** (Wario) — (Joker) **B4** (3♥)…
+      📨 Message ID: 1520078086182408223  —  2026-06-26 14:47
+         Contenu : Quel est le résultat du match ? **A3** `[score]` — `[score]` **B4** *(vies perdues par chaque joueur, entre 0 et 3)*
+         [BUTTON] label='📝 Entrer les scores' | custom_id='e27bba2621b7001051f2672b25e5d8fd' | style=primary | DISABLED
+      📨 Message ID: 1520078119967653949  —  2026-06-26 14:47
+         Contenu : ⚔️ **Team A** — choisissez votre prochain joueur !
+         [BUTTON] label='⚔️ Team A — Envoyer votre joueur' | custom_id='d0ad4d5ba48b96b706b60ead54875b05' | style=primary | DISABLED
+      📨 Message ID: 1520078180944187493  —  2026-06-26 14:48
+         Embed #1 : titre='⚔️ Set 8 — Matchup'  couleur=#3498db
+                   desc : **A1** ??? — (Joker) **B4**…
+      📨 Message ID: 1520078182764777574  —  2026-06-26 14:48
+         Embed #1 : titre='🗺️ Sélection du stage'  couleur=#f1c40f
+                   desc : Stage sélectionné : **Northern Cave**…
+                   champ [Bannis (3)] : ❌ Kalos Pokémon League
+❌ Final Destination
+❌ Smashville
+                   champ [Disponibles (6)] : • Battlefield
+• Pokémon Stadium 2
+• Town and City
+• Hollow Bastion
+• Northern Ca
+                   champ [Stage choisi] : 🎮 **Northern Cave**
+         [BUTTON] label='Battlefield' | custom_id='a2f87d246d316d7924e4ecc9255abcef' | style=secondary | DISABLED
+         [BUTTON] label='❌ Final Destination' | custom_id='11264236683706d14707c106206ae789' | style=danger | DISABLED
+         [BUTTON] label='Pokémon Stadium 2' | custom_id='33d34c02aad73930b6d096d5223002ff' | style=secondary | DISABLED
+         [BUTTON] label='❌ Smashville' | custom_id='837fa2c57859c75a75b921ead718368f' | style=danger | DISABLED
+         [BUTTON] label='Town and City' | custom_id='4e61cf551b6e213db99be218f77d7325' | style=secondary | DISABLED
+         [BUTTON] label='❌ Kalos Pokémon League' | custom_id='fe9a28ccc7f11e09032ca0b2f007c672' | style=danger | DISABLED
+         [BUTTON] label='Hollow Bastion' | custom_id='758ea6e23487e95e6835c0b4591db2c7' | style=secondary | DISABLED
+         [BUTTON] label='✅ Northern Cave' | custom_id='7788ed57ccfc46c9acb3198d0e3bfbb6' | style=success | DISABLED
+         [BUTTON] label="Yoshi's Story" | custom_id='0bc33c859f9b5a45d82aa9c2e972d48c' | style=secondary | DISABLED
+         [BUTTON] label='Valider (1/1)' | custom_id='3c0f220c67472c4d5597d9a21d5111a9' | style=success | DISABLED
+      📨 Message ID: 1520078252616712203  —  2026-06-26 14:48
+         Embed #1 : titre='🎮 Set 8 — Northern Cave'  couleur=#2ecc71
+                   desc : (3♥) **A1** (Sephiroth) — (Joker) **B4** (1♥)…
+      📨 Message ID: 1520078253216497856  —  2026-06-26 14:48
+         Contenu : Quel est le résultat du match ? **A1** `[score]` — `[score]` **B4** *(vies perdues par chaque joueur, entre 0 et 3)*
+         [BUTTON] label='📝 Entrer les scores' | custom_id='3065eac2b7ec6998524f4b2cb9200781' | style=primary | DISABLED
+      📨 Message ID: 1520078319750615150  —  2026-06-26 14:48
+         Contenu : ⚔️ **Team B** — choisissez votre prochain joueur !
+         [BUTTON] label='⚔️ Team B — Envoyer votre joueur' | custom_id='330e68058337684bf95119a4e1aae5b9' | style=primary | DISABLED
+      📨 Message ID: 1520078377636069489  —  2026-06-26 14:48
+         Embed #1 : titre='⚔️ Set 9 — Matchup'  couleur=#3498db
+                   desc : **A1** (Sephiroth) — ??? **B3**…
+      📨 Message ID: 1520078378810609736  —  2026-06-26 14:48
+         Embed #1 : titre='🗺️ Sélection du stage'  couleur=#f1c40f
+                   desc : Stage sélectionné : **Yoshi's Story**…
+                   champ [Bannis (3)] : ❌ Kalos Pokémon League
+❌ Hollow Bastion
+❌ Northern Cave
+                   champ [Disponibles (6)] : • Battlefield
+• Final Destination
+• Pokémon Stadium 2
+• Smashville
+• Town and Ci
+                   champ [Stage choisi] : 🎮 **Yoshi's Story**
+         [BUTTON] label='Battlefield' | custom_id='f2b4dd5d4cb55f8042ac1d4180832e53' | style=secondary | DISABLED
+         [BUTTON] label='Final Destination' | custom_id='978d3c70a4b5147d0200a36967c16086' | style=secondary | DISABLED
+         [BUTTON] label='Pokémon Stadium 2' | custom_id='726aab843c588e5ec2523cb287bac225' | style=secondary | DISABLED
+         [BUTTON] label='Smashville' | custom_id='40525158f0a6fdbe7ced01bb5b13b340' | style=secondary | DISABLED
+         [BUTTON] label='Town and City' | custom_id='d84f49cf01aaec8ae25c15c5b2a3b203' | style=secondary | DISABLED
+         [BUTTON] label='❌ Kalos Pokémon League' | custom_id='dd121d0ce26751fbbbf399373f8e070b' | style=danger | DISABLED
+         [BUTTON] label='❌ Hollow Bastion' | custom_id='edcbee6ea7c2c5cc81c1e3bb0ab45826' | style=danger | DISABLED
+         [BUTTON] label='❌ Northern Cave' | custom_id='8de801408c16b992e14f4f0ba9e7bfe0' | style=danger | DISABLED
+         [BUTTON] label="✅ Yoshi's Story" | custom_id='26144e3d1a0df6d7ac850e415b8a3c22' | style=success | DISABLED
+         [BUTTON] label='Valider (1/1)' | custom_id='db7f7929d023affd61ec2bcff1307cac' | style=success | DISABLED
+      📨 Message ID: 1520078423458844844  —  2026-06-26 14:48
+         Embed #1 : titre="🎮 Set 9 — Yoshi's Story"  couleur=#2ecc71
+                   desc : (2♥) **A1** (Sephiroth) — (Lucario) **B3** (3♥)…
+      📨 Message ID: 1520078424843092109  —  2026-06-26 14:48
+         Contenu : Quel est le résultat du match ? **A1** `[score]` — `[score]` **B3** *(vies perdues par chaque joueur, entre 0 et 3)*
+         [BUTTON] label='📝 Entrer les scores' | custom_id='bf35cb912c9cc4b372388f48ff79d545' | style=primary | DISABLED
+      📨 Message ID: 1520078455918563331  —  2026-06-26 14:49
+         Embed #1 : titre='🏆 Fin de la CrewBattle !'  couleur=#f1c40f
+                   desc : **Team A** [15-15] **Team B**  **A2** (Roy) 3-2 (Marth) **B5**  →  [12-13] **A4** (Lucas) 1-1 (Marth…
+      📨 Message ID: 1520097764925505687  —  2026-06-26 16:05
+         Embed #1 : titre='⚔️ CrewBattle lancée !'  couleur=#3498db
+                   champ [HoJ  (cap. RAD | AzErNate)] : • H1
+• H2
+• H3
+• H4
+• H5
+                   champ [OX  (cap. Hugrelin)] : • O1
+• O2
+• O3
+• O4
+• O5
+                   champ [Vies de départ] : `15` — `15`
+      📨 Message ID: 1520097769228861581  —  2026-06-26 16:05
+         Contenu : 📢 <@461601543121010691> (HoJ) et <@417458798349910018> (OX), choisissez votre premier joueur !
+         [BUTTON] label='✅ HoJ — H2 prêt' | custom_id='5cd93a833e7b5de1dad71fa053942ff8' | style=success | DISABLED
+         [BUTTON] label='✅ OX — O1 prêt' | custom_id='b5c4afc629126922e307944185cf2b51' | style=success | DISABLED
+
+📁 Général  (ID 1532063949909131374)
+  └─ #〔📣〕annonces  (ID 1476174562478657656)
+      📨 Message ID: 1486394942694621234  —  2026-03-25 16:02
+         Contenu : @everyone # Messieurs Dames je vous souhaite le bonjour ! <:Polnareff:913840142773547090> Le lancement de la **CrewBattl
+         Embed #1 : titre='CrewBattle Ligue FR'  couleur=None
+      📨 Message ID: 1493542613003931781  —  2026-04-14 09:25
+         Contenu : <@&1485615778702164138>  Pour ceux qui streament les CrewBattle, je vous conseil vivement d'utiliser TSH *(TournamentStr
+         Embed #1 : titre='GitHub - joaorb64/TournamentStreamHelper'  couleur=#1e2327
+                   desc : Contribute to joaorb64/TournamentStreamHelper development by creating an account on GitHub.…
+      📨 Message ID: 1529525971370119362  —  2026-07-22 16:30
+         Contenu : https://x.com/CEW_Otakuni/status/2079855239692243162?s=20 je partage le twt d'Otakuni
+         Embed #1 : titre=None  couleur=#1da1f2
+                   desc : Bon\.\.\. Une jeune Smasheuse française qui n'a rien demandé se fait harceler/afficher par un batard…
+  └─ #〔💬〕général  (ID 1472927998863741068)
+      📨 Message ID: 1472931841022361683  —  2026-02-16 12:25
+         Contenu : https://tenor.com/view/skeleton-shield-gif-4723149553822545077
+         Embed #1 : titre=None  couleur=None
+  └─ #〔🥊〕batévou  (ID 1487133997623677070)
+      📨 Message ID: 1487144114712744067  —  2026-03-27 17:39
+         Contenu : https://tenor.com/view/kyoko-kirigiri-pointing-objection-gif-15390160962445529732
+         Embed #1 : titre=None  couleur=None
+
+📁 La Grande Télé  (ID 1485621013294354472)
+  └─ #〔🎥〕stream-cb  (ID 1485616016200568912)
+      📨 Message ID: 1489701900923437216  —  2026-04-03 19:03
+         Contenu : Regardez bravir_ avec moi sur Twitch ! https://www.twitch.tv/bravir_?sr=a
+         Embed #1 : titre='Bravir_ - Twitch'  couleur=None
+                   desc : 1er match de la CBL ! Zzz Vs. LT…
+      📨 Message ID: 1489702832541008086  —  2026-04-03 19:07
+         Contenu : https://twitch.tv/bravir_
+         Embed #1 : titre='Bravir_ - Twitch'  couleur=None
+                   desc : 1er match de la CBL ! Zzz Vs. LT…
+      📨 Message ID: 1490786069178749068  —  2026-04-06 18:51
+         Contenu : <@&1487141760630259904>  # RAD vs 3QI ! https://twitch.tv/azernate
+         Embed #1 : titre='AzErNate - Twitch'  couleur=None
+                   desc : CrewBattle League · Tour 1 : RAD vs 3QI…
+      📨 Message ID: 1490789965867782424  —  2026-04-06 19:07
+         Contenu : <@&1487141760630259904>  4B vs 2d https://www.twitch.tv/pza_scazer
+         Embed #1 : titre='PZA_Scazer - Twitch'  couleur=None
+                   desc : Je joue à des jeux venez…
+      📨 Message ID: 1490791514442436782  —  2026-04-06 19:13
+         Contenu : <@&1487141760630259904>  <@&1475931303248396400> vs <@&1475931280645554300>  https://www.twitch.tv/besalty_
+         Embed #1 : titre='BeSalty_ - Twitch'  couleur=None
+                   desc : Crew Battle We Are Salty vs Hell's Rise | Ligue 4 Match 1…
+      📨 Message ID: 1492254232756355102  —  2026-04-10 20:05
+         Contenu : <@&1487141760630259904>  <@&1483186857419341907> vs <@&1475930940374257714>  https://www.twitch.tv/RyuJoTV
+         Embed #1 : titre='RyuJoTV - Twitch'  couleur=None
+                   desc : Crew Battle Ligue FR - Shine Unite VS POM…
+      📨 Message ID: 1492598102912270508  —  2026-04-11 18:51
+         Contenu : <@&1487141760630259904>  <@&1475931212609491036> vs <@&1483188360158642277>  https://www.twitch.tv/mat7725_yt?sr=a
+         Embed #1 : titre='Mat7725_yt - Twitch'  couleur=None
+                   desc : Crew Battle [RAD2 VS CA]…
+      📨 Message ID: 1492949583733719242  —  2026-04-12 18:08
+         Contenu : <@&1475931167470387413>  vs <@&1475931187074695188>   https://www.twitch.tv/retropenbar
+         Embed #1 : titre='RETROPENBAR - Twitch'  couleur=None
+                   desc : Spécialisé dans le retrogaming et la current-gen 🕹🎮 Entrez, nous sommes ouverts ! 😉 #RBTogether…
+      📨 Message ID: 1492965156827959378  —  2026-04-12 19:10
+         Contenu : <@&1483152802988691677> vs <@&1475930889010679981>   https://www.twitch.tv/jreej?sr=a  <@&1487141760630259904>
+         Embed #1 : titre='jreej - Twitch'  couleur=None
+                   desc : CB de la SO contre contre la JRJ2 pour la CBL…
+      📨 Message ID: 1492966746192347197  —  2026-04-12 19:16
+         Contenu : <@&1475930228894339286> vs <@&1483152629713469571>   https://www.twitch.tv/retropenbar
+         Embed #1 : titre='RETROPENBAR - Twitch'  couleur=None
+                   desc : [Evènement] Crew Battle en folie pour la Crew Battle ligue FR ! R-B2 vs OXVI PUIS R-B vs SR !…
+      📨 Message ID: 1493685899307913287  —  2026-04-14 18:54
+         Contenu : <@&1475931303248396400> vs <@&1483188360158642277>  <@&1487141760630259904>  https://www.twitch.tv/besalty_
+         Embed #1 : titre='BeSalty_ - Twitch'  couleur=None
+                   desc : Bienvenue sur Be Salty Live ! 🧂 On stream nos tournois, nos sessions de tryhard et des moments forts…
+      📨 Message ID: 1494051506830184632  —  2026-04-15 19:07
+         Contenu : <@&1487141760630259904>  # <@&1475930301325775020> vs <@&1483152526248509460>  en Live chez <@524742723828187151> ! http
+         Embed #1 : titre='jreej - Twitch'  couleur=None
+                   desc : CB de la BB contre la OX pour la CBL…
+      📨 Message ID: 1494707046023434330  —  2026-04-17 14:32
+         Contenu : <@&1487141760630259904>  # <@&1475931246478757919> vs <@&1475931280645554300>  https://www.twitch.tv/alfan2575
+         Embed #1 : titre='Alfan2575 - Twitch'  couleur=None
+                   desc : Alfan2575 streams live on Twitch! Check out their videos, sign up to chat, and join their community.…
+      📨 Message ID: 1495131154863493361  —  2026-04-18 18:37
+         Contenu : <@&1487141760630259904>  # <@&1475931090320494683><:RAD:1486344878479638588> vs <@&1475931167470387413><:OXVI:1486396489
+         Embed #1 : titre='AzErNate - Twitch'  couleur=None
+                   desc : CrewBattle Ligue · RAD vs OXVI…
+      📨 Message ID: 1496948520836665445  —  2026-04-23 18:58
+         Contenu : <@&1487141760630259904>  # <@&1475931146855514312> vs <@&1475931187074695188>  https://www.twitch.tv/bravir_
+         Embed #1 : titre='Bravir_ - Twitch'  couleur=None
+                   desc : 2ème match de la CBL ! Zzz Vs. R-B…
+      📨 Message ID: 1497322301220327657  —  2026-04-24 19:44
+         Contenu : <@&1487141760630259904>  <@&1475930889010679981> VS <@&1483186857419341907>   https://www.twitch.tv/jreej
+         Embed #1 : titre='jreej - Twitch'  couleur=None
+                   desc : JRJ contre SU 2eme tour de la CBL…
+      📨 Message ID: 1497673827566616657  —  2026-04-25 19:01
+         Contenu : # <@&1475930855859028051> VS <@&1483188293045850152>  <@&1487141760630259904>  https://www.twitch.tv/alfan2575?sr=a
+         Embed #1 : titre='Alfan2575 - Twitch'  couleur=None
+                   desc : CBL : 3QI Vs. LT…
+      📨 Message ID: 1497676368450945247  —  2026-04-25 19:11
+         Contenu : <@&1483152802988691677> VS <@&1475930914524627176>  <@&1487141760630259904>  https://www.twitch.tv/phv974?sr=a
+         Embed #1 : titre='phv974 - Twitch'  couleur=None
+                   desc : FR | CREWBATTLE SO VS TZ (5V5)…
+      📨 Message ID: 1498034250501324901  —  2026-04-26 18:53
+         Contenu : <@&1483186766554075308> vs <@&1475931212609491036>  <@&1487141760630259904>  https://www.twitch.tv/phv974?sr=a
+         Embed #1 : titre='phv974 - Twitch'  couleur=None
+                   desc : IG : Pharel974                                                                                      …
+      📨 Message ID: 1498035005757325524  —  2026-04-26 18:56
+         Contenu : <@&1487141760630259904>  <@&1475930228894339286>  vs  <@&1475930301325775020>  https://twitch.tv/mat7725_yt
+         Embed #1 : titre='Mat7725_yt - Twitch'  couleur=None
+                   desc : Bonjour je suis Mat7725 (plus connu sur le nom de Mat) et bienvenue sur ce stream ! J'espère que tu …
+      📨 Message ID: 1503083790682161231  —  2026-05-10 17:18
+         Contenu : <@&1487141760630259904>  <@&1475931167470387413>  Vs <@&1483188293045850152>  https://www.twitch.tv/pgvegenix
+         Embed #1 : titre='PGvegenix - Twitch'  couleur=None
+                   desc : O XVI VS 3QI…
+      📨 Message ID: 1503101088499503345  —  2026-05-10 18:27
+         Contenu : <@&1487141760630259904>   <@&1483152629713469571> VS <@&1475930301325775020>   En stream à 21 h   https://www.twitch.tv/
+         Embed #1 : titre='RETROPENBAR - Twitch'  couleur=None
+                   desc : Spécialisé dans le retrogaming et la current-gen 🕹🎮 Entrez, nous sommes ouverts ! 😉 #RBTogether…
+      📨 Message ID: 1503112765018214420  —  2026-05-10 19:13
+         Contenu : <@&1483152802988691677> vs <@&1483186857419341907>  https://www.twitch.tv/phv974
+         Embed #1 : titre='phv974 - Twitch'  couleur=None
+                   desc : FR | CB SO vs SU…
+      📨 Message ID: 1504208507174654122  —  2026-05-13 19:47
+         Contenu : <@&1483186766554075308> vs <@&1475931280645554300>   <@&1487141760630259904>   https://www.twitch.tv/jreej
+         Embed #1 : titre='jreej - Twitch'  couleur=None
+                   desc : CB de la 4B contre le HsR pour la CBL…
+      📨 Message ID: 1504919308483170380  —  2026-05-15 18:52
+         Contenu : <@&1475930855859028051>  <@&1475931167470387413>  <@&1487141760630259904>  https://www.twitch.tv/mat7725_yt?sr=a
+         Embed #1 : titre='Mat7725_yt - Twitch'  couleur=None
+                   desc : Mon île weeb...…
+      📨 Message ID: 1505648590565933218  —  2026-05-17 19:09
+         Contenu : <@&1487141760630259904>  https://twitch.tv/sourif_nelor <@&1475930855859028051> vs <@&1483152629713469571>
+         Embed #1 : titre='sourif_nelor - Twitch'  couleur=None
+                   desc : On stream un peu de tout et on passe des bons moments entre amis quoi t'as compris on est utilisateu…
+      📨 Message ID: 1505654390868938885  —  2026-05-17 19:33
+         Contenu : <@&1487141760630259904>  https://www.twitch.tv/jreej﻿ <@&1475930179208482918> vs <@&1483152526248509460>
+         Embed #1 : titre='Twitch'  couleur=None
+                   desc : Twitch is the world's leading video platform and community for gamers.…
+      📨 Message ID: 1507465581878706247  —  2026-05-22 19:30
+         Contenu : <@&1487141760630259904>  <@&1475930914524627176> vs <@&1483186857419341907>  https://www.twitch.tv/rody49
+         Embed #1 : titre='Rody49 - Twitch'  couleur=None
+                   desc : CB : TZ vs SU (pitié on gagne)…
+      📨 Message ID: 1508184844964859904  —  2026-05-24 19:08
+         Contenu : <@&1475930228894339286> vs <@&1483152526248509460>  <@&1487141760630259904>    https://www.twitch.tv/jreej?sr=a
+         Embed #1 : titre='jreej - Twitch'  couleur=None
+                   desc : CB de la BB contre la SR pour la CBL…
+      📨 Message ID: 1509276043733766224  —  2026-05-27 19:24
+         Contenu : # <@&1475931187074695188><:RB:1486344931474935971> 🆚 <:RAD:1486344878479638588><@&1475931090320494683> https://twitch.tv
+         Embed #1 : titre='Bolonieze_SSBU - Twitch'  couleur=None
+                   desc : [CBL] R-B2 VS RAD…
+      📨 Message ID: 1509632506700500992  —  2026-05-28 19:00
+         Contenu : <@&1475931146855514312> <:ZZZ:1486345132356665459> 🆚 <:3QI:1486344320389877840> <@&1483188293045850152>  https://www.twi
+         Embed #1 : titre='Bravir_ - Twitch'  couleur=None
+                   desc : CB : Zzz Vs. 3QI…
+      📨 Message ID: 1512530452454445317  —  2026-06-05 18:56
+         Contenu : https://www.twitch.tv/sskyrax_  https://www.twitch.tv/thebestpluck <@&1487141760630259904>  <@&1475931090320494683> vs <
+         Embed #1 : titre='sskyRaX_ - Twitch'  couleur=None
+                   desc : CrewBattle Ligue LéviaTeam [LT] vs Radiance [RAD] - !clip…
+         Embed #2 : titre='Thebestpluck - Twitch'  couleur=None
+                   desc : LT vs RAD (4RAD)…
+      📨 Message ID: 1513260716814106794  —  2026-06-07 19:17
+         Contenu : <@&1487141760630259904>  # <@&1475930179208482918><:JRJ:1486344611432763504> 🆚 <:OX:1486344711269519430><@&1475930301325
+         Embed #1 : titre='jreej - Twitch'  couleur=None
+                   desc : Yo ! Moi c'est jreej 24ans streameur multigaming mais principalement smash,pokémon et jeux mobile ! …
+      📨 Message ID: 1517973263270023320  —  2026-06-20 19:23
+         Contenu : <@&1487141760630259904>   <@&1475930179208482918> vs <@&1475930228894339286>   https://www.twitch.tv/jreej
+         Embed #1 : titre='jreej - Twitch'  couleur=None
+                   desc : JRJ VS SR pour la CBL dernier match !…
+      📨 Message ID: 1519776239098003576  —  2026-06-25 18:48
+         Contenu : <@&1487141760630259904>    <@&1483188293045850152> VS <@&1475931187074695188>   https://www.twitch.tv/grandmonark_
+         Embed #1 : titre='GrandMonark_ - Twitch'  couleur=None
+                   desc : Je fais des lives simples juste pour le fun quand j'en ai envie.…
+      📨 Message ID: 1521963671675211880  —  2026-07-01 19:40
+         Contenu : <@&1487141760630259904>  <@&1483153100880613417> VS <@&1475930301325775020>   https://www.twitch.tv/leonesrex
+         Embed #1 : titre='LeonesRex - Twitch'  couleur=None
+                   desc : Crewbattle KD VS OX ❗️ !lien / !discord / !youtube…
+      📨 Message ID: 1525223433837871346  —  2026-07-10 19:33
+         Contenu : https://www.twitch.tv/ryujotv <@&1487141760630259904>  <@&1475930855859028051> vs <@&1483186857419341907>
+         Embed #1 : titre='RyuJoTV - Twitch'  couleur=None
+                   desc : Shine Unite VS LT - Crewbattle…
+      📨 Message ID: 1528099661502611527  —  2026-07-18 18:02
+         Contenu : <@&1487141760630259904>  France vs Angleterre   https://twitch.tv/localeau
+         Embed #1 : titre='localeau - Twitch'  couleur=None
+                   desc : ont s'amuse sur des jeu…
+      📨 Message ID: 1533550144790855820  —  2026-08-02 19:00
+         Contenu : https://www.twitch.tv/derq___ <@&1487141760630259904>  LT vs RC
+         Embed #1 : titre='Derq___ - Twitch'  couleur=None
+                   desc : Salut je suis un joueur de jeux video de tout type  plateformer aventure combat ... je jouerais prin…
+
+📁 🔴〔3QI〕🔴  (ID 1499029340812480732)
+  └─ #〔3qi〕general  (ID 1479051756896911461)
+      📨 Message ID: 1486048816980561920  —  2026-03-24 17:07
+         Contenu : https://tenor.com/view/kr-kr-lespece-espece-gestu-gif-8655945034394010854
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1486055752400633907  —  2026-03-24 17:35
+         Contenu : https://tenor.com/view/bosnov-67-bosnov-67-67-meme-gif-16727368109953357722
+         Embed #1 : titre=None  couleur=None
+
+📁 〔3QI〕  (ID 1532427013866918081)
+  └─ #〔3qi〕tasks  (ID 1533811878093127780)
+      📨 Message ID: 1533811879351292117  —  2026-08-03 12:20
+         Contenu : 📋 Ce salon sert aux actions qui nécessitent le **leader** de l'équipe (demandes pour rejoindre l'équipe, etc.). Les memb
+  └─ #〔3qi〕général  (ID 1532427015053901997)
+      📨 Message ID: 1532427021089771590  —  2026-07-30 16:37
+         Contenu : 🎉 Bienvenue dans le salon de **3QI** ! <@466499959139729409> en est le leader. Les membres peuvent rejoindre l'équipe vi
+
+📁 〔ADN〕  (ID 1535719020781903882)
+  └─ #〔adn〕général  (ID 1535719021998112891)
+      📨 Message ID: 1535719040029298763  —  2026-08-08 18:39
+         Contenu : 🎉 Bienvenue dans le salon de **ADN** ! <@712373643300306974> en est le leader. Les membres peuvent rejoindre l'équipe vi
+  └─ #〔adn〕tasks  (ID 1535719026267783228)
+      📨 Message ID: 1535719041837039697  —  2026-08-08 18:39
+         Contenu : 📋 Ce salon sert aux actions qui nécessitent le **leader** de l'équipe (demandes pour rejoindre l'équipe, etc.). Personne
+      📨 Message ID: 1535721237429493803  —  2026-08-08 18:47
+         Contenu : <@712373643300306974> — 📩 **Antoine** souhaite rejoindre **ADN**.
+         [BUTTON] label='✅ Accepter' | custom_id='fcde92b61b153132bade184d8d52d848' | style=success | DISABLED
+      📨 Message ID: 1535721254298984549  —  2026-08-08 18:47
+         Contenu : ✅ **Antoine** a rejoint **ADN** !
+      📨 Message ID: 1535722492826484846  —  2026-08-08 18:52
+         Contenu : <@712373643300306974> — 📩 **KatEleph** souhaite rejoindre **ADN**.
+         [BUTTON] label='✅ Accepter' | custom_id='340402046733e2637cba140770f7db40' | style=success | DISABLED
+      📨 Message ID: 1535722535969230989  —  2026-08-08 18:53
+         Contenu : ✅ **KatEleph** a rejoint **ADN** !
+      📨 Message ID: 1535723369545207879  —  2026-08-08 18:56
+         Contenu : <@712373643300306974> — 📩 **Pplek** souhaite rejoindre **adn**.
+         [BUTTON] label='✅ Accepter' | custom_id='8da6af7d89f4d4180026af4a1e22d383' | style=success | DISABLED
+      📨 Message ID: 1535723442496741456  —  2026-08-08 18:56
+         Contenu : <@712373643300306974> — 📩 **Pplek** souhaite rejoindre **ADN**.
+         [BUTTON] label='✅ Accepter' | custom_id='b3233f7d5836ff3947f2f91170090aa5' | style=success | DISABLED
+      📨 Message ID: 1535727254905294948  —  2026-08-08 19:11
+         Contenu : <@712373643300306974> — 📩 **Kyoka** souhaite rejoindre **ADN**.
+         [BUTTON] label='✅ Accepter' | custom_id='14477261850156f1044f985f710c571a' | style=success | DISABLED
+      📨 Message ID: 1535727320378384526  —  2026-08-08 19:12
+         Contenu : ✅ **Kyoka** a rejoint **ADN** !
+      📨 Message ID: 1535739732481417317  —  2026-08-08 20:01
+         Contenu : <@712373643300306974> — 📩 **ADN Mura 🎓** souhaite rejoindre **ADN**.
+         [BUTTON] label='✅ Accepter' | custom_id='792cb10a962cacc7dec78dad09d8a820' | style=success | DISABLED
+      📨 Message ID: 1535739805785137323  —  2026-08-08 20:01
+         Contenu : ✅ **ADN Mura 🎓** a rejoint **ADN** !
+      📨 Message ID: 1535741919840182283  —  2026-08-08 20:10
+         Contenu : <@712373643300306974> — 📩 **Fredoc** souhaite rejoindre **ADN**.
+         [BUTTON] label='✅ Accepter' | custom_id='8b3c70c19cd2294be118fa92e613c309' | style=success | DISABLED
+      📨 Message ID: 1535742015055204372  —  2026-08-08 20:10
+         Contenu : ✅ **Fredoc** a rejoint **ADN** !
+
+📁 〔ARK〕  (ID 1533241994485432371)
+  └─ #〔ark〕tasks  (ID 1533811880668430398)
+      📨 Message ID: 1533811881955954800  —  2026-08-03 12:20
+         Contenu : 📋 Ce salon sert aux actions qui nécessitent le **leader** de l'équipe (demandes pour rejoindre l'équipe, etc.). Les memb
+      📨 Message ID: 1533835223379476480  —  2026-08-03 13:53
+         Contenu : <@359004851788578816> — 📩 **AxFeed** souhaite rejoindre **ARK**.
+         [BUTTON] label='✅ Accepter' | custom_id='53bffef82520fd552b3b1ea3a59e778d' | style=success
+         [BUTTON] label='❌ Refuser' | custom_id='bb771467259d9d8771c3771336622e31' | style=danger
+      📨 Message ID: 1534204207106756708  —  2026-08-04 14:19
+         Contenu : <@359004851788578816> — 📩 **VHS Cassette** souhaite rejoindre **ARK**.
+         [BUTTON] label='✅ Accepter' | custom_id='f3906d2444765f9a2d3cb8e7fa0e786d' | style=success | DISABLED
+      📨 Message ID: 1534260556406460437  —  2026-08-04 18:03
+         Contenu : ✅ **VHS Cassette** a rejoint **ARK** !
+  └─ #〔ark〕général  (ID 1533241996460949564)
+      📨 Message ID: 1533242003096076358  —  2026-08-01 22:36
+         Contenu : 🎉 Bienvenue dans le salon de **ARK** ! <@359004851788578816> en est le leader. Les membres peuvent rejoindre l'équipe vi
+      📨 Message ID: 1533373732263821394  —  2026-08-02 07:19
+         Contenu : <@359004851788578816> — 📩 **Lady Shy** souhaite rejoindre **ARK**.
+         [BUTTON] label='✅ Accepter' | custom_id='7971baf38819d2f8a8a8329d4b248870' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='3a87cf3fb2b8304a15b9ba7ca340a6dc' | style=danger | DISABLED
+      📨 Message ID: 1533412494284947566  —  2026-08-02 09:53
+         Contenu : <@359004851788578816> — 📩 **Doppler** souhaite rejoindre **ARK**.
+         [BUTTON] label='✅ Accepter' | custom_id='aaf0a5a689143ee6fad6fbf5f947cb0b' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='f57aae3410dd2f2369822cf0babc5ac9' | style=danger | DISABLED
+      📨 Message ID: 1533412570264899724  —  2026-08-02 09:54
+         Contenu : <@359004851788578816> — 📩 **ARK | oroblast** souhaite rejoindre **ARK**.
+         [BUTTON] label='✅ Accepter' | custom_id='aeb6191bdcfdb5ab0aa22bf9a8e7137f' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='2d82806262505b25d349730c9c0277a9' | style=danger | DISABLED
+      📨 Message ID: 1533459799381901484  —  2026-08-02 13:01
+         Contenu : ✅ **Lady Shy** a rejoint **ARK** !
+      📨 Message ID: 1533459829824425993  —  2026-08-02 13:01
+         Contenu : ✅ **ARK | oroblast** a rejoint **ARK** !
+      📨 Message ID: 1533489878828843108  —  2026-08-02 15:01
+         Contenu : <@359004851788578816> — 📩 **𝐏-𝐎𝐧𝐞** souhaite rejoindre **ARK**.
+         [BUTTON] label='✅ Accepter' | custom_id='2fe90fb67caf139b7131bc18ca630e77' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='7ff2af3f94daba51a6f708bfa678d985' | style=danger | DISABLED
+      📨 Message ID: 1533493271974645951  —  2026-08-02 15:14
+         Contenu : https://cdn.discordapp.com/attachments/1384891584671125606/1526323292708012042/PikDance.gif
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1533501378859634899  —  2026-08-02 15:46
+         Contenu : ✅ **𝐏-𝐎𝐧𝐞** a rejoint **ARK** !
+      📨 Message ID: 1533530238343184675  —  2026-08-02 17:41
+         Contenu : <@359004851788578816> — 📩 **ARK | Red0x58** souhaite rejoindre **ARK**.
+         [BUTTON] label='✅ Accepter' | custom_id='ef9bc5e0e9346bf37f8825b1874278b0' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='fd53230a1e0de8ec7259a5a988613f22' | style=danger | DISABLED
+      📨 Message ID: 1533530506573123594  —  2026-08-02 17:42
+         Contenu : ✅ **ARK | Red0x58** a rejoint **ARK** !
+      📨 Message ID: 1533530674873499678  —  2026-08-02 17:43
+         Contenu : https://klipy.com/gifs/pulchra-zenless
+         Embed #1 : titre='Pulchra Zenless'  couleur=None
+      📨 Message ID: 1533535746911240253  —  2026-08-02 18:03
+         Contenu : https://klipy.com/gifs/meowl
+         Embed #1 : titre='Meowl: The Owl-Eyed Cat'  couleur=None
+      📨 Message ID: 1533552328668352805  —  2026-08-02 19:09
+         Contenu : https://klipy.com/gifs/diem-diemarchive-5
+         Embed #1 : titre='Diem Diemarchive'  couleur=None
+      📨 Message ID: 1533558156465144020  —  2026-08-02 19:32
+         Contenu : https://klipy.com/gifs/teto-stupid-1
+         Embed #1 : titre='Teto Stupid'  couleur=None
+      📨 Message ID: 1533574703501807646  —  2026-08-02 20:38
+         Contenu : <@359004851788578816> — 📩 **ARK | PNS | Axol** souhaite rejoindre **ARK**.
+         [BUTTON] label='✅ Accepter' | custom_id='1ae1d182716a985dcc28ca83a71328e1' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='ec6d51dd98366357f4265d6159c8ad93' | style=danger | DISABLED
+      📨 Message ID: 1533581788960522240  —  2026-08-02 21:06
+         Contenu : ✅ **ARK | PNS | Axol** a rejoint **ARK** !
+      📨 Message ID: 1533719972625252507  —  2026-08-03 06:15
+         Contenu : <@359004851788578816> — 📩 **Lumine** souhaite rejoindre **ARK**.
+         [BUTTON] label='✅ Accepter' | custom_id='a794c6663294334642a1dc0768c8b5b5' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='ae77c59196658aacaf7a630dd4735c43' | style=danger | DISABLED
+      📨 Message ID: 1533736663350644917  —  2026-08-03 07:21
+         Contenu : ✅ **Lumine** a rejoint **ARK** !
+      📨 Message ID: 1533795877230215259  —  2026-08-03 11:17
+         Contenu : <@359004851788578816> — 📩 **ARK | Licane** souhaite rejoindre **ARK**.
+         [BUTTON] label='✅ Accepter' | custom_id='2a645eec58b41209e2ef8748a2b7a7ba' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='b3d0502539ea5218c2a0e10aef221f0d' | style=danger | DISABLED
+      📨 Message ID: 1533804372746567741  —  2026-08-03 11:50
+         Contenu : ✅ **ARK | Licane** a rejoint **ARK** !
+      📨 Message ID: 1533848622893105192  —  2026-08-03 14:46
+         Contenu : https://klipy.com/gifs/jotaro-jojo-7
+         Embed #1 : titre='Jotaro Jojo on a Bike: Bizarre Stunts'  couleur=None
+      📨 Message ID: 1533856961274183832  —  2026-08-03 15:19
+         Contenu : https://tenor.com/view/when-you-left-the-dog-was-home-your-father-your-mother-ai-dog-ai-dance-gif-2332529606446414204
+         Embed #1 : titre='When You Left The Dog Was Home GIF - When you left The dog was home Your father your mother - Discover & Share GIFs'  couleur=None
+
+📁 〔HoJ〕  (ID 1533383803769327659)
+  └─ #〔hoj〕tasks  (ID 1533811883331813446)
+      📨 Message ID: 1533811884585648320  —  2026-08-03 12:20
+         Contenu : 📋 Ce salon sert aux actions qui nécessitent le **leader** de l'équipe (demandes pour rejoindre l'équipe, etc.). Les memb
+      📨 Message ID: 1535739449894371338  —  2026-08-08 20:00
+         Contenu : <@461601543121010691> — 📩 **LT | RC | Pluck** souhaite rejoindre **HoJ**.
+         [BUTTON] label='✅ Accepter' | custom_id='1d5771dc1921ac8a665d44b9fba5247a' | style=success | DISABLED
+      📨 Message ID: 1535739507507462224  —  2026-08-08 20:00
+         Contenu : ✅ **LT | RC | Pluck** a rejoint **HoJ** !
+  └─ #〔hoj〕général  (ID 1533383804927082578)
+      📨 Message ID: 1533383812820635699  —  2026-08-02 07:59
+         Contenu : 🎉 Bienvenue dans le salon de **HoJ** ! <@461601543121010691> en est le leader. Les membres peuvent rejoindre l'équipe vi
+      📨 Message ID: 1533384017670438952  —  2026-08-02 08:00
+         Contenu : <@461601543121010691> — 📩 **OX | Lyh** souhaite rejoindre **HoJ**.
+         [BUTTON] label='✅ Accepter' | custom_id='9c78f7907c97215579b0318cef00ecb4' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='6db7845ced7fbe08238630fc65da9e1d' | style=danger | DISABLED
+      📨 Message ID: 1533384051258429592  —  2026-08-02 08:00
+         Contenu : ✅ **OX | Lyh** a rejoint **HoJ** !
+
+📁 🟢〔HsR〕🟢  (ID 1499030501065883738)
+  └─ #〔hsr〕general  (ID 1476176755730546739)
+      📨 Message ID: 1485951104423297125  —  2026-03-24 10:39
+         Contenu : https://tenor.com/view/bunny-nervous-anime-panic-panicking-gif-22129325
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1486061093364174949  —  2026-03-24 17:56
+         Contenu : https://tenor.com/view/celebrate-shout-haikyuu-gif-21453333
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1486453697692303380  —  2026-03-25 19:56
+         Contenu : https://cdn.discordapp.com/attachments/1310939094016331847/1473611574525689936/image0.gif
+         Embed #1 : titre=None  couleur=None
+
+📁 🟡〔JRJ〕🔵  (ID 1500191703913599057)
+  └─ #〔jrj〕general  (ID 1476175846938247222)
+      📨 Message ID: 1486012091365330965  —  2026-03-24 14:41
+         Contenu : https://tenor.com/view/lebron-james-lebron-edit-lebron-mix-lebron-mashup-lebrom-im-a-boss-gif-14574151488801223087
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1487097902366064872  —  2026-03-27 14:36
+         Contenu : https://tenor.com/view/roggenrola-pokemon-gif-24084693
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1487238098474631199  —  2026-03-27 23:53
+         Contenu : https://tenor.com/view/horse-farthyun-gif-20829962
+         Embed #1 : titre=None  couleur=None
+  └─ #〔jrj²〕general  (ID 1476176151595454577)
+      📨 Message ID: 1486124155052101734  —  2026-03-24 22:06
+         Contenu : https://tenor.com/view/monkeyglitchin-gif-11329341034662249547
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1486292867839168583  —  2026-03-25 09:17
+         Contenu : https://tenor.com/view/babies-stuffing-ninja-mixed-martial-arts-athletic-babies-gif-19859101
+         Embed #1 : titre=None  couleur=None
+
+📁 〔JRJ〕  (ID 1534216805281829099)
+  └─ #〔jrj〕général  (ID 1534216807185907866)
+      📨 Message ID: 1534216831785504929  —  2026-08-04 15:09
+         Contenu : 🎉 Bienvenue dans le salon de **JRJ** ! <@524742723828187151> en est le leader. Les membres peuvent rejoindre l'équipe vi
+  └─ #〔jrj〕tasks  (ID 1534216810747138139)
+      📨 Message ID: 1534216833551437894  —  2026-08-04 15:09
+         Contenu : 📋 Ce salon sert aux actions qui nécessitent le **leader** de l'équipe (demandes pour rejoindre l'équipe, etc.). Personne
+
+📁 🔵〔KD〕🔵  (ID 1499027792900128882)
+  └─ #〔kd〕general  (ID 1483189150516772944)
+      📨 Message ID: 1487529171688230993  —  2026-03-28 19:09
+         Contenu : https://tenor.com/view/orange-cat-laughing-gif-13031147940704744720
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1487740004112400477  —  2026-03-29 09:07
+         Contenu : https://tenor.com/view/diavolo-jjba-golden-wind-king-crimson-doppio-gif-19043434
+         Embed #1 : titre=None  couleur=None
+
+📁 〔LT〕  (ID 1532891330387247228)
+  └─ #〔lt〕tasks  (ID 1533811886565625946)
+      📨 Message ID: 1533811887970586645  —  2026-08-03 12:20
+         Contenu : 📋 Ce salon sert aux actions qui nécessitent le **leader** de l'équipe (demandes pour rejoindre l'équipe, etc.). Les memb
+  └─ #〔lt〕général  (ID 1532891332241129492)
+      📨 Message ID: 1532891337404190931  —  2026-07-31 23:22
+         Contenu : 🎉 Bienvenue dans le salon de **LT** ! <@847882608254910544> en est le leader. Les membres peuvent rejoindre l'équipe via
+      📨 Message ID: 1532891893040545933  —  2026-07-31 23:25
+         Contenu : <@847882608254910544> — 📩 **une simple épée (remplaçant)** souhaite rejoindre **LT**.
+         [BUTTON] label='✅ Accepter' | custom_id='be3f4aaf14f8b29531fbdbcc76c757b4' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='ab98b05c396687701821b55509947469' | style=danger | DISABLED
+      📨 Message ID: 1532891911134646284  —  2026-07-31 23:25
+         Contenu : ✅ **une simple épée (remplaçant)** a rejoint **LT** !
+      📨 Message ID: 1532892200969699486  —  2026-07-31 23:26
+         Contenu : <@847882608254910544> — 📩 **skyRaX** souhaite rejoindre **LT**.
+         [BUTTON] label='✅ Accepter' | custom_id='93f5fbdce9228ef194b9546ee871c342' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='712844c111787859136b804f1b5760d5' | style=danger | DISABLED
+      📨 Message ID: 1532892226718531807  —  2026-07-31 23:26
+         Contenu : ✅ **skyRaX** a rejoint **LT** !
+      📨 Message ID: 1532894680990093473  —  2026-07-31 23:36
+         Contenu : <@847882608254910544> — 📩 **Cailloux** souhaite rejoindre **LT**.
+         [BUTTON] label='✅ Accepter' | custom_id='d596f83dd3c08e67439aa1e73c99610f' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='99428726f90b4ec79dc8cea70abfc2d7' | style=danger | DISABLED
+      📨 Message ID: 1532894805879947354  —  2026-07-31 23:36
+         Contenu : ✅ **Cailloux** a rejoint **LT** !
+      📨 Message ID: 1532894947332587790  —  2026-07-31 23:37
+         Contenu : <@847882608254910544> — 📩 **ORBR | BigFroa** souhaite rejoindre **LT**.
+         [BUTTON] label='✅ Accepter' | custom_id='1e3f78757e5743b52c8000789d9c7c3b' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='136d3b9605c60befc5a20a362734e45b' | style=danger | DISABLED
+      📨 Message ID: 1532894992220295219  —  2026-07-31 23:37
+         Contenu : ✅ **ORBR | BigFroa** a rejoint **LT** !
+      📨 Message ID: 1533069893547725010  —  2026-08-01 11:12
+         Contenu : <@847882608254910544> — 📩 **bomberKILL** souhaite rejoindre **LT**.
+         [BUTTON] label='✅ Accepter' | custom_id='1cb45b12ee808a9fba097df43aadc542' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='ce4fa29195ef700fb92e9f2eb7b894d1' | style=danger | DISABLED
+      📨 Message ID: 1533069913525325856  —  2026-08-01 11:12
+         Contenu : ✅ **bomberKILL** a rejoint **LT** !
+      📨 Message ID: 1533192374455369910  —  2026-08-01 19:19
+         Contenu : <@847882608254910544> — 📩 **Mathieu** souhaite rejoindre **LT**.
+         [BUTTON] label='✅ Accepter' | custom_id='43c0ed421fb936a349d32015ce47bbed' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='236479271e2ff17ee79380d455809234' | style=danger | DISABLED
+      📨 Message ID: 1533192779566415985  —  2026-08-01 19:20
+         Contenu : ✅ **Mathieu** a rejoint **LT** !
+
+📁 〔MST〕  (ID 1532897421707837600)
+  └─ #〔mst〕tasks  (ID 1533811889799172146)
+      📨 Message ID: 1533811891502059650  —  2026-08-03 12:20
+         Contenu : 📋 Ce salon sert aux actions qui nécessitent le **leader** de l'équipe (demandes pour rejoindre l'équipe, etc.). Les memb
+      📨 Message ID: 1535651811954786304  —  2026-08-08 14:12
+         Contenu : <@792859756590137405> — 📩 **𝓢𝔂𝔁𝓷命** souhaite rejoindre **MST**.
+         [BUTTON] label='✅ Accepter' | custom_id='2f1170adb597d115504e290244f2f460' | style=success | DISABLED
+      📨 Message ID: 1535686003099172954  —  2026-08-08 16:27
+         Contenu : ✅ **𝓢𝔂𝔁𝓷命** a rejoint **MST** !
+  └─ #〔mst〕général  (ID 1532897422848823297)
+      📨 Message ID: 1532897428942880869  —  2026-07-31 23:47
+         Contenu : 🎉 Bienvenue dans le salon de **MST** ! <@792859756590137405> en est le leader. Les membres peuvent rejoindre l'équipe vi
+      📨 Message ID: 1532901185546354808  —  2026-08-01 00:02
+         Contenu : <@792859756590137405> — 📩 **Kenjuro** souhaite rejoindre **MST**.
+         [BUTTON] label='✅ Accepter' | custom_id='ea838d8f125c7130d9589b81934b6498' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='26ec9f3fc231f2a66318beadeaf90278' | style=danger | DISABLED
+      📨 Message ID: 1532901217666207804  —  2026-08-01 00:02
+         Contenu : ✅ **Kenjuro** a rejoint **MST** !
+      📨 Message ID: 1532901726368305195  —  2026-08-01 00:04
+         Contenu : <@792859756590137405> — 📩 **NC | Axheloup** souhaite rejoindre **MST**.
+         [BUTTON] label='✅ Accepter' | custom_id='a756ff3ceab1b806ad70436d33966fff' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='c85fbe60984a7c0458c11242049daeba' | style=danger | DISABLED
+      📨 Message ID: 1532901887102423221  —  2026-08-01 00:04
+         Contenu : <@792859756590137405> — 📩 **Zephyr ゼラオラ** souhaite rejoindre **MST**.
+         [BUTTON] label='✅ Accepter' | custom_id='000af9b0a300512447bb77d26b1122cc' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='39b5f1003a69f03f0aac086e4be10113' | style=danger | DISABLED
+      📨 Message ID: 1532901903057420300  —  2026-08-01 00:04
+         Contenu : ✅ **Zephyr ゼラオラ** a rejoint **MST** !
+      📨 Message ID: 1532902076969914589  —  2026-08-01 00:05
+         Contenu : <@792859756590137405> — 📩 **Julissas** souhaite rejoindre **MST**.
+         [BUTTON] label='✅ Accepter' | custom_id='25e8fd740aecd90a4d784e2d29bc0bbf' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='129b34f890abd6d80a731f33560901cb' | style=danger | DISABLED
+      📨 Message ID: 1532902096356249834  —  2026-08-01 00:05
+         Contenu : ✅ **Julissas** a rejoint **MST** !
+      📨 Message ID: 1533169687578546297  —  2026-08-01 17:48
+         Contenu : <@792859756590137405> — 📩 **Beiki-san** souhaite rejoindre **MST**.
+         [BUTTON] label='✅ Accepter' | custom_id='16d5ae70eb9a2520567e324db681f06a' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='b29e594e2f14f2d4673acea10eb18f3f' | style=danger | DISABLED
+      📨 Message ID: 1533187001422053408  —  2026-08-01 18:57
+         Contenu : ✅ **Beiki-san** a rejoint **MST** !
+      📨 Message ID: 1533520692102824127  —  2026-08-02 17:03
+         Contenu : <@792859756590137405> — 📩 **🌺Eevee-hana🌺** souhaite rejoindre **MST**.
+         [BUTTON] label='✅ Accepter' | custom_id='ed3ff3b3f6b25e63c90fbdb20891814a' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='cd92c8aa2ee3ddb52450a99cdb84fe3b' | style=danger | DISABLED
+      📨 Message ID: 1533533129132998666  —  2026-08-02 17:53
+         Contenu : ✅ **🌺Eevee-hana🌺** a rejoint **MST** !
+      📨 Message ID: 1533548554218639443  —  2026-08-02 18:54
+         Contenu : <@792859756590137405> — 📩 **Pain au chocolatineDuFBI** souhaite rejoindre **MST**.
+         [BUTTON] label='✅ Accepter' | custom_id='1936940c33f6b8999015380829545531' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='4c6f9959ca6e845ce009c808a2f7ec83' | style=danger | DISABLED
+      📨 Message ID: 1533553649622450417  —  2026-08-02 19:14
+         Contenu : ✅ **Pain au chocolatineDuFBI** a rejoint **MST** !
+      📨 Message ID: 1533560734066413710  —  2026-08-02 19:42
+         Contenu : <@792859756590137405> — 📩 **Lou.** souhaite rejoindre **MST**.
+         [BUTTON] label='✅ Accepter' | custom_id='7fa55786ec4da134a1c730d80a5baa90' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='0c4923a906e64945b4790793722fa439' | style=danger | DISABLED
+      📨 Message ID: 1533562098414653570  —  2026-08-02 19:48
+         Contenu : ✅ **Lou.** a rejoint **MST** !
+      📨 Message ID: 1533587039801446561  —  2026-08-02 21:27
+         Contenu : <@792859756590137405> — 📩 **NC | Akateric** souhaite rejoindre **MST**.
+         [BUTTON] label='✅ Accepter' | custom_id='65e91ddeb1bbab9cad2969e913ff12f4' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='b3061f1366cf197e683584a5782ca186' | style=danger | DISABLED
+      📨 Message ID: 1533596832691785754  —  2026-08-02 22:06
+         Contenu : ✅ **NC | Akateric** a rejoint **MST** !
+
+📁 🟡〔OX〕🟡  (ID 1499014360754815148)
+  └─ #〔ox〕general  (ID 1476176030967398420)
+      📨 Message ID: 1486084208463188051  —  2026-03-24 19:28
+         Contenu : https://tenor.com/view/blackbeard-teach-one-piece-pirates-anime-gif-20035100
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1486084378453868575  —  2026-03-24 19:28
+         Contenu : https://tenor.com/view/jujutsu-kaisen-gif-6060784482280572901
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1486085755750322198  —  2026-03-24 19:34
+         Contenu : Et hop, de la com gratuite   https://x.com/cbl_ssb/status/2036526843801510009?s=46&t=EbeZt42oUHHoY4dnASVCJA
+         Embed #1 : titre=None  couleur=#1da1f2
+                   desc : 2 Teams 2 salles 2 ambiances  On se demande ce qui se trame\.\.\. 👀…
+
+📁 〔OXVI〕  (ID 1532107399979208704)
+  └─ #〔oxvi〕tasks  (ID 1533811893469188106)
+      📨 Message ID: 1533811894278819893  —  2026-08-03 12:20
+         Contenu : 📋 Ce salon sert aux actions qui nécessitent le **leader** de l'équipe (demandes pour rejoindre l'équipe, etc.). Les memb
+  └─ #〔oxvi〕général  (ID 1532107400994226316)
+      📨 Message ID: 1532107405985452194  —  2026-07-29 19:27
+         Contenu : 🎉 Bienvenue dans le salon de **Organisation XVI** ! <@531209977042436107> en est le leader. Les membres peuvent rejoindr
+      📨 Message ID: 1533639319535878298  —  2026-08-03 00:55
+         Contenu : <@531209977042436107> — 📩 **𝕆 𝕏𝕍𝕀 | Robinski** souhaite rejoindre **OXVI**.
+         [BUTTON] label='✅ Accepter' | custom_id='2003793356f28e74d42c0891aec20c0f' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='cce763a2544c7f95cfb9fc57b9421b8e' | style=danger | DISABLED
+      📨 Message ID: 1533643357224698067  —  2026-08-03 01:11
+         Contenu : ✅ **𝕆 𝕏𝕍𝕀 | Robinski** a rejoint **OXVI** !
+
+📁 🔴〔OXVI〕🔴  (ID 1499028807049281597)
+  └─ #〔oxvi〕general  (ID 1476176523341074512)
+      📨 Message ID: 1486371135124934687  —  2026-03-25 14:28
+         Contenu : https://tenor.com/view/cinema-gif-16320873751207895640
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1486371516517187737  —  2026-03-25 14:29
+         Contenu : https://giphy.com/gifs/STRAPPEDUS-rizz-w-up-8ydNXUthhXP018PLrC
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1486371658662023280  —  2026-03-25 14:30
+         Contenu : https://giphy.com/gifs/cartoon-blink-cute-Hsz2YZ9iBxvIztWpkd
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1486375795893997760  —  2026-03-25 14:46
+         Contenu : https://tenor.com/view/te-ma-la-kichta-daivala-drill-fr4-gazo-gif-21695770
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1486375916220448861  —  2026-03-25 14:47
+         Contenu : https://tenor.com/view/skeleton-mad-skeleton-gif-10886506202898815019
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1486376341010907330  —  2026-03-25 14:48
+         Contenu : https://tenor.com/view/shiesty-ski-mask-grillz-rayasianboy-amp-gif-13110403655699741280
+         Embed #1 : titre=None  couleur=None
+
+📁 🔵〔POM〕🔵  (ID 1499027089301569547)
+  └─ #〔pom〕general  (ID 1476176254582526012)
+      📨 Message ID: 1488199134044229812  —  2026-03-30 15:32
+         Contenu : https://tenor.com/view/%E5%8D%83%E6%9D%9F-gif-16974671930413431843
+         Embed #1 : titre=None  couleur=None
+
+📁 〔POM〕  (ID 1535719771205804064)
+  └─ #〔pom〕général  (ID 1535719772866613358)
+      📨 Message ID: 1535719789001973811  —  2026-08-08 18:42
+         Contenu : 🎉 Bienvenue dans le salon de **POM** ! <@565169985203470348> en est le leader. Les membres peuvent rejoindre l'équipe vi
+  └─ #〔pom〕tasks  (ID 1535719777119641831)
+      📨 Message ID: 1535719790185021450  —  2026-08-08 18:42
+         Contenu : 📋 Ce salon sert aux actions qui nécessitent le **leader** de l'équipe (demandes pour rejoindre l'équipe, etc.). Personne
+
+📁 🔴〔RAD〕🟢  (ID 1499028506477203647)
+  └─ #〔rad〕general  (ID 1476176628970291331)
+      📨 Message ID: 1485945709843841056  —  2026-03-24 10:17
+         Contenu : https://tenor.com/view/creepie-creepie-creecher-growing-up-creepy-cartoon-snow-gif-20436609
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1486015389539242116  —  2026-03-24 14:54
+         Contenu : https://tenor.com/view/meme-gif-1457473106328210491
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1487108062048424067  —  2026-03-27 15:16
+         Contenu : https://klipy.com/gifs/super-smash-brothers-ultimate-king-k-rool
+         Embed #1 : titre='Super Smash Brothers Ultimate King K Rool'  couleur=None
+  └─ #〔rad²〕general  (ID 1486354054077743135)
+      📨 Message ID: 1490056886500986930  —  2026-04-04 18:34
+         Contenu : https://tenor.com/view/dancing-crazy-gif-8888510239926721777
+         Embed #1 : titre=None  couleur=None
+
+📁 🟡〔R-B〕🔴  (ID 1499015941286133850)
+  └─ #〔r-b〕general  (ID 1483189103951609856)
+      📨 Message ID: 1486125820237054146  —  2026-03-24 22:13
+         Contenu : https://tenor.com/view/smile-jotaro-kujo-jotaro-kujo-gif-3121118482079421263
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1486407081815834695  —  2026-03-25 16:51
+         Contenu : https://tenor.com/view/miraculous-ladybug-zoe-lee-wink-gif-8395159234827018009
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1486631996062175334  —  2026-03-26 07:44
+         Contenu : https://tenor.com/view/thicc-gif-19232929
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1490263504739893248  —  2026-04-05 08:15
+         Contenu : https://tenor.com/view/pepefrog-gif-25029203
+         Embed #1 : titre=None  couleur=None
+  └─ #〔r-b²〕general  (ID 1476176573186048129)
+      📨 Message ID: 1486441369579945984  —  2026-03-25 19:07
+         Contenu : https://tenor.com/view/weiss-shush-silence-dog-gif-8116749098922684786
+         Embed #1 : titre=None  couleur=None
+
+📁 〔RC〕  (ID 1532818388739690718)
+  └─ #〔rc〕tasks  (ID 1533811896040296578)
+      📨 Message ID: 1533811897256640682  —  2026-08-03 12:20
+         Contenu : 📋 Ce salon sert aux actions qui nécessitent le **leader** de l'équipe (demandes pour rejoindre l'équipe, etc.). Les memb
+      📨 Message ID: 1534646615716004171  —  2026-08-05 19:37
+         Contenu : <@1161362172664885268> — 📩 **Itorash** souhaite rejoindre **RC**.
+         [BUTTON] label='✅ Accepter' | custom_id='b30c2486584b01a9d287812828a9956c' | style=success | DISABLED
+      📨 Message ID: 1534646641947316274  —  2026-08-05 19:37
+         Contenu : ✅ **Itorash** a rejoint **RC** !
+  └─ #〔rc〕général  (ID 1532818390425665677)
+      📨 Message ID: 1532818397484810240  —  2026-07-31 18:33
+         Contenu : 🎉 Bienvenue dans le salon de **RC** ! <@1161362172664885268> en est le leader. Les membres peuvent rejoindre l'équipe vi
+      📨 Message ID: 1533174967318085923  —  2026-08-01 18:09
+         Contenu : <@1161362172664885268> — 📩 **Light Nusom** souhaite rejoindre **RC**.
+         [BUTTON] label='✅ Accepter' | custom_id='572aa358cdc64f51a40028b5ce0b9ee3' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='20532294d57f2b3dc407c3fbbe4626aa' | style=danger | DISABLED
+      📨 Message ID: 1533174996405321808  —  2026-08-01 18:10
+         Contenu : ✅ **Light Nusom** a rejoint **RC** !
+      📨 Message ID: 1533175252316590273  —  2026-08-01 18:11
+         Contenu : <@1161362172664885268> — 📩 **RC | Ilan-_-** souhaite rejoindre **RC**.
+         [BUTTON] label='✅ Accepter' | custom_id='66baa27bf579a48c625e5f62591f6e0c' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='f4e347fd420e28f0f31608ba7b0fe716' | style=danger | DISABLED
+      📨 Message ID: 1533175274223697930  —  2026-08-01 18:11
+         Contenu : ✅ **RC | Ilan-_-** a rejoint **RC** !
+      📨 Message ID: 1533175422580424714  —  2026-08-01 18:11
+         Contenu : <@1161362172664885268> — 📩 **𝐊𝐫𝐢𝐬𝐦𝐚𝐬𝐊𝐢𝐝** souhaite rejoindre **RC**.
+         [BUTTON] label='✅ Accepter' | custom_id='70f9b765ac505f52137beac383d02383' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='e9da6c2ed7e61e1a21eac1b413738737' | style=danger | DISABLED
+      📨 Message ID: 1533175443354816532  —  2026-08-01 18:11
+         Contenu : ✅ **𝐊𝐫𝐢𝐬𝐦𝐚𝐬𝐊𝐢𝐝** a rejoint **RC** !
+      📨 Message ID: 1533175532525453407  —  2026-08-01 18:12
+         Contenu : <@1161362172664885268> — 📩 **RC | AxelSwitch** souhaite rejoindre **RC**.
+         [BUTTON] label='✅ Accepter' | custom_id='9639384fb885ddac277b7be6f20a231a' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='8afc48f7ff1c1da223ac9d824cc5670c' | style=danger | DISABLED
+      📨 Message ID: 1533175557695606975  —  2026-08-01 18:12
+         Contenu : ✅ **RC | AxelSwitch** a rejoint **RC** !
+      📨 Message ID: 1533175776399196372  —  2026-08-01 18:13
+         Contenu : https://klipy.com/gifs/cat-smmmmmmmmokee
+         Embed #1 : titre='Kitten with a Smoking Cigarette'  couleur=None
+      📨 Message ID: 1533176781970870596  —  2026-08-01 18:17
+         Contenu : <@1161362172664885268> — 📩 **Nayan 💟** souhaite rejoindre **RC**.
+         [BUTTON] label='✅ Accepter' | custom_id='a9f0e3b04408baa3e53f9bc52a6f9e6f' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='1d1f728cbb835de42aecb8164ef2adc3' | style=danger | DISABLED
+      📨 Message ID: 1533176855140761793  —  2026-08-01 18:17
+         Contenu : ✅ **Nayan 💟** a rejoint **RC** !
+      📨 Message ID: 1533177842035331164  —  2026-08-01 18:21
+         Contenu : <@1161362172664885268> — 📩 **LT | RC | Pluck** souhaite rejoindre **RC**.
+         [BUTTON] label='✅ Accepter' | custom_id='616f59ca3b80a45bde69eb9cbca66d89' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='c8a604a8c4d82b574bff4197f0b98652' | style=danger | DISABLED
+      📨 Message ID: 1533177854156865727  —  2026-08-01 18:21
+         Contenu : ✅ **LT | RC | Pluck** a rejoint **RC** !
+      📨 Message ID: 1533182808938385509  —  2026-08-01 18:41
+         Contenu : <@1161362172664885268> — 📩 **Derq** souhaite rejoindre **RC**.
+         [BUTTON] label='✅ Accepter' | custom_id='f31d36302ccc1b09398e9718af4191da' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='5184558982969b5d5b08951e5ab5f58b' | style=danger | DISABLED
+      📨 Message ID: 1533182827410231438  —  2026-08-01 18:41
+         Contenu : ✅ **Derq** a rejoint **RC** !
+      📨 Message ID: 1533415985174941827  —  2026-08-02 10:07
+         Contenu : <@1161362172664885268> — 📩 **Wanderer** souhaite rejoindre **RC**.
+         [BUTTON] label='✅ Accepter' | custom_id='dce0e04ea46390d4e6ac136f137b3e34' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='ea5768011e34d6f236e3328b6d6b6483' | style=danger | DISABLED
+      📨 Message ID: 1533421254411817062  —  2026-08-02 10:28
+         Contenu : ✅ **Wanderer** a rejoint **RC** !
+      📨 Message ID: 1533602155565682730  —  2026-08-02 22:27
+         Contenu : <@1161362172664885268> — 📩 **Alive** souhaite rejoindre **RC**.
+         [BUTTON] label='✅ Accepter' | custom_id='cf87c29bc6c73e632ee6adfa50060221' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='55b16f86bae39e6b80ffbbfed27cb1dd' | style=danger | DISABLED
+      📨 Message ID: 1533602199148433533  —  2026-08-02 22:27
+         Contenu : ✅ **Alive** a rejoint **RC** !
+
+📁 🔵〔SO〕🔵  (ID 1499027439417032796)
+  └─ #〔so〕general  (ID 1479051295225806868)
+      📨 Message ID: 1488175324041576689  —  2026-03-30 13:57
+         Contenu : https://tenor.com/view/speed-ishowspeed-clap-laugh-tongue-gif-14797328291346244840
+         Embed #1 : titre=None  couleur=None
+
+📁 🟡〔SR〕🟡  (ID 1499013234710282240)
+  └─ #〔sr〕general  (ID 1476175912948072488)
+      📨 Message ID: 1486050085904187545  —  2026-03-24 17:12
+         Contenu : https://tenor.com/view/sparkles-and-champagne-sparklesandchampagne-opto-edge-gif-25486986
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1486085870720254207  —  2026-03-24 19:34
+         Contenu : Et hop, de la com gratuite !   https://x.com/cbl_ssb/status/2036526843801510009?s=46&t=EbeZt42oUHHoY4dnASVCJA
+         Embed #1 : titre=None  couleur=#1da1f2
+                   desc : 2 Teams 2 salles 2 ambiances  On se demande ce qui se trame\.\.\. 👀…
+      📨 Message ID: 1486108455407452210  —  2026-03-24 21:04
+         Contenu : https://tenor.com/view/mister-v-t%C3%A9l%C3%A9-la-t%C3%A9l%C3%A9-la-t%C3%A9l%C3%A9la-t%C3%A9l%C3%A9-woop-gif-22204730
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1490756719213809714  —  2026-04-06 16:54
+         Embed #1 : titre=None  couleur=None
+                   champ [poll_question_text] : Crew Battle contre la R-B
+                   champ [victor_answer_votes] : 4
+                   champ [total_votes] : 19
+                   champ [victor_answer_id] : 1
+                   champ [victor_answer_text] : Samedi 11 Avril 15h
+      📨 Message ID: 1491459941234512023  —  2026-04-08 15:29
+         Embed #1 : titre=None  couleur=None
+                   champ [poll_question_text] : Quand serez vous disponible la semaine du 6 au 12 avril ?
+                   champ [victor_answer_votes] : 5
+                   champ [total_votes] : 26
+
+📁 〔SSL〕  (ID 1533168924957474816)
+  └─ #〔ssl〕tasks  (ID 1533811898385039463)
+      📨 Message ID: 1533811899572031568  —  2026-08-03 12:20
+         Contenu : 📋 Ce salon sert aux actions qui nécessitent le **leader** de l'équipe (demandes pour rejoindre l'équipe, etc.). Les memb
+  └─ #〔ssl〕général  (ID 1533168926249189598)
+      📨 Message ID: 1533168934667288697  —  2026-08-01 17:45
+         Contenu : 🎉 Bienvenue dans le salon de **SSL** ! <@671725835514019840> en est le leader. Les membres peuvent rejoindre l'équipe vi
+      📨 Message ID: 1533171705277710457  —  2026-08-01 17:56
+         Contenu : <@671725835514019840> — 📩 **SSL | Gyro** souhaite rejoindre **SSL**.
+         [BUTTON] label='✅ Accepter' | custom_id='5f3557ff91f79c54de7750c8ec4b20fd' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='f43d13092c5fa4415780c958d240a6a0' | style=danger | DISABLED
+      📨 Message ID: 1533171723745235045  —  2026-08-01 17:57
+         Contenu : ✅ **SSL | Gyro** a rejoint **SSL** !
+      📨 Message ID: 1533171903467098349  —  2026-08-01 17:57
+         Contenu : <@671725835514019840> — 📩 **SSL | 20EggsEggs** souhaite rejoindre **SSL**.
+         [BUTTON] label='✅ Accepter' | custom_id='b7ee712c8918b0b304734616ed20d9d5' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='d4423de7da8d553ae40fd0fe4daf6c94' | style=danger | DISABLED
+      📨 Message ID: 1533171922903498943  —  2026-08-01 17:57
+         Contenu : ✅ **SSL | 20EggsEggs** a rejoint **SSL** !
+      📨 Message ID: 1533172815652585693  —  2026-08-01 18:01
+         Contenu : <@671725835514019840> — 📩 **SSL | GbL** souhaite rejoindre **SSL**.
+         [BUTTON] label='✅ Accepter' | custom_id='2ecb1965052484df223be1b1dde66528' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='a9446443d3a2fe74fc0aebfd825e0474' | style=danger | DISABLED
+      📨 Message ID: 1533172865619464412  —  2026-08-01 18:01
+         Contenu : ✅ **SSL | GbL** a rejoint **SSL** !
+      📨 Message ID: 1533173451932831964  —  2026-08-01 18:03
+         Contenu : <@671725835514019840> — 📩 **SSL | Shaisy 🌻🌼** souhaite rejoindre **SSL**.
+         [BUTTON] label='✅ Accepter' | custom_id='5d4c83e0b5a220a5b091a5f1ef9cec67' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='c38de8b8a7e59181947e8b31dd9d17b8' | style=danger | DISABLED
+      📨 Message ID: 1533173685270221122  —  2026-08-01 18:04
+         Contenu : ✅ **SSL | Shaisy 🌻🌼** a rejoint **SSL** !
+      📨 Message ID: 1533242542966182169  —  2026-08-01 22:38
+         Contenu : <@671725835514019840> — 📩 **SSL | Flaym !** souhaite rejoindre **SSL**.
+         [BUTTON] label='✅ Accepter' | custom_id='1bc96ddda60989c77ed7a127a66726e9' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='828018bff7e81f17cb5106ae9d0bb03a' | style=danger | DISABLED
+      📨 Message ID: 1533242998920577196  —  2026-08-01 22:40
+         Contenu : ✅ **SSL | Flaym !** a rejoint **SSL** !
+      📨 Message ID: 1533486196343439402  —  2026-08-02 14:46
+         Contenu : <@671725835514019840> — 📩 **SSL | Knight** souhaite rejoindre **SSL**.
+         [BUTTON] label='✅ Accepter' | custom_id='45618b2317a0fda068e4d0326390785c' | style=success | DISABLED
+         [BUTTON] label='❌ Refuser' | custom_id='b7f8790273bae1dd53d0d5ddcfb251ec' | style=danger | DISABLED
+      📨 Message ID: 1533488812368592966  —  2026-08-02 14:57
+         Contenu : ✅ **SSL | Knight** a rejoint **SSL** !
+
+📁 🔵〔SU〕🔵  (ID 1499026346410770492)
+  └─ #〔su〕general  (ID 1483189203977244943)
+      📨 Message ID: 1525224631559131226  —  2026-07-10 19:38
+         Contenu : https://www.twitch.tv/ryujotv
+         Embed #1 : titre='RyuJoTV - Twitch'  couleur=None
+                   desc : Shine Unite VS LT - Crewbattle…
+
+📁 〔SU〕  (ID 1534668304394752160)
+  └─ #〔su〕général  (ID 1534668315065057371)
+      📨 Message ID: 1534668334602125422  —  2026-08-05 21:04
+         Contenu : 🎉 Bienvenue dans le salon de **SU** ! <@933811445395771422> en est le leader. Les membres peuvent rejoindre l'équipe via
+  └─ #〔su〕tasks  (ID 1534668319356092537)
+      📨 Message ID: 1534668336661659710  —  2026-08-05 21:04
+         Contenu : 📋 Ce salon sert aux actions qui nécessitent le **leader** de l'équipe (demandes pour rejoindre l'équipe, etc.). Personne
+      📨 Message ID: 1534669369190256873  —  2026-08-05 21:08
+         Contenu : <@933811445395771422> — 📩 **SU|Schreimol 8** souhaite rejoindre **SU**.
+         [BUTTON] label='✅ Accepter' | custom_id='a435b60a258ce6db704b9ac7f93ef70f' | style=success | DISABLED
+      📨 Message ID: 1534669437247164436  —  2026-08-05 21:08
+         Contenu : ✅ **SU|Schreimol 8** a rejoint **SU** !
+      📨 Message ID: 1534670458144817192  —  2026-08-05 21:12
+         Contenu : <@933811445395771422> — 📩 **Bdenneu** souhaite rejoindre **SU**.
+         [BUTTON] label='✅ Accepter' | custom_id='0c4e578e15b8eea9f8be8ad3939729ac' | style=success | DISABLED
+      📨 Message ID: 1534670488457056327  —  2026-08-05 21:12
+         Contenu : ✅ **Bdenneu** a rejoint **SU** !
+      📨 Message ID: 1534675162689962045  —  2026-08-05 21:31
+         Contenu : <@933811445395771422> — 📩 **Yahiko** souhaite rejoindre **SU**.
+         [BUTTON] label='✅ Accepter' | custom_id='570c84b4afef8003efe31c2a27304eb2' | style=success | DISABLED
+      📨 Message ID: 1534675228846985428  —  2026-08-05 21:31
+         Contenu : ✅ **Yahiko** a rejoint **SU** !
+      📨 Message ID: 1534678658180976872  —  2026-08-05 21:45
+         Contenu : <@933811445395771422> — 📩 **splash** souhaite rejoindre **su**.
+         [BUTTON] label='✅ Accepter' | custom_id='993bdc10eee9f32c9c6a5d98ee308739' | style=success | DISABLED
+
+📁 🔴〔ZZZ〕🔴  (ID 1499029604440998000)
+  └─ #〔zzz〕general  (ID 1476176423092879420)
+      📨 Message ID: 1487056522780344462  —  2026-03-27 11:51
+         Contenu : https://tenor.com/view/nounish-nouns-dao-pokemon-esports-glasses-gif-26799371
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1487120390852706304  —  2026-03-27 16:05
+         Contenu : https://tenor.com/view/samus-metroid-beating-something-about-super-metroid-arm-cannon-gif-16751561090057902553
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1488162141658943520  —  2026-03-30 13:05
+         Contenu : https://tenor.com/view/jimmy-mcgill-saul-goodman-better-call-saul-depressed-elevator-gif-25089029
+         Embed #1 : titre=None  couleur=None
+
+📁 Archives  (ID 1487147866815467671)
+  └─ #🔔・adm-annonces  (ID 1472928473902350367)
+      📨 Message ID: 1474735365809242152  —  2026-02-21 11:51
+         Embed #1 : titre=None  couleur=None
+                   champ [poll_question_text] : Quand pour la Réunion ?
+                   champ [victor_answer_votes] : 8
+                   champ [total_votes] : 44
+      📨 Message ID: 1482432516127461589  —  2026-03-14 17:37
+         Embed #1 : titre=None  couleur=None
+                   champ [poll_question_text] : Réunion qu’on
+                   champ [victor_answer_votes] : 6
+                   champ [total_votes] : 12
+      📨 Message ID: 1483201481984442410  —  2026-03-16 20:33
+         Contenu : @everyone et voici le formulaire pour inscrire votre LU fait par <@461601543121010691>, prenez bien le temps de lire tou
+         Embed #1 : titre='Inscription CrewBattle League'  couleur=None
+                   desc : Bienvenu dans le formulaire d'inscription de la CrewBattle League ! C'est un Tournoi de CrewBattle o…
+      📨 Message ID: 1484146576657219735  —  2026-03-19 11:08
+         Embed #1 : titre=None  couleur=None
+                   champ [poll_question_text] : Est-ce que selon vous on peut ouvrir le serveur au Publique ?
+                   champ [victor_answer_votes] : 13
+                   champ [total_votes] : 14
+                   champ [victor_answer_id] : 1
+                   champ [victor_answer_text] : Oui
+                   champ [victor_answer_emoji_name] : ✅
+      📨 Message ID: 1485252023245869127  —  2026-03-22 12:21
+         Contenu : <@&1475928958070685696>  # Bien le Bonjour !  Nous sommes actuellement à 10 jours du lancement de l'évent !  Avant toute
+         Embed #1 : titre='Inscription CrewBattle League'  couleur=None
+                   desc : Bienvenu dans le formulaire d'inscription de la CrewBattle League ! C'est un Tournoi de CrewBattle o…
+      📨 Message ID: 1485612533464436799  —  2026-03-23 12:13
+         Contenu : <@&1475928958070685696>  # Il nous manque que 3 LineUp pour avoir toutes les équipes au Complet ! à savoir : - <@&147593
+         Embed #1 : titre='CrewBattle Ligue FR'  couleur=None
+         Embed #2 : titre='Inscription CrewBattle League'  couleur=None
+                   desc : Bienvenu dans le formulaire d'inscription de la CrewBattle League ! C'est un Tournoi de CrewBattle o…
+      📨 Message ID: 1487026604248141995  —  2026-03-27 09:52
+         Embed #1 : titre=None  couleur=None
+                   champ [poll_question_text] : Qu'est-ce qu'on fait du DelayMod ?
+(ça râle dans le général, alors je demande po
+                   champ [victor_answer_votes] : 11
+                   champ [total_votes] : 22
+  └─ #〔🏳️〕tableau-des-scores  (ID 1476158202474270733)
+      📨 Message ID: 1476158988499550329  —  2026-02-25 10:08
+         Contenu : <@&1475928958070685696> # Le Tableau des Scores est à présent fonctionnel !  Il ne restera plus qu'à Modifier "T1", "T2"
+         Embed #1 : titre='CrewBattle Ligue FR'  couleur=None
+      📨 Message ID: 1476559022026002493  —  2026-02-26 12:38
+         Contenu : Formulaire d'inscription : https://forms.gle/pHJsJ66z2GWq2eeQ8
+         Embed #1 : titre='Inscription CrewBattle Ligue FR'  couleur=None
+                   desc : Bienvenu à la CrewBattle Ligue FR !  Ce formulaire vous permettra de vous inscrire ! Pour participer…
+
+📁 🥅 Barrages 🥅  (ID 1517888336038068234)
+  └─ #spr26-bar-1vs2〔🟡ox🟡🆚🔵kd🔵〕  (ID 1517889339605123122)
+      📨 Message ID: 1517890885805801542  —  2026-06-20 13:56
+         Contenu : # <@&1475930301325775020><:OX:1486344711269519430> # <@&1483153100880613417><:KD:1486344639329079347> Bienvenu dans votr
+         Embed #1 : titre='Soumettre votre LineUp'  couleur=None
+                   desc : Les Choses se concrétisent !  Vous êtes Maintenant amené à faire vos CrewBattle ! Pour cela, vous de…
+  └─ #spr26-bar-2vs3〔🔵su🔵🆚🔴lt🔴〕  (ID 1521118319384727772)
+      📨 Message ID: 1521118746499088594  —  2026-06-29 11:42
+         Contenu : # <@&1483186857419341907><:SU:1486345029885890611> # <@&1475930855859028051><:LT:1486345424896790760> Bienvenu dans votr
+         Embed #1 : titre='Soumettre votre LineUp'  couleur=None
+                   desc : Les Choses se concrétisent !  Vous êtes Maintenant amené à faire vos CrewBattle ! Pour cela, vous de…
+      📨 Message ID: 1521147663263731882  —  2026-06-29 13:37
+         Contenu : https://tenor.com/view/unicorn-pink-fluffy-dancing-rainbow-gif-17490069
+         Embed #1 : titre=None  couleur=None
+      📨 Message ID: 1524686072775311543  —  2026-07-09 07:58
+         Contenu : Match configuré (5 joueurs + 2 remplaçants), en attente des LineUp : Pour envoyer votre LineUp, faites `/cbl_uniquematch
+  └─ #spr26-bar-3vs4〔🔴r-b²🔴🆚🟢hsr🟢〕  (ID 1521120059739607131)
+      📨 Message ID: 1521120431200014356  —  2026-06-29 11:49
+         Contenu : # <@&1475931187074695188><:RB:1486344931474935971> # <@&1475931280645554300><:HsR:1486344569565089812> Bienvenu dans vot
+         Embed #1 : titre='Soumettre votre LineUp'  couleur=None
+                   desc : Les Choses se concrétisent !  Vous êtes Maintenant amené à faire vos CrewBattle ! Pour cela, vous de…
+
+📁 (sans catégorie)

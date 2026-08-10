@@ -1,0 +1,553 @@
+============================================================
+📁 3QI — 〔3qi〕players--stats
+============================================================
+  📌 📈 3QI — Stats d'équipe  (ID 1533874106494226500)
+     📎 Embed titre='📈 Statistiques — 3QI'
+        [Saison en cours] : *Pas encore de match officiel joué.*
+        [Top joueurs (stocks pris, à vie)] : **3QI | Monark** — 0 stocks pris
+
+  📌 3QI | Monark  (ID 1533874237893251073)
+     📎 Embed titre='📊 3QI | Monark'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+============================================================
+📁 SU — 〔su〕players--stats
+============================================================
+  📌 Winistar  (ID 1534668329258717447)
+     📎 Embed titre='📊 Winistar'
+        [Main] : <:47_WiiFitTrainer:1438572210825465876>
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 📈 SU — Stats d'équipe  (ID 1534668330231664702)
+     📎 Embed titre='📈 Statistiques — SU'
+        [Saison en cours] : *Pas encore de match officiel joué.*
+        [Top joueurs (stocks pris, à vie)] : **Winistar** — 0 stocks pris
+
+  📌 SU|Schreimol 8  (ID 1534669434134990860)
+     📎 Embed titre='📊 SU|Schreimol 8'
+        [Main] : <:73_BanjoKazooie:1438573683764494377>
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 Bdenneu  (ID 1534670486137475204)
+     📎 Embed titre='📊 Bdenneu'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 Yahiko  (ID 1534675226284261388)
+     📎 Embed titre='📊 Yahiko'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 splash  (ID 1534678729169703004)
+     📎 Embed titre='📊 splash'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+============================================================
+📁 SSL — 〔ssl〕players--stats
+============================================================
+  📌 📈 SSL — Stats d'équipe  (ID 1533874121320956038)
+     📎 Embed titre='📈 Statistiques — SSL'
+        [Saison en cours] : *Pas encore de match officiel joué.*
+        [Top joueurs (stocks pris, à vie)] : **SSL | Fybus** — 0 stocks pris
+**SSL | Gyro** — 0 stocks pris
+**SSL | 20EggsEggs** — 0 stocks pris
+**SSL | GbL** — 0 stocks pris
+**SSL | Shaisy 🌻🌼** — 0 stocks pris
+**SSL | Flaym !** — 0 stocks pris
+
+
+  📌 SSL | Shaisy 🌻🌼  (ID 1533874124131139696)
+     📎 Embed titre='📊 SSL | Shaisy 🌻🌼'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 SSL | Gyro  (ID 1533874125008011437)
+     📎 Embed titre='📊 SSL | Gyro'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 SSL | Knight  (ID 1533874194930991198)
+     📎 Embed titre='📊 SSL | Knight'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 SSL | 20EggsEggs  (ID 1533874201147211778)
+     📎 Embed titre='📊 SSL | 20EggsEggs'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 GbL  (ID 1533874240628195460)
+     📎 Embed titre='📊 SSL | GbL'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 SSL | Flaym !  (ID 1533874245837525065)
+     📎 Embed titre='📊 SSL | Flaym !'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 SSL | Fybus  (ID 1533874281799221249)
+     📎 Embed titre='📊 SSL | Fybus'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+============================================================
+📁 RC — 〔rc〕players--stats
+============================================================
+  📌 📈 RC — Stats d'équipe  (ID 1533874118930338006)
+     📎 Embed titre='📈 Statistiques — RC'
+        [Saison en cours] : *Pas encore de match officiel joué.*
+        [Top joueurs (stocks pris, à vie)] : **RC | Mad ness ;)** — 0 stocks pris
+**Light Nusom** — 0 stocks pris
+**RC | Ilan-_-** — 0 stocks pris
+**𝐊𝐫𝐢𝐬𝐦𝐚𝐬𝐊𝐢𝐝** — 0 stocks pris
+**RC | AxelSwitch** — 0 stocks pris
+**Nayan 💟** — 0 stocks pris
+**L
+
+  📌 Wanderer  (ID 1533874149196304515)
+     📎 Embed titre='📊 Wanderer'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 RC | Mad ness ;)  (ID 1533874154439446661)
+     📎 Embed titre='📊 RC | Mad ness ;)'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 LT | RC | Pluck  (ID 1533874157052366899)
+     📎 Embed titre='📊 LT | RC | Pluck'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 RC | Ilan-_-  (ID 1533874158415642646)
+     📎 Embed titre='📊 RC | Ilan-_-'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 Nayan 💛  (ID 1533874191953039545)
+     📎 Embed titre='📊 Nayan 💟'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 Light Nusom  (ID 1533874247401865408)
+     📎 Embed titre='📊 Light Nusom'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 RC | AxelSwitch  (ID 1533874279199019250)
+     📎 Embed titre='📊 RC | AxelSwitch'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 Derq  (ID 1533875369373864157)
+     📎 Embed titre='📊 Derq'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 RC | Tek  (ID 1533875409689513985)
+     📎 Embed titre='📊 𝐊𝐫𝐢𝐬𝐦𝐚𝐬𝐊𝐢𝐝'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 RC | Alive  (ID 1533875411782598698)
+     📎 Embed titre='📊 Alive'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 Itorash  (ID 1534646638713503905)
+     📎 Embed titre='📊 Itorash'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+============================================================
+📁 POM — 〔pom〕players--stats
+============================================================
+  📌 POM | Merci Yusuf  (ID 1535719783318954060)
+     📎 Embed titre='📊 POM | Merci Yusuf'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 📈 POM — Stats d'équipe  (ID 1535719784795086980)
+     📎 Embed titre='📈 Statistiques — POM'
+        [Saison en cours] : *Pas encore de match officiel joué.*
+        [Top joueurs (stocks pris, à vie)] : **POM | Merci Yusuf** — 0 stocks pris
+
+============================================================
+📁 OXVI — 〔oxvi〕players--stats
+============================================================
+  📌 📈 OXVI — Stats d'équipe  (ID 1533874116971466783)
+     📎 Embed titre='📈 Statistiques — OXVI'
+        [Saison en cours] : *Pas encore de match officiel joué.*
+        [Top joueurs (stocks pris, à vie)] : **𝕆 𝕏𝕍𝕀 | Kaptur78** — 0 stocks pris
+**𝕆 𝕏𝕍𝕀 | Robinski** — 0 stocks pris
+
+  📌 𝕆 𝕏𝕍𝕀 | Robinski  (ID 1533874159959015506)
+     📎 Embed titre='📊 𝕆 𝕏𝕍𝕀 | Robinski'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+============================================================
+📁 MST — 〔mst〕players--stats
+============================================================
+  📌 📈 MST — Stats d'équipe  (ID 1533874114853601371)
+     📎 Embed titre='📈 Statistiques — MST'
+        [Saison en cours] : *Pas encore de match officiel joué.*
+        [Top joueurs (stocks pris, à vie)] : **MST | Mat7725** — 0 stocks pris
+**Kenjuro** — 0 stocks pris
+**NC | Axheloup** — 0 stocks pris
+**Zephyr ゼラオラ** — 0 stocks pris
+**Julissas** — 0 stocks pris
+**Beiki-san** — 0 stocks pris
+**🌺Eevee-hana
+
+  📌 Ça se voit T Chauve  (ID 1533874151557955605)
+     📎 Embed titre='📊 Kenjuro'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 Lou.  (ID 1533874155521572955)
+     📎 Embed titre='📊 Lou.'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 NC | Akateric  (ID 1533874239080235110)
+     📎 Embed titre='📊 NC | Akateric'
+        [Main] : <:64_Inkling:1438573153671708784>
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 PaffMagik  (ID 1533874244759326971)
+     📎 Embed titre='📊 Julissas'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 🌺Eevee-hana🌺  (ID 1533874277168713851)
+     📎 Embed titre='📊 🌺Eevee-hana🌺'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 MST | Mat7725  (ID 1533875368233140275)
+     📎 Embed titre='📊 MST | Mat7725'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 Beiki-san  (ID 1533875379100581959)
+     📎 Embed titre='📊 Beiki-san'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 Pain au chocolatineDuFBI  (ID 1533875410666786998)
+     📎 Embed titre='📊 Pain au chocolatineDuFBI'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 Tacticien PaffCélèste  (ID 1533875413011529829)
+     📎 Embed titre='📊 Zephyr ゼラオラ'
+        [Main] : <:44_Wolf:1438572052243026031>
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 NC | Axheloup  (ID 1533875414525546507)
+     📎 Embed titre='📊 NC | Axheloup'
+        [Main] : <:25_Roy:1438444934565990471>
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 𝓢𝔂𝔁𝓷命  (ID 1535686000905429035)
+     📎 Embed titre='📊 𝓢𝔂𝔁𝓷命'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+============================================================
+📁 LT — 〔lt〕players--stats
+============================================================
+  📌 📈 LT — Stats d'équipe  (ID 1533874113008107681)
+     📎 Embed titre='📈 Statistiques — LT'
+        [Saison en cours] : *Pas encore de match officiel joué.*
+        [Top joueurs (stocks pris, à vie)] : **Shishi** — 0 stocks pris
+**une simple épée (remplaçant)** — 0 stocks pris
+**skyRaX** — 0 stocks pris
+**Cailloux** — 0 stocks pris
+**ORBR | BigFroa** — 0 stocks pris
+**bomberKILL** — 0 stocks pris
+**
+
+  📌 ORBR | BigFroa  (ID 1533874149897015530)
+     📎 Embed titre='📊 ORBR | BigFroa'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 𝓜𝓪𝔁𝓲𝓷𝓮  (ID 1533874152874836020)
+     📎 Embed titre='📊 𝓜𝓪𝔁𝓲𝓷𝓮'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 Mathieu  (ID 1533874196357316740)
+     📎 Embed titre='📊 Mathieu'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 LuluX  (ID 1533874203835502714)
+     📎 Embed titre='📊 LuluX'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 skyRaX  (ID 1533874242138013777)
+     📎 Embed titre='📊 skyRaX'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 chrysanthe  (ID 1533874243534848112)
+     📎 Embed titre='📊 une simple épée (remplaçant)'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 Cailloux  (ID 1533874280318636085)
+     📎 Embed titre='📊 Cailloux'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 LT | Almarby  (ID 1533874283959550067)
+     📎 Embed titre='📊 LT | Almarby'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 Yu  (ID 1533875366601425148)
+     📎 Embed titre='📊 Yu'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 bomberKILL  (ID 1533875373643661355)
+     📎 Embed titre='📊 bomberKILL'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 Shishi  (ID 1533875375103283231)
+     📎 Embed titre='📊 Shishi'
+        [Main] : <:06_Kirby:1438443173125816361>
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 ◤✞ 𝕱𝖑𝖔𝖗𝖊𝖗𝖊 ✞◥  (ID 1533875376579674213)
+     📎 Embed titre='📊 ◤✞ 𝕱𝖑𝖔𝖗𝖊𝖗𝖊 ✞◥'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 TZ | Bill Wick  (ID 1533875378022514832)
+     📎 Embed titre='📊 TZ | Bill Wick'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+============================================================
+📁 JRJ — 〔jrj〕players--stats
+============================================================
+  📌 JRJ | Jreej  (ID 1534216826425184350)
+     📎 Embed titre='📊 JRJ | Jreej'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 📈 JRJ — Stats d'équipe  (ID 1534216828031602790)
+     📎 Embed titre='📈 Statistiques — JRJ'
+        [Saison en cours] : *Pas encore de match officiel joué.*
+        [Top joueurs (stocks pris, à vie)] : **JRJ | Jreej** — 0 stocks pris
+
+============================================================
+📁 HoJ — 〔hoj〕players--stats
+============================================================
+  📌 📈 HoJ — Stats d'équipe  (ID 1533874111086858481)
+     📎 Embed titre='📈 Statistiques — HoJ'
+        [Saison en cours] : *Pas encore de match officiel joué.*
+        [Top joueurs (stocks pris, à vie)] : **HoJ | AzErNate** — 0 stocks pris
+**OX | Lyh** — 0 stocks pris
+
+  📌 Lyh 🔥  (ID 1533874161124905042)
+     📎 Embed titre='📊 OX | Lyh'
+        [Main] : <:54_Palutena:1438572599566139412>
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 HoJ | AzErNate  (ID 1533874235850756328)
+     📎 Embed titre='📊 HoJ | AzErNate'
+        [Main] : <:39_KingDedede:1438445972874072157>
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 LT | RC | Pluck  (ID 1535739505338749049)
+     📎 Embed titre='📊 LT | RC | Pluck'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+============================================================
+📁 ARK — 〔ark〕players--stats
+============================================================
+  📌 📈 ARK — Stats d'équipe  (ID 1533874109023391875)
+     📎 Embed titre='📈 Statistiques — ARK'
+        [Saison en cours] : *Pas encore de match officiel joué.*
+        [Top joueurs (stocks pris, à vie)] : **ARK | Icoutoir** — 0 stocks pris
+**Lady Shy** — 0 stocks pris
+**Doppler** — 0 stocks pris
+**ARK | oroblast** — 0 stocks pris
+**𝐏-𝐎𝐧𝐞** — 0 stocks pris
+**ARK | Red0x58** — 0 stocks pris
+**ARK | PNS |
+
+  📌 𝐏-𝐎𝐧𝐞  (ID 1533874193467314217)
+     📎 Embed titre='📊 𝐏-𝐎𝐧𝐞'
+        [Main] : <:51_MiiBrawler:1438572447170302062>
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 Doppler  (ID 1533874197464481925)
+     📎 Embed titre='📊 Doppler'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 ARK | Icoutoir  (ID 1533874198399811726)
+     📎 Embed titre='📊 ARK | Icoutoir'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 Lumine  (ID 1533874200132190411)
+     📎 Embed titre='📊 Lumine'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 ARK | Red0x58  (ID 1533874202291998793)
+     📎 Embed titre='📊 ARK | Red0x58'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 ARK | Licane  (ID 1533874234592329925)
+     📎 Embed titre='📊 ARK | Licane'
+        [Main] : <:10_Ness:1438443548415492187>
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 Lady Shy  (ID 1533874282839539883)
+     📎 Embed titre='📊 Lady Shy'
+        [Main] : <:28_Pit:1438445095182532669>
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 ARK | PNS | Axol  (ID 1533875370539876356)
+     📎 Embed titre='📊 ARK | PNS | Axol'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 ARK | oroblast  (ID 1533875372284837969)
+     📎 Embed titre='📊 ARK | oroblast'
+        [Main] : <:37_Lucas:1438445872244588606>
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 VHS Cassette  (ID 1534260553512517767)
+     📎 Embed titre='📊 VHS Cassette'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+============================================================
+📁 ADN — 〔adn〕players--stats
+============================================================
+  📌 Zgalstrat  (ID 1535719034899795989)
+     📎 Embed titre='📊 Zgalstrat'
+        [Main] : <:04_Samus:1438442931374526545>
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 📈 ADN — Stats d'équipe  (ID 1535719035835121770)
+     📎 Embed titre='📈 Statistiques — ADN'
+        [Saison en cours] : *Pas encore de match officiel joué.*
+        [Top joueurs (stocks pris, à vie)] : **Zgalstrat** — 0 stocks pris
+
+  📌 Antoine  (ID 1535721252180987985)
+     📎 Embed titre='📊 Antoine'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 KatEleph  (ID 1535722533544796303)
+     📎 Embed titre='📊 KatEleph'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 Pplek  (ID 1535725528563056691)
+     📎 Embed titre='📊 Pplek'
+        [Main] : <:82_Sora:1438578332286455870>
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 Kyoka  (ID 1535727317899284644)
+     📎 Embed titre='📊 Kyoka'
+        [Main] : *Non défini*
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 ADN Mura 🎓  (ID 1535739802169647147)
+     📎 Embed titre='📊 ADN Mura 🎓'
+        [Main] : <:75_Byleth:1438573784880775169>
+        [CB jouées] : 0
+        [Stocks pris] : 0
+
+  📌 Fredoc  (ID 1535742012844810332)
+     📎 Embed titre='📊 Fredoc'
+        [Main] : <:25e_Chrom:1438444969026392166>
+        [CB jouées] : 0
+        [Stocks pris] : 0
