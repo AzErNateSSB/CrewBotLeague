@@ -479,6 +479,35 @@ class _LeaveConfirmView(discord.ui.View):
         await interaction.response.edit_message(content="Annulé.", view=self)
 
 
+async def _transfer_leadership(interaction: discord.Interaction, team_sigle: str,
+                                new_leader_id: int, old_leader_id: int):
+    """Change le leader d'une équipe et notifie dans le salon tasks. Ne fait rien d'autre
+    (le nouvel ex-leader reste membre de l'équipe — c'est à l'appelant de décider s'il part)."""
+    from cogs.teams import load_team, save_team
+    from utils.teams_lu import refresh_team_lu
+
+    team = load_team(team_sigle)
+    team["leader_id"] = new_leader_id
+    save_team(team)
+    await refresh_team_lu(interaction.client, interaction.guild_id, team)
+
+    guild       = interaction.guild
+    new_leader  = guild.get_member(new_leader_id)
+    old_leader  = guild.get_member(old_leader_id)
+    tasks_ch_id = team["channels"].get("tasks")
+    tasks_ch    = guild.get_channel(tasks_ch_id) if tasks_ch_id else None
+    if tasks_ch:
+        try:
+            await tasks_ch.send(
+                f"👑 **{new_leader.display_name if new_leader else new_leader_id}** est le nouveau leader de "
+                f"**{team_sigle}** (succède à **{old_leader.display_name if old_leader else old_leader_id}**)."
+            )
+        except Exception:
+            pass
+
+    await refresh_team_stats_post(interaction.client, interaction.guild_id, team_sigle)
+
+
 class _SuccessorPickView(discord.ui.View):
     def __init__(self, team_sigle: str, player_id: int, candidates: list[tuple[int, str]]):
         super().__init__(timeout=120)
@@ -501,29 +530,85 @@ class _SuccessorPickView(discord.ui.View):
             item.disabled = True
         await interaction.response.edit_message(view=self)
 
-        from cogs.teams import load_team, save_team
-        from utils.teams_lu import refresh_team_lu
-
-        team = load_team(self.team_sigle)
-        team["leader_id"] = new_leader_id
-        save_team(team)
-        await refresh_team_lu(interaction.client, interaction.guild_id, team)
-
-        guild       = interaction.guild
-        new_leader  = guild.get_member(new_leader_id)
-        old_leader  = guild.get_member(self.player_id)
-        tasks_ch_id = team["channels"].get("tasks")
-        tasks_ch    = guild.get_channel(tasks_ch_id) if tasks_ch_id else None
-        if tasks_ch:
-            try:
-                await tasks_ch.send(
-                    f"👑 **{new_leader.display_name if new_leader else new_leader_id}** est le nouveau leader de "
-                    f"**{self.team_sigle}** (succède à **{old_leader.display_name if old_leader else self.player_id}**)."
-                )
-            except Exception:
-                pass
-
+        await _transfer_leadership(interaction, self.team_sigle, new_leader_id, self.player_id)
         await _leave_team(interaction, self.player_id, self.team_sigle)
+
+
+class _TransferOnlyView(discord.ui.View):
+    """Transfère le leadership sans quitter l'équipe (bouton dédié dans le post joueur)."""
+
+    def __init__(self, team_sigle: str, old_leader_id: int, candidates: list[tuple[int, str]]):
+        super().__init__(timeout=120)
+        self.team_sigle    = team_sigle
+        self.old_leader_id = old_leader_id
+
+        select = discord.ui.Select(
+            placeholder="Choisis le nouveau leader...",
+            options=[discord.SelectOption(label=name, value=str(mid)) for mid, name in candidates[:25]],
+        )
+        select.callback = self._on_select
+        self.add_item(select)
+
+    async def _on_select(self, interaction: discord.Interaction):
+        if interaction.user.id != self.old_leader_id:
+            await interaction.response.send_message("❌ Action non autorisée.", ephemeral=True)
+            return
+        new_leader_id = int(interaction.data["values"][0])
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(view=self)
+
+        await _transfer_leadership(interaction, self.team_sigle, new_leader_id, self.old_leader_id)
+
+        new_leader = interaction.guild.get_member(new_leader_id)
+        await interaction.followup.send(
+            f"✅ Leadership transféré à **{new_leader.display_name if new_leader else new_leader_id}**.",
+            ephemeral=True,
+        )
+
+
+class _TransferLeadershipBtn(discord.ui.Button):
+    def __init__(self, player_id: int):
+        super().__init__(
+            label="🔄 Transférer le leadership",
+            style=discord.ButtonStyle.primary,
+            custom_id=f"ps_transfer:{player_id}",
+            row=1,
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        from cogs.teams import find_team_of_player, load_team
+
+        view: PlayerStatsView = self.view
+        team_sigle = find_team_of_player(view.player_id)
+        if not team_sigle:
+            await interaction.response.send_message("❌ Tu n'es dans aucune équipe.", ephemeral=True)
+            return
+
+        team = load_team(team_sigle)
+        if team["leader_id"] != view.player_id:
+            await interaction.response.send_message(
+                "❌ Seul le leader de l'équipe peut transférer le leadership.", ephemeral=True
+            )
+            return
+
+        others = [m for m in team.get("members", []) if m != view.player_id]
+        if not others:
+            await interaction.response.send_message(
+                "❌ Aucun autre membre dans l'équipe à qui transférer le leadership.", ephemeral=True
+            )
+            return
+
+        candidates = []
+        for mid in others:
+            m = interaction.guild.get_member(mid)
+            candidates.append((mid, m.display_name if m else str(mid)))
+
+        select_view = _TransferOnlyView(team_sigle, view.player_id, candidates)
+        await interaction.response.send_message(
+            "👑 Choisis le membre qui devient le nouveau leader :",
+            view=select_view, ephemeral=True,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -537,6 +622,7 @@ class PlayerStatsView(discord.ui.View):
         self.add_item(_MainBtn(player_id))
         self.add_item(_StatsBtn(player_id))
         self.add_item(_LeaveBtn(player_id))
+        self.add_item(_TransferLeadershipBtn(player_id))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.player_id:
