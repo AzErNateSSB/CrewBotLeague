@@ -22,7 +22,7 @@ async def on_ready():
     if guild_obj:
         build_char_emojis(guild_obj)
         n = register_all_views(bot)
-        print(f"{n} PlayerStatsView(s) enregistrée(s)")
+        print(f"{n} PlayerStatsView(s)/TeamStatsView(s) enregistrée(s)")
 
     try:
         guild = discord.Object(id=GUILD_ID)
@@ -54,6 +54,7 @@ async def load_cogs():
 
 
 async def main():
+    discord.utils.setup_logging()
     async with bot:
         await load_cogs()
         await bot.start(os.getenv("DISCORD_TOKEN"))

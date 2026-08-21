@@ -28,8 +28,6 @@ def _save_lu(data: dict):
 # ---------------------------------------------------------------------------
 
 def _make_embed(team: dict) -> discord.Embed:
-    from utils.season_data import load_season
-
     sigle     = team["sigle"]
     leader_id = team.get("leader_id")
     members   = team.get("members", [])
@@ -56,6 +54,7 @@ def _make_embed(team: dict) -> discord.Embed:
     )
 
     # Ajouter les stats de saison si disponibles
+    from utils.season_data import load_season
     season = load_season()
     if season and league and league in season.get("standings", {}):
         s = season["standings"][league].get(sigle)

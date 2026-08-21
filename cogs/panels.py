@@ -6,11 +6,14 @@ import os
 
 from cogs.teams import (
     load_player, save_player, load_team,
-    find_team_of_player, save_team,
+    find_team_of_player, save_team, rollback_new_team,
+    tasks_channel_overwrites, players_forum_overwrites, TASKS_CHANNEL_INTRO,
+    save_join_request, restore_all_join_requests,
 )
 from utils.sheets_log import log_command, update_log
 from utils.i18n import t
 from utils.teams_lu import refresh_team_lu
+from utils.alerts import alert_error
 from utils.players_stats import create_team_stats_post, create_player_stats_post
 
 PANELS_FILE        = os.path.join("data", "panels.json")
@@ -99,42 +102,56 @@ class CreateTeamModal(discord.ui.Modal, title="Créer mon équipe"):
                 await log_command(user.display_name, cmd_label, "Failed", str(e))
                 return
 
-            team_data = {
-                "sigle":       full_sigle,
-                "leader_id":   user.id,
-                "role_id":     existing_a["role_id"],
-                "category_id": existing_a["category_id"],
-                "channels": {
-                    "general":    existing_a["channels"]["general"],
-                    "historique": forum_b.id,
-                    "vocal":      existing_a["channels"]["vocal"],
-                },
-                "members":    [user.id],
-                "league":     None,
-                "created_at": date.today().isoformat(),
-            }
-            save_team(team_data)
+            try:
+                team_data = {
+                    "sigle":       full_sigle,
+                    "leader_id":   user.id,
+                    "role_id":     existing_a["role_id"],
+                    "category_id": existing_a["category_id"],
+                    "channels": {
+                        "general":       existing_a["channels"]["general"],
+                        "historique":    forum_b.id,
+                        "vocal":         existing_a["channels"]["vocal"],
+                        "tasks":         existing_a["channels"].get("tasks"),
+                        "players_stats": existing_a["channels"].get("players_stats"),
+                    },
+                    "members":    [user.id],
+                    "league":     None,
+                    "created_at": date.today().isoformat(),
+                }
+                save_team(team_data)
 
-            player = load_player(user.id) or {"discord_id": user.id, "name": user.display_name}
-            player["team"] = full_sigle
-            save_player(player)
-            await refresh_team_lu(interaction.client, interaction.guild_id, team_data)
+                player = load_player(user.id) or {"discord_id": user.id, "name": user.display_name}
+                player["team"] = full_sigle
+                save_player(player)
+                await refresh_team_lu(interaction.client, interaction.guild_id, team_data)
+                await create_team_stats_post(interaction.client, interaction.guild_id, team_data)
 
-            general_ch = guild.get_channel(existing_a["channels"]["general"])
-            embed = discord.Embed(title=f"⚔️ Équipe **{full_sigle}** créée !", color=discord.Color.blurple())
-            embed.add_field(name="Leader", value=user.mention, inline=True)
-            embed.add_field(name="Rôle",   value=role.mention, inline=True)
-            embed.add_field(name="Salon historique",
-                            value=forum_b.mention, inline=False)
-            await interaction.followup.send(embed=embed, ephemeral=True)
+                general_ch = guild.get_channel(existing_a["channels"]["general"])
+                embed = discord.Embed(title=f"⚔️ Équipe **{full_sigle}** créée !", color=discord.Color.blurple())
+                embed.add_field(name="Leader", value=user.mention, inline=True)
+                embed.add_field(name="Rôle",   value=role.mention, inline=True)
+                embed.add_field(name="Salon historique",
+                                value=forum_b.mention, inline=False)
+                await interaction.followup.send(embed=embed, ephemeral=True)
 
-            if general_ch:
-                await general_ch.send(
-                    f"🎉 L'équipe **{full_sigle}** a été créée ! "
-                    f"{user.mention} en est le leader."
+                if general_ch:
+                    await general_ch.send(
+                        f"🎉 L'équipe **{full_sigle}** a été créée ! "
+                        f"{user.mention} en est le leader."
+                    )
+                await log_command(user.display_name, cmd_label, "Completed",
+                                  f"La Team **{full_sigle}** créée (équipe B de **{raw_sigle}**) — leader : **{user.display_name}**")
+            except Exception as e:
+                await rollback_new_team(channels=[forum_b])
+                await interaction.followup.send(f"❌ Erreur lors de la création de l'équipe : {e}", ephemeral=True)
+                await log_command(user.display_name, cmd_label, "Failed", f"Erreur après création du salon : {e}")
+                await alert_error(
+                    interaction.client,
+                    "Échec création équipe (B) — panel",
+                    f"Commande `{cmd_label}` par **{user.display_name}**\nErreur : `{e}`\n"
+                    f"Le salon historique² a été supprimé (rollback).",
                 )
-            await log_command(user.display_name, cmd_label, "Completed",
-                              f"La Team **{full_sigle}** créée (équipe B de **{raw_sigle}**) — leader : **{user.display_name}**")
             return
 
         else:
@@ -173,77 +190,79 @@ class CreateTeamModal(discord.ui.Modal, title="Créer mon équipe"):
             ),
         }
 
-        overwrites_tasks = {
-            guild.default_role: discord.PermissionOverwrite(view_channel=False),
-            role: discord.PermissionOverwrite(
-                view_channel=True, send_messages=False, read_message_history=True,
-            ),
-            guild.me: discord.PermissionOverwrite(
-                view_channel=True, send_messages=True,
-                read_message_history=True, manage_channels=True,
-            ),
-        }
-
         try:
             category     = await guild.create_category(name=f"〔{full_sigle}〕", overwrites=overwrites)
-            tasks        = await guild.create_text_channel( name=f"〔{full_sigle}〕tasks",          category=category, overwrites=overwrites_tasks)
-            general      = await guild.create_text_channel( name=f"〔{full_sigle}〕général",        category=category)
-            forum        = await guild.create_forum(         name=f"〔{full_sigle}〕historique",     category=category)
-            players_stat = await guild.create_forum(         name=f"〔{full_sigle}〕players--stats", category=category)
-            vocal        = await guild.create_voice_channel( name=f"〔{full_sigle}〕vocal",          category=category)
+            tasks        = await guild.create_text_channel(
+                name=f"〔{full_sigle}〕tasks", category=category,
+                overwrites=tasks_channel_overwrites(guild, role, user),
+            )
+            general      = await guild.create_text_channel( name=f"〔{full_sigle}〕général",    category=category)
+            forum        = await guild.create_forum(         name=f"〔{full_sigle}〕historique", category=category)
+            players_stat = await guild.create_forum(
+                name=f"〔{full_sigle}〕players--stats", category=category,
+                overwrites=players_forum_overwrites(guild, role, user),
+            )
+            vocal        = await guild.create_voice_channel( name=f"〔{full_sigle}〕vocal",      category=category)
         except Exception as e:
             await role.delete()
             await interaction.followup.send(f"❌ Erreur création des salons : {e}", ephemeral=True)
             await log_command(user.display_name, cmd_label, "Failed", str(e))
             return
 
-        team_data = {
-            "sigle":       full_sigle,
-            "leader_id":   user.id,
-            "role_id":     role.id,
-            "category_id": category.id,
-            "channels": {
-                "general":       general.id,
-                "historique":    forum.id,
-                "tasks":         tasks.id,
-                "players_stats": players_stat.id,
-                "vocal":         vocal.id,
-            },
-            "members":    [user.id],
-            "league":     None,
-            "created_at": date.today().isoformat(),
-        }
-        save_team(team_data)
+        try:
+            team_data = {
+                "sigle":       full_sigle,
+                "leader_id":   user.id,
+                "role_id":     role.id,
+                "category_id": category.id,
+                "channels": {
+                    "general":       general.id,
+                    "historique":    forum.id,
+                    "tasks":         tasks.id,
+                    "players_stats": players_stat.id,
+                    "vocal":         vocal.id,
+                },
+                "members":    [user.id],
+                "league":     None,
+                "created_at": date.today().isoformat(),
+            }
+            save_team(team_data)
 
-        player = load_player(user.id) or {"discord_id": user.id, "name": user.display_name}
-        player["team"] = full_sigle
-        save_player(player)
-        await refresh_team_lu(interaction.client, interaction.guild_id, team_data)
-        await create_team_stats_post(interaction.client, interaction.guild_id, team_data)
-        from cogs.teams import load_team as lt
-        team_data = lt(full_sigle) or team_data
-        await create_player_stats_post(interaction.client, interaction.guild_id, team_data, user)
+            player = load_player(user.id) or {"discord_id": user.id, "name": user.display_name}
+            player["team"] = full_sigle
+            save_player(player)
+            await refresh_team_lu(interaction.client, interaction.guild_id, team_data)
+            await create_team_stats_post(interaction.client, interaction.guild_id, team_data)
+            from cogs.teams import load_team as lt
+            team_data = lt(full_sigle) or team_data
+            await create_player_stats_post(interaction.client, interaction.guild_id, team_data, user)
 
-        embed = discord.Embed(title=f"⚔️ Équipe **{full_sigle}** créée !", color=discord.Color.blurple())
-        embed.add_field(name="Leader", value=user.mention, inline=True)
-        embed.add_field(name="Rôle",   value=role.mention, inline=True)
-        embed.add_field(name="Salons",
-                        value=f"{general.mention} · {forum.mention} · {vocal.mention}",
-                        inline=False)
-        await interaction.followup.send(embed=embed, ephemeral=True)
+            embed = discord.Embed(title=f"⚔️ Équipe **{full_sigle}** créée !", color=discord.Color.blurple())
+            embed.add_field(name="Leader", value=user.mention, inline=True)
+            embed.add_field(name="Rôle",   value=role.mention, inline=True)
+            embed.add_field(name="Salons",
+                            value=f"{general.mention} · {forum.mention} · {vocal.mention} · {tasks.mention} · {players_stat.mention}",
+                            inline=False)
+            await interaction.followup.send(embed=embed, ephemeral=True)
 
-        await general.send(
-            f"🎉 Bienvenue dans le salon de **{full_sigle}** ! "
-            f"{user.mention} en est le leader.\n"
-            f"Les membres peuvent rejoindre l'équipe via le salon <#{CHANNEL_JOINTEAM}>."
-        )
-        await tasks.send(
-            f"📋 Ce salon sert aux actions qui nécessitent le **leader** de l'équipe "
-            f"(demandes pour rejoindre l'équipe, etc.). "
-            f"Les membres ont accès en lecture seule."
-        )
-        await log_command(user.display_name, cmd_label, "Completed",
-                          f"La Team **{full_sigle}** a été créée avec **{user.display_name}** pour Leader")
+            await general.send(
+                f"🎉 Bienvenue dans le salon de **{full_sigle}** ! "
+                f"{user.mention} en est le leader.\n"
+                f"Les membres peuvent rejoindre l'équipe via le salon <#{CHANNEL_JOINTEAM}>."
+            )
+            await tasks.send(TASKS_CHANNEL_INTRO)
+            await log_command(user.display_name, cmd_label, "Completed",
+                              f"La Team **{full_sigle}** a été créée avec **{user.display_name}** pour Leader")
+        except Exception as e:
+            await rollback_new_team(role=role, category=category, channels=[general, forum, players_stat, vocal, tasks])
+            await interaction.followup.send(f"❌ Erreur lors de la création de l'équipe : {e}", ephemeral=True)
+            await log_command(user.display_name, cmd_label, "Failed", f"Erreur après création des salons : {e}")
+            await alert_error(
+                interaction.client,
+                "Échec création équipe — panel",
+                f"Commande `{cmd_label}` par **{user.display_name}**\nErreur : `{e}`\n"
+                f"Rôle, catégorie et salons ont été supprimés (rollback).",
+            )
 
 
 class CreateTeamView(discord.ui.View):
@@ -316,6 +335,12 @@ class JoinTeamModal(discord.ui.Modal, title="Rejoindre une équipe"):
                 view=view,
             )
             view.message = msg
+            save_join_request(msg.id, {
+                "channel_id":   tasks_channel.id,
+                "applicant_id": user.id,
+                "team_sigle":   sigle,
+                "log_row":      log_row,
+            })
         except discord.Forbidden:
             await interaction.followup.send(
                 "❌ Le bot n'a pas la permission d'écrire dans le salon tasks de cette équipe.", ephemeral=True
@@ -376,6 +401,185 @@ async def _ensure_panel(
     msg = await channel.send(embed=embed, view=view)
     panels[key] = msg.id
     return f"✅ Panel posté dans {channel.mention}"
+
+
+async def _backfill_team_tasks_channels(guild: discord.Guild) -> list[str]:
+    """Crée le salon 'tasks' des équipes existantes qui n'en ont pas encore
+    (ou en réapplique les permissions). Les équipes B réutilisent le salon
+    tasks de leur équipe A (partagé, comme général/vocal)."""
+    teams_dir = os.path.join("data", "teams")
+    report: list[str] = []
+    if not os.path.exists(teams_dir):
+        return report
+
+    all_teams = []
+    for fn in sorted(os.listdir(teams_dir)):
+        if not fn.endswith(".json"):
+            continue
+        with open(os.path.join(teams_dir, fn), encoding="utf-8") as f:
+            all_teams.append(json.load(f))
+
+    teams_a = [t for t in all_teams if not t["sigle"].endswith("²")]
+    teams_b = [t for t in all_teams if t["sigle"].endswith("²")]
+
+    for team in teams_a:
+        sigle = team["sigle"]
+
+        category = guild.get_channel(team.get("category_id", 0))
+        if not category:
+            report.append(f"❌ **{sigle}** : catégorie introuvable, salon tasks non créé")
+            continue
+
+        role   = guild.get_role(team.get("role_id", 0))
+        leader = guild.get_member(team.get("leader_id", 0))
+
+        existing_id = team["channels"].get("tasks")
+        existing_ch = guild.get_channel(existing_id) if existing_id else None
+
+        if existing_ch:
+            try:
+                await existing_ch.edit(overwrites=tasks_channel_overwrites(guild, role, leader))
+                report.append(f"🔧 Permissions du salon tasks de **{sigle}** vérifiées")
+            except Exception as e:
+                report.append(f"❌ **{sigle}** : erreur mise à jour permissions tasks : {e}")
+            continue
+
+        try:
+            tasks_ch = await guild.create_text_channel(
+                name=f"〔{sigle}〕tasks", category=category,
+                overwrites=tasks_channel_overwrites(guild, role, leader),
+            )
+            await tasks_ch.send(TASKS_CHANNEL_INTRO)
+        except Exception as e:
+            report.append(f"❌ **{sigle}** : erreur création salon tasks : {e}")
+            continue
+
+        team["channels"]["tasks"] = tasks_ch.id
+        save_team(team)
+        report.append(f"✅ Salon tasks créé pour **{sigle}**")
+
+    for team in teams_b:
+        sigle = team["sigle"]
+        existing_id = team["channels"].get("tasks")
+        if existing_id and guild.get_channel(existing_id):
+            continue
+
+        parent = load_team(sigle[:-1])
+        parent_tasks_id = parent["channels"].get("tasks") if parent else None
+        if parent_tasks_id and guild.get_channel(parent_tasks_id):
+            team["channels"]["tasks"] = parent_tasks_id
+            save_team(team)
+            report.append(f"✅ **{sigle}** relié au salon tasks de l'équipe A")
+        else:
+            report.append(f"⚠️ **{sigle}** : salon tasks de l'équipe A pas encore disponible, ignoré")
+
+    return report
+
+
+async def _backfill_player_stats(guild: discord.Guild, bot: commands.Bot) -> list[str]:
+    """Crée le forum 'players--stats' manquant, le post stats de chaque équipe,
+    et le post individuel de chaque joueur qui n'en a pas encore."""
+    from utils.players_stats import register_all_views
+
+    teams_dir = os.path.join("data", "teams")
+    report: list[str] = []
+    if not os.path.exists(teams_dir):
+        return report
+
+    all_teams = []
+    for fn in sorted(os.listdir(teams_dir)):
+        if not fn.endswith(".json"):
+            continue
+        with open(os.path.join(teams_dir, fn), encoding="utf-8") as f:
+            all_teams.append(json.load(f))
+
+    teams_a = [t for t in all_teams if not t["sigle"].endswith("²")]
+    teams_b = [t for t in all_teams if t["sigle"].endswith("²")]
+
+    # ── Forum players--stats (créé sur l'équipe A, partagé avec la B) ───────
+    for team in teams_a:
+        sigle = team["sigle"]
+        existing_id = team["channels"].get("players_stats")
+        if existing_id and guild.get_channel(existing_id):
+            continue
+
+        category = guild.get_channel(team.get("category_id", 0))
+        if not category:
+            report.append(f"❌ **{sigle}** : catégorie introuvable, forum players--stats non créé")
+            continue
+
+        role   = guild.get_role(team.get("role_id", 0))
+        leader = guild.get_member(team.get("leader_id", 0))
+        try:
+            forum = await guild.create_forum(
+                name=f"〔{sigle}〕players--stats", category=category,
+                overwrites=players_forum_overwrites(guild, role, leader),
+            )
+        except Exception as e:
+            report.append(f"❌ **{sigle}** : erreur création forum players--stats : {e}")
+            continue
+
+        team["channels"]["players_stats"] = forum.id
+        save_team(team)
+        report.append(f"✅ Forum players--stats créé pour **{sigle}**")
+
+    for team in teams_b:
+        sigle = team["sigle"]
+        existing_id = team["channels"].get("players_stats")
+        if existing_id and guild.get_channel(existing_id):
+            continue
+        parent = load_team(sigle[:-1])
+        parent_forum_id = parent["channels"].get("players_stats") if parent else None
+        if parent_forum_id and guild.get_channel(parent_forum_id):
+            team["channels"]["players_stats"] = parent_forum_id
+            save_team(team)
+            report.append(f"✅ **{sigle}** relié au forum players--stats de l'équipe A")
+        else:
+            report.append(f"⚠️ **{sigle}** : forum de l'équipe A pas encore disponible, ignoré")
+
+    # ── Post stats d'équipe — une par équipe (A et B) ────────────────────────
+    nb_team_posts = 0
+    for team in (load_team(t["sigle"]) for t in all_teams):
+        if not team or team.get("stats_thread_id"):
+            continue
+        try:
+            await create_team_stats_post(bot, guild.id, team)
+            if load_team(team["sigle"]).get("stats_thread_id"):
+                nb_team_posts += 1
+        except Exception as e:
+            report.append(f"❌ **{team['sigle']}** : erreur création post stats d'équipe : {e}")
+    if nb_team_posts:
+        report.append(f"✅ {nb_team_posts} post(s) stats d'équipe créé(s)")
+
+    # ── Post individuel de chaque joueur affilié à une équipe ───────────────
+    players_dir = os.path.join("data", "players")
+    nb_player_posts = 0
+    if os.path.exists(players_dir):
+        for fn in sorted(os.listdir(players_dir)):
+            if not fn.endswith(".json"):
+                continue
+            with open(os.path.join(players_dir, fn), encoding="utf-8") as f:
+                player = json.load(f)
+            team_sigle = player.get("team")
+            if not team_sigle or player.get("stats_thread_id"):
+                continue
+            team = load_team(team_sigle)
+            member = guild.get_member(player["discord_id"])
+            if not team or not member:
+                continue
+            try:
+                await create_player_stats_post(bot, guild.id, team, member)
+                nb_player_posts += 1
+            except Exception as e:
+                report.append(f"❌ Post de **{member.display_name}** : erreur : {e}")
+    if nb_player_posts:
+        report.append(f"✅ {nb_player_posts} post(s) joueur créé(s)")
+
+    # ── Ré-enregistrer les boutons de tous les posts actifs ─────────────────
+    nb_views = register_all_views(bot)
+    report.append(f"🔄 {nb_views} vue(s) players-stats — boutons ré-enregistrés")
+
+    return report
 
 # ---------------------------------------------------------------------------
 # /cbl_setup_all
@@ -451,6 +655,29 @@ async def cbl_setup_all(interaction: discord.Interaction):
     ))
 
     save_panels(panels)
+
+    # ── Salon "tasks" manquant sur les équipes existantes ────────────────────
+    report.extend(await _backfill_team_tasks_channels(guild))
+
+    # ── Forum "players--stats" + posts joueurs/équipe manquants ──────────────
+    report.extend(await _backfill_player_stats(guild, interaction.client))
+
+    # ── Reprise de tous les flux interactifs en cours (boutons cassés) ───────
+    from cogs.crewbattle import restore_all_matches
+    from cogs.freeplay import restore_all_freeplay_setups, restore_all_fp_posts, ensure_all_cancel_buttons
+
+    nb_matches = await restore_all_matches(interaction.client)
+    nb_setups  = await restore_all_freeplay_setups(interaction.client)
+    nb_posts   = await restore_all_fp_posts(interaction.client)
+    nb_joins   = await restore_all_join_requests(interaction.client)
+    nb_cancel  = await ensure_all_cancel_buttons(interaction.client)
+
+    report.append(f"🔄 {nb_matches} CrewBattle(s) en cours — boutons reposés")
+    report.append(f"🔄 {nb_setups} configuration(s) Freeplay en cours — boutons reposés")
+    report.append(f"🔄 {nb_posts} recherche(s) d'adversaire — boutons reposés")
+    report.append(f"🔄 {nb_joins} demande(s) de join — boutons reposés / migrés vers tasks")
+    report.append(f"🔄 {nb_cancel} bouton(s) \"Annuler la CB\" manquant(s) — reposté(s)")
+
     await interaction.followup.send("\n".join(report), ephemeral=True)
 
 # ---------------------------------------------------------------------------

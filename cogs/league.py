@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
+from typing import Optional
 
 from utils.season_data import (
     LEAGUE_NAMES, LEAGUE_CATEGORY_IDS,
@@ -261,6 +262,47 @@ async def cbl_leagueremoveteam(interaction: discord.Interaction, sigle: str):
                       f"**{sigle}** retirée de **{current_league}**")
 
 # ---------------------------------------------------------------------------
+# /cbl_standings
+# ---------------------------------------------------------------------------
+
+@app_commands.command(name="cbl_standings", description="Affiche le classement d'une ligue")
+@app_commands.describe(ligue="Ligue à afficher (toutes si vide)")
+async def cbl_standings(interaction: discord.Interaction, ligue: Optional[str] = None):
+    season = load_season()
+    if not season:
+        await interaction.response.send_message("❌ Aucune saison en cours.", ephemeral=True)
+        return
+
+    if ligue:
+        if ligue not in LEAGUE_NAMES:
+            await interaction.response.send_message(
+                f"❌ Ligue invalide. Disponibles : {', '.join(LEAGUE_NAMES)}", ephemeral=True
+            )
+            return
+        await interaction.response.send_message(embed=_standings_embed(season, ligue))
+    else:
+        embeds = [_standings_embed(season, lg) for lg in LEAGUE_NAMES]
+        await interaction.response.send_message(embeds=embeds)
+
+# ---------------------------------------------------------------------------
+# /cbl_schedule
+# ---------------------------------------------------------------------------
+
+@app_commands.command(name="cbl_schedule", description="Affiche le calendrier des matchs d'une ligue")
+@app_commands.describe(ligue="Ligue à afficher")
+async def cbl_schedule(interaction: discord.Interaction, ligue: str):
+    season = load_season()
+    if not season:
+        await interaction.response.send_message("❌ Aucune saison en cours.", ephemeral=True)
+        return
+    if ligue not in LEAGUE_NAMES:
+        await interaction.response.send_message(
+            f"❌ Ligue invalide. Disponibles : {', '.join(LEAGUE_NAMES)}", ephemeral=True
+        )
+        return
+    await interaction.response.send_message(embed=_schedule_embed(season, ligue))
+
+# ---------------------------------------------------------------------------
 # /cbl_admin_start_season
 # ---------------------------------------------------------------------------
 
@@ -480,6 +522,8 @@ class League(commands.Cog):
         self.bot.tree.add_command(cbl_teaminfo)
         self.bot.tree.add_command(cbl_leagueaddteam)
         self.bot.tree.add_command(cbl_leagueremoveteam)
+        self.bot.tree.add_command(cbl_standings)
+        self.bot.tree.add_command(cbl_schedule)
         self.bot.tree.add_command(cbl_admin_start_season)
         self.bot.tree.add_command(cbl_admin_end_season)
         self.bot.tree.add_command(cbl_barrages)

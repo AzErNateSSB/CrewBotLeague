@@ -242,6 +242,7 @@ pending_setups: dict[int, PendingSetup] = {}
 _bot_ref: Optional[commands.Bot] = None
 
 SAVE_FILE = "match_state.json"
+PENDING_SETUPS_FILE = "pending_setups.json"
 
 # ---------------------------------------------------------------------------
 # Persistance des matchs
@@ -332,6 +333,59 @@ def _load_matches_from_file() -> dict[int, "Match"]:
         return {int(ch): _match_from_dict(m) for ch, m in data.items()}
     except Exception as e:
         print(f"[WARN] load_matches: {e}")
+        return {}
+
+# ---------------------------------------------------------------------------
+# Persistance des configurations de match en attente (pending_setups)
+# ---------------------------------------------------------------------------
+
+def _pending_lineup_to_dict(lu: "PendingLineup") -> dict:
+    return {
+        "team_name":   lu.team_name,
+        "captain_id":  lu.captain_id,
+        "players":     [_player_to_dict(p) for p in lu.players],
+        "subs":        [_player_to_dict(p) for p in lu.subs],
+    }
+
+def _pending_lineup_from_dict(d: dict) -> "PendingLineup":
+    return PendingLineup(
+        team_name  =d["team_name"],
+        captain_id =d["captain_id"],
+        players    =[_player_from_dict(p) for p in d["players"]],
+        subs       =[_player_from_dict(p) for p in d["subs"]],
+    )
+
+def _pending_setup_to_dict(s: "PendingSetup") -> dict:
+    return {
+        "nb_players": s.nb_players,
+        "nb_subs":    s.nb_subs,
+        "lineups":    [_pending_lineup_to_dict(lu) for lu in s.lineups],
+    }
+
+def _pending_setup_from_dict(d: dict) -> "PendingSetup":
+    return PendingSetup(
+        nb_players=d["nb_players"],
+        nb_subs   =d["nb_subs"],
+        lineups   =[_pending_lineup_from_dict(lu) for lu in d["lineups"]],
+    )
+
+def save_pending_setups():
+    try:
+        data = {str(ch): _pending_setup_to_dict(s) for ch, s in pending_setups.items()}
+        with open(PENDING_SETUPS_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[WARN] save_pending_setups: {e}")
+
+def _load_pending_setups_from_file() -> dict[int, "PendingSetup"]:
+    if not os.path.exists(PENDING_SETUPS_FILE):
+        return {}
+    try:
+        with open(PENDING_SETUPS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return {int(ch): _pending_setup_from_dict(s) for ch, s in data.items()}
+    except Exception as e:
+        print(f"[WARN] load_pending_setups: {e}")
         return {}
 
 async def _restore_match_view(bot: commands.Bot, match: "Match"):
@@ -570,6 +624,7 @@ class CharacterSelectView(discord.ui.View):
                 self.parent_view.btn_b.label = f"✅ {team.name} — Joueur prêt"
                 self.parent_view.btn_b.style = discord.ButtonStyle.success
                 self.parent_view.btn_b.disabled = True
+            save_matches()
 
             if self.parent_view.message:
                 try:
@@ -686,6 +741,9 @@ class ScoreModal(discord.ui.Modal):
         match.banned_stages = []
         match.picked_stage = None
 
+        from utils.players_stats import record_set_result
+        record_set_result(ca.discord_id, cb.discord_id, takes_a, takes_b)
+
         for item in self.score_view.children:
             item.disabled = True
         if self.score_view.message:
@@ -696,6 +754,10 @@ class ScoreModal(discord.ui.Modal):
 
         channel = interaction.channel
         guild = getattr(channel, "guild", None)
+
+        if guild and _bot_ref:
+            from utils.players_stats import refresh_after_set
+            await refresh_after_set(_bot_ref, guild.id, ca.discord_id, cb.discord_id)
 
         # Résumé public du set terminé
         winner_name = cb.name if loser_side == "A" else ca.name
@@ -738,6 +800,7 @@ class ScoreModal(discord.ui.Modal):
 
         loser_team = match.team_a if loser_side == "A" else match.team_b
         match.state = State.LOSER_PICK
+        save_matches()
 
         view = LoserPickView(match=match, loser_side=loser_side)
         msg = await channel.send(
@@ -1141,9 +1204,15 @@ async def end_crewbattle(channel: discord.TextChannel, match: Match):
                         break
 
             save_season(season)
-            from utils.standings_channel import refresh_standings_channel
+
             if guild:
+                from utils.players_stats import refresh_team_stats_post
+                from utils.standings_channel import refresh_standings_channel
+                if _bot_ref:
+                    await refresh_team_stats_post(_bot_ref, guild.id, winner.name)
+                    await refresh_team_stats_post(_bot_ref, guild.id, loser.name)
                 await refresh_standings_channel(guild)
+
         delete_official_match(match.channel_id)
 
         # Supprimer le salon après le match officiel
@@ -1276,6 +1345,7 @@ async def cbl_uniquematch_setup(interaction: discord.Interaction, roster: str = 
         return
 
     pending_setups[channel_id] = PendingSetup(nb_players=nb_players, nb_subs=nb_subs)
+    save_pending_setups()
     await interaction.response.send_message(
         f"Match configuré ({nb_players} joueurs + {nb_subs} remplaçants), en attente des LineUp :\n"
         "Pour envoyer votre LineUp, faites `/cbl_uniquematch_addteam`"
@@ -1336,6 +1406,7 @@ async def cbl_uniquematch_addteam(
     subs    = [Player(name=m.display_name, discord_id=m.id) for m in provided_subs]
 
     setup.lineups.append(PendingLineup(team_name=team_name, captain_id=leader.id, players=players, subs=subs))
+    save_pending_setups()
 
     if len(setup.lineups) == 1:
         await interaction.response.send_message("Une LineUp a été envoyée, en attente de la LineUp adverse !")
@@ -1360,6 +1431,7 @@ async def cbl_start(interaction: discord.Interaction):
         return
 
     del pending_setups[channel_id]
+    save_pending_setups()
 
     lu_a, lu_b = setup.lineups[0], setup.lineups[1]
     guild = interaction.guild
@@ -1523,8 +1595,16 @@ async def cbl_force_score(interaction: discord.Interaction, vies_prises_a: int, 
     match.banned_stages = []
     match.picked_stage = None
 
+    from utils.players_stats import record_set_result
+    record_set_result(ca.discord_id, cb.discord_id, vies_prises_a, vies_prises_b)
+
     channel = interaction.channel
     guild = getattr(channel, "guild", None)
+
+    if guild and _bot_ref:
+        from utils.players_stats import refresh_after_set
+        await refresh_after_set(_bot_ref, guild.id, ca.discord_id, cb.discord_id)
+
     winner_name = cb.name if loser_side == "A" else ca.name
     rec = match.set_history[-1]
     history_lines = build_history_lines(match, guild)
@@ -1566,6 +1646,9 @@ async def cbl_force_score(interaction: discord.Interaction, vies_prises_a: int, 
 
 # ---------------------------------------------------------------------------
 # MatchControlView  (boutons ▶️ Lancer / 📊 Statut dans les salons de match)
+# Portée depuis la version GitHub ; le bug current_player (attribut absent de
+# Team) a été corrigé pour utiliser match.current_a/current_b comme le reste
+# du fichier.
 # ---------------------------------------------------------------------------
 
 class MatchControlView(discord.ui.View):
@@ -1608,6 +1691,7 @@ class MatchControlView(discord.ui.View):
             return
 
         del pending_setups[channel_id]
+        save_pending_setups()
 
         lu_a, lu_b = setup.lineups[0], setup.lineups[1]
         guild  = interaction.guild
@@ -1690,7 +1774,7 @@ class MatchControlView(discord.ui.View):
             inline=False,
         )
 
-        def team_field(team: Team, current) -> str:
+        def team_field(team: Team, current: Optional[Player]) -> str:
             lines = []
             for p in team.players:
                 if p.lives == 0:
@@ -1706,39 +1790,47 @@ class MatchControlView(discord.ui.View):
 
         embed.add_field(
             name=f"Équipe {match.team_a.name}",
-            value=team_field(match.team_a, match.team_a.current_player),
+            value=team_field(match.team_a, match.current_a),
             inline=True,
         )
         embed.add_field(
             name=f"Équipe {match.team_b.name}",
-            value=team_field(match.team_b, match.team_b.current_player),
+            value=team_field(match.team_b, match.current_b),
             inline=True,
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-
 # ---------------------------------------------------------------------------
 # Cog
 # ---------------------------------------------------------------------------
+
+async def restore_all_matches(bot: commands.Bot) -> int:
+    """Recharge match_state.json et reposte les boutons de chaque match en cours.
+
+    Utilisé au démarrage du bot ET par /cbl_setup_all (reprise manuelle).
+    Renvoie le nombre de matchs restaurés.
+    """
+    global active_matches
+    await bot.wait_until_ready()
+    loaded = _load_matches_from_file()
+    active_matches.update(loaded)
+    for match in loaded.values():
+        try:
+            await _restore_match_view(bot, match)
+        except Exception as e:
+            print(f"[WARN] restore match {match.channel_id}: {e}")
+    return len(loaded)
+
 
 class CrewBattle(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
     async def cog_load(self):
-        global _bot_ref, active_matches
+        global _bot_ref, pending_setups
         _bot_ref = self.bot
-        loaded = _load_matches_from_file()
-        if loaded:
-            active_matches.update(loaded)
-            async def _restore_all():
-                await self.bot.wait_until_ready()
-                for match in loaded.values():
-                    try:
-                        await _restore_match_view(self.bot, match)
-                    except Exception as e:
-                        print(f"[WARN] restore match {match.channel_id}: {e}")
-            self.bot.loop.create_task(_restore_all())
+        pending_setups.update(_load_pending_setups_from_file())
+        self.bot.loop.create_task(restore_all_matches(self.bot))
         self.bot.add_view(MatchControlView())
         self.bot.tree.add_command(cbl_uniquematch_new)
         self.bot.tree.add_command(cbl_uniquematch_setup)

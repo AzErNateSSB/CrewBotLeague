@@ -1,12 +1,4 @@
-﻿# Tokens et secrets
+__pycache__/
+*.pyc
 .env
 credentials.json
-token.json
-
-# Cache Python
-__pycache__/
-*.py[cod]
-*.pyo
-
-# Logs
-*.log
