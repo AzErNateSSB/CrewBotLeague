@@ -373,6 +373,29 @@ class MatchmakingView(discord.ui.View):
             btn.callback = self._make_cb(slot)
             self.add_item(btn)
 
+        cancel_btn = discord.ui.Button(
+            label="🚫 Annuler la recherche", style=discord.ButtonStyle.danger, row=4,
+        )
+        cancel_btn.callback = self._cancel
+        self.add_item(cancel_btn)
+
+    async def _cancel(self, interaction: discord.Interaction):
+        from cogs.crewbattle import ADMIN_ID
+        if interaction.user.id not in (self.leader_id, ADMIN_ID):
+            await interaction.response.send_message(
+                "❌ Seul l'auteur de la recherche (ou un admin) peut l'annuler.", ephemeral=True
+            )
+            return
+
+        del_fp_post(interaction.message.id)
+        await interaction.response.send_message(
+            f"🚫 Recherche de **{self.team_sigle}** annulée par {interaction.user.mention}."
+        )
+        try:
+            await interaction.message.delete()
+        except Exception:
+            pass
+
     def _make_cb(self, slot: str):
         async def cb(interaction: discord.Interaction):
             if interaction.user.id == self.leader_id:
