@@ -16,6 +16,14 @@ GUILD_ID = 1472927998301835356
 @bot.event
 async def on_ready():
     print(f"Bot connecté en tant que {bot.user}")
+
+    from utils.players_stats import register_all_views, build_char_emojis
+    guild_obj = bot.get_guild(GUILD_ID)
+    if guild_obj:
+        build_char_emojis(guild_obj)
+        n = register_all_views(bot)
+        print(f"{n} PlayerStatsView(s)/TeamStatsView(s) enregistrée(s)")
+
     try:
         guild = discord.Object(id=GUILD_ID)
         bot.tree.copy_global_to(guild=guild)
@@ -42,7 +50,7 @@ async def load_cogs():
     await bot.load_extension("cogs.freeplay")
     await bot.load_extension("cogs.crewbattle")
     await bot.load_extension("cogs.season")
-    await bot.load_extension("cogs.playerstats")
+    await bot.load_extension("cogs.admin_panel")
 
 
 async def main():

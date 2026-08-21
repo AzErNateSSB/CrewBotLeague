@@ -10,6 +10,10 @@ from utils.i18n import t
 from utils.sheets_log import log_command, update_log
 from utils.teams_lu import refresh_team_lu, delete_team_lu, rebuild_teams_lu
 from utils.alerts import alert_error
+from utils.players_stats import (
+    create_player_stats_post, create_team_stats_post,
+    delete_player_stats_post, refresh_team_stats_post,
+)
 
 TEAMS_DIR   = os.path.join("data", "teams")
 PLAYERS_DIR = os.path.join("data", "players")
@@ -40,22 +44,18 @@ async def rollback_new_team(role=None, category=None, channels=None):
 
 
 # ---------------------------------------------------------------------------
-# Salon "tasks" : seul le leader peut y écrire (les membres peuvent le lire,
-# et interagir avec les boutons quand le bot les y invite explicitement).
+# Salons "tasks" et "players & stats" : personne n'y écrit (pas même le
+# leader) — seul le bot y poste, tout le monde n'y interagit que via boutons.
 # ---------------------------------------------------------------------------
 
 TASKS_CHANNEL_INTRO = (
     "📋 Ce salon sert aux actions qui nécessitent le **leader** de l'équipe "
     "(demandes pour rejoindre l'équipe, etc.).\n"
-    "Personne n'y écrit — on n'y interagit qu'avec les boutons que le bot "
-    "y poste (le leader valide/refuse, et les membres seront ponctuellement "
-    "invités à cliquer eux aussi : sélection de personnage, ban de stage...)."
+    "Personne n'y écrit — on n'y interagit qu'avec les boutons que le bot y poste."
 )
 
 
 def tasks_channel_overwrites(guild: discord.Guild, role: Optional[discord.Role], leader: Optional[discord.Member]):
-    """Personne n'écrit dans ce salon (pas même le leader) — seul le bot y poste,
-    tout le monde n'y interagit que via les boutons."""
     overwrites = {
         guild.default_role: discord.PermissionOverwrite(view_channel=False),
         guild.me: discord.PermissionOverwrite(
@@ -75,8 +75,6 @@ def tasks_channel_overwrites(guild: discord.Guild, role: Optional[discord.Role],
 
 
 def players_forum_overwrites(guild: discord.Guild, role: Optional[discord.Role], leader: Optional[discord.Member]):
-    """Forum 'players & stats' : personne ne crée de post ni n'écrit — uniquement
-    consultation et interaction via les boutons que le bot poste dans chaque post."""
     overwrites = {
         guild.default_role: discord.PermissionOverwrite(view_channel=False),
         guild.me: discord.PermissionOverwrite(
@@ -272,7 +270,7 @@ async def cbl_newteam(
                     "historique":    forum_b.id,
                     "vocal":         team_a["channels"]["vocal"],
                     "tasks":         team_a["channels"].get("tasks"),
-                    "players_forum": team_a["channels"].get("players_forum"),
+                    "players_stats": team_a["channels"].get("players_stats"),
                 },
                 "members":    [user.id],
                 "league":     None,
@@ -283,9 +281,7 @@ async def cbl_newteam(
             player["team"] = full_sigle
             save_player(player)
             await refresh_team_lu(interaction.client, interaction.guild_id, team_data)
-
-            from cogs.playerstats import ensure_team_stats_post
-            await ensure_team_stats_post(guild, team_data)
+            await create_team_stats_post(interaction.client, interaction.guild_id, team_data)
 
             embed = discord.Embed(title=f"⚔️ Équipe **{full_sigle}** créée !", color=discord.Color.blurple())
             embed.add_field(name="Leader", value=user.mention, inline=True)
@@ -339,18 +335,18 @@ async def cbl_newteam(
     }
 
     try:
-        category = await guild.create_category(name=f"〔{sigle}〕", overwrites=overwrites)
-        general  = await guild.create_text_channel( name=f"〔{sigle}〕général",    category=category)
-        forum    = await guild.create_forum(         name=f"〔{sigle}〕historique", category=category)
-        vocal    = await guild.create_voice_channel( name=f"〔{sigle}〕vocal",      category=category)
-        tasks    = await guild.create_text_channel(
+        category     = await guild.create_category(name=f"〔{sigle}〕", overwrites=overwrites)
+        tasks        = await guild.create_text_channel(
             name=f"〔{sigle}〕tasks", category=category,
             overwrites=tasks_channel_overwrites(guild, role, user),
         )
-        players_forum = await guild.create_forum(
-            name=f"〔{sigle}〕players & stats", category=category,
+        general      = await guild.create_text_channel( name=f"〔{sigle}〕général",    category=category)
+        forum        = await guild.create_forum(         name=f"〔{sigle}〕historique", category=category)
+        players_stat = await guild.create_forum(
+            name=f"〔{sigle}〕players--stats", category=category,
             overwrites=players_forum_overwrites(guild, role, user),
         )
+        vocal        = await guild.create_voice_channel( name=f"〔{sigle}〕vocal",      category=category)
     except discord.Forbidden:
         await role.delete()
         await interaction.followup.send("❌ Permission refusée pour créer les salons.", ephemeral=True)
@@ -372,9 +368,9 @@ async def cbl_newteam(
             "channels": {
                 "general":       general.id,
                 "historique":    forum.id,
-                "vocal":         vocal.id,
                 "tasks":         tasks.id,
-                "players_forum": players_forum.id,
+                "players_stats": players_stat.id,
+                "vocal":         vocal.id,
             },
             "members":    [user.id],
             "league":     None,
@@ -386,17 +382,17 @@ async def cbl_newteam(
         player["team"] = sigle
         save_player(player)
         await refresh_team_lu(interaction.client, interaction.guild_id, team_data)
-
-        from cogs.playerstats import ensure_player_post, ensure_team_stats_post
-        await ensure_player_post(guild, user, team_data)
-        await ensure_team_stats_post(guild, team_data)
+        await create_team_stats_post(interaction.client, interaction.guild_id, team_data)
+        # Recharger team_data après create_team_stats_post (qui enregistre le stats_thread_id)
+        team_data = load_team(sigle) or team_data
+        await create_player_stats_post(interaction.client, interaction.guild_id, team_data, user)
 
         embed = discord.Embed(title=f"⚔️ Équipe **{sigle}** créée !", color=discord.Color.blurple())
         embed.add_field(name="Leader", value=user.mention, inline=True)
         embed.add_field(name="Rôle",   value=role.mention, inline=True)
         embed.add_field(
             name="Salons",
-            value=f"{general.mention} · {forum.mention} · {vocal.mention} · {tasks.mention} · {players_forum.mention}",
+            value=f"{general.mention} · {forum.mention} · {vocal.mention} · {tasks.mention} · {players_stat.mention}",
             inline=False,
         )
         await interaction.followup.send(embed=embed)
@@ -413,7 +409,7 @@ async def cbl_newteam(
             f"La Team **{sigle}** a été créée avec **{user.display_name}** pour Leader"
         )
     except Exception as e:
-        await rollback_new_team(role=role, category=category, channels=[general, forum, vocal, tasks, players_forum])
+        await rollback_new_team(role=role, category=category, channels=[general, forum, players_stat, vocal, tasks])
         await interaction.followup.send(f"❌ Erreur lors de la création de l'équipe : {e}", ephemeral=True)
         await log_command(user.display_name, cmd_label, "Failed", f"Erreur après création des salons : {e}")
         await alert_error(
@@ -483,10 +479,7 @@ class JoinRequestView(discord.ui.View):
                 pass
 
         await refresh_team_lu(interaction.client, interaction.guild_id, team)
-
-        from cogs.playerstats import ensure_player_post
-        await ensure_player_post(interaction.guild, self.applicant, team)
-
+        await create_player_stats_post(interaction.client, interaction.guild_id, team, self.applicant)
         await self._resolve(button)
         await interaction.response.send_message(
             t(self.gid, "join_accepted", player=self.applicant.display_name, team=team["sigle"])
@@ -548,9 +541,8 @@ async def cbl_join(interaction: discord.Interaction, sigle: str):
                           f"L'équipe **{sigle}** est introuvable")
         return
 
-    target_channel_id = team["channels"].get("tasks") or team["channels"]["general"]
-    target_channel = interaction.guild.get_channel(target_channel_id)
-    if not target_channel:
+    tasks_channel = interaction.guild.get_channel(team["channels"].get("tasks") or team["channels"]["general"])
+    if not tasks_channel:
         await interaction.response.send_message("❌ Salon de l'équipe introuvable.", ephemeral=True)
         await log_command(user.display_name, cmd_label, "Failed",
                           f"Salon tasks/général de **{sigle}** introuvable")
@@ -566,13 +558,13 @@ async def cbl_join(interaction: discord.Interaction, sigle: str):
     leader_mention = leader.mention if leader else f"<@{team['leader_id']}>"
 
     view = JoinRequestView(applicant=user, team=team, gid=gid, log_row=log_row)
-    msg  = await target_channel.send(
+    msg  = await tasks_channel.send(
         f"{leader_mention} — {t(gid, 'join_request_received', player=user.display_name, team=sigle)}",
         view=view,
     )
     view.message = msg
     save_join_request(msg.id, {
-        "channel_id":   target_channel.id,
+        "channel_id":   tasks_channel.id,
         "applicant_id": user.id,
         "team_sigle":   sigle,
         "log_row":      log_row,
@@ -623,11 +615,8 @@ async def _remove_player_from_team(
             pass
 
     await refresh_team_lu(interaction.client, interaction.guild_id, team)
-
-    if player:
-        from cogs.playerstats import archive_player_post
-        await archive_player_post(interaction.guild, player)
-
+    await delete_player_stats_post(interaction.client, interaction.guild_id, target.id)
+    await refresh_team_stats_post(interaction.client, interaction.guild_id, team_sigle)
     await interaction.followup.send(
         f"✅ **{target.display_name}** a été retiré de l'équipe **{team_sigle}**.", ephemeral=True
     )
@@ -635,27 +624,30 @@ async def _remove_player_from_team(
                       f"**{target.display_name}** retiré de **{team_sigle}** par **{interaction.user.display_name}**")
 
 
-async def _dissolve_team(
-    interaction: discord.Interaction,
-    team: dict,
-    cmd_label: str,
-):
-    """Logique commune : dissout complètement une équipe."""
-    guild = interaction.guild
-    sigle = team["sigle"]
-    is_b  = sigle.endswith("²")
+async def dissolve_team_logic(
+    bot: discord.Client,
+    guild: discord.Guild,
+    sigle: str,
+) -> str:
+    """Dissout une équipe complètement (indépendant d'une Interaction). Retourne un rapport."""
+    team = load_team(sigle)
+    if not team:
+        return f"❌ Équipe **{sigle}** introuvable."
+    is_b = sigle.endswith("²")
 
-    # Mettre à jour tous les profils membres (et archiver leur post stats)
-    from cogs.playerstats import archive_player_post
+    # 1. Supprimer les posts stats avant de supprimer les salons Discord
+    for member_id in team.get("members", []):
+        await delete_player_stats_post(bot, guild.id, member_id)
+
+    # 2. Mettre à jour les profils membres
     for member_id in team.get("members", []):
         player = load_player(member_id)
         if player:
             player["team"] = None
             save_player(player)
-            await archive_player_post(guild, player)
 
+    # 3. Supprimer les salons Discord
     if is_b:
-        # Équipe B : supprimer uniquement le salon historique² (catégorie et rôle partagés)
         hist_ch = guild.get_channel(team["channels"]["historique"])
         if hist_ch:
             try:
@@ -663,7 +655,6 @@ async def _dissolve_team(
             except Exception:
                 pass
     else:
-        # Équipe A : supprimer rôle, salons et catégorie
         role = guild.get_role(team["role_id"])
         if role:
             try:
@@ -672,7 +663,7 @@ async def _dissolve_team(
                 pass
         category = guild.get_channel(team["category_id"])
         if category:
-            for ch in category.channels:
+            for ch in list(category.channels):
                 try:
                     await ch.delete()
                 except Exception:
@@ -682,15 +673,25 @@ async def _dissolve_team(
             except Exception:
                 pass
 
-    # Supprimer le fichier JSON de l'équipe
     path = _team_path(sigle)
     if os.path.exists(path):
         os.remove(path)
 
-    await delete_team_lu(interaction.client, interaction.guild_id, sigle)
-    await interaction.followup.send(
-        f"✅ L'équipe **{sigle}** a été dissoute.", ephemeral=True
-    )
+    from utils.teams_lu import delete_team_lu
+    await delete_team_lu(bot, guild.id, sigle)
+    return f"✅ Équipe **{sigle}** dissoute."
+
+
+async def _dissolve_team(
+    interaction: discord.Interaction,
+    team: dict,
+    cmd_label: str,
+):
+    """Logique commune : dissout complètement une équipe (délègue à dissolve_team_logic,
+    qui nettoie aussi les posts players-stats des membres)."""
+    sigle = team["sigle"]
+    report = await dissolve_team_logic(interaction.client, interaction.guild, sigle)
+    await interaction.followup.send(report, ephemeral=True)
     await log_command(interaction.user.display_name, cmd_label, "Completed",
                       f"L'équipe **{sigle}** dissoute par **{interaction.user.display_name}**")
 
@@ -786,6 +787,93 @@ async def cbl_adm_remove_player(interaction: discord.Interaction, joueur: discor
     await _remove_player_from_team(interaction, joueur, cmd_label)
 
 
+async def rename_team_logic(
+    bot: discord.Client,
+    guild: discord.Guild,
+    old_sigle: str,
+    new_sigle: str,
+) -> list[str]:
+    """Renomme une équipe (A + B éventuelle). Retourne une liste de lignes de rapport."""
+    report: list[str] = []
+
+    async def _rename_one(t_data: dict, old: str, new: str):
+        if not old.endswith("²"):
+            role = guild.get_role(t_data["role_id"])
+            if role:
+                try:
+                    await role.edit(name=f"[{new}]")
+                    report.append(f"✏️ Rôle renommé → `[{new}]`")
+                except Exception as e:
+                    report.append(f"⚠️ Rôle : {e}")
+
+            category = guild.get_channel(t_data["category_id"])
+            if category:
+                try:
+                    await category.edit(name=f"〔{new}〕")
+                    report.append(f"✏️ Catégorie renommée → `〔{new}〕`")
+                except Exception as e:
+                    report.append(f"⚠️ Catégorie : {e}")
+
+            for ch_key, suffix in [
+                ("general", "général"), ("vocal", "vocal"),
+                ("tasks", "tasks"), ("players_stats", "players--stats"),
+            ]:
+                ch = guild.get_channel(t_data["channels"].get(ch_key, 0))
+                if ch:
+                    try:
+                        await ch.edit(name=f"〔{new}〕{suffix}")
+                    except Exception:
+                        pass
+
+            hist = guild.get_channel(t_data["channels"].get("historique", 0))
+            if hist:
+                try:
+                    await hist.edit(name=f"〔{new}〕historique")
+                except Exception:
+                    pass
+        else:
+            hist = guild.get_channel(t_data["channels"].get("historique", 0))
+            if hist:
+                try:
+                    await hist.edit(name=f"〔{new}²〕historique")
+                except Exception:
+                    pass
+
+        for member_id in t_data.get("members", []):
+            p = load_player(member_id)
+            if p and p.get("team") == old:
+                p["team"] = new
+                save_player(p)
+
+        t_data["sigle"] = new
+        old_path = _team_path(old)
+        save_team(t_data)
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+    team = load_team(old_sigle)
+    if not team:
+        return [f"❌ L'équipe **{old_sigle}** est introuvable."]
+
+    await _rename_one(team, old_sigle, new_sigle)
+    await delete_team_lu(bot, guild.id, old_sigle)
+    new_team_a = load_team(new_sigle)
+    if new_team_a:
+        await refresh_team_lu(bot, guild.id, new_team_a)
+    report.append(f"✅ Équipe **{old_sigle}** → **{new_sigle}**")
+
+    team_b = load_team(f"{old_sigle}²")
+    if team_b:
+        await _rename_one(team_b, f"{old_sigle}²", f"{new_sigle}²")
+        await delete_team_lu(bot, guild.id, f"{old_sigle}²")
+        new_team_b = load_team(f"{new_sigle}²")
+        if new_team_b:
+            await refresh_team_lu(bot, guild.id, new_team_b)
+        report.append(f"✅ Équipe **{old_sigle}²** → **{new_sigle}²**")
+
+    return report
+
+
 @app_commands.command(name="cbl_adm_rename_team",
                       description="[ADMIN] Renomme une équipe et met à jour tous ses salons/rôles")
 @app_commands.describe(
@@ -798,103 +886,36 @@ async def cbl_adm_rename_team(interaction: discord.Interaction, sigle: str, nouv
         return
 
     await interaction.response.defer(ephemeral=True)
-    guild     = interaction.guild
     cmd_label = f"cbl_adm_rename_team **{sigle}** → **{nouveau_sigle}**"
 
-    team = load_team(sigle)
-    if not team:
+    if not load_team(sigle):
         await interaction.followup.send(f"❌ L'équipe **{sigle}** est introuvable.", ephemeral=True)
         return
-
     if load_team(nouveau_sigle):
         await interaction.followup.send(f"❌ Une équipe **{nouveau_sigle}** existe déjà.", ephemeral=True)
         return
 
-    report = []
-
-    async def _rename_one(t_data: dict, old: str, new: str):
-        """Renomme une équipe (A ou B) sur Discord et en JSON."""
-        # Rôle (seulement pour l'équipe A, la B partage)
-        if not old.endswith("²"):
-            role = guild.get_role(t_data["role_id"])
-            if role:
-                try:
-                    await role.edit(name=f"[{new}]")
-                    report.append(f"✏️ Rôle renommé → `[{new}]`")
-                except Exception as e:
-                    report.append(f"⚠️ Rôle : {e}")
-
-        # Catégorie (seulement pour l'équipe A)
-        if not old.endswith("²"):
-            category = guild.get_channel(t_data["category_id"])
-            if category:
-                try:
-                    await category.edit(name=f"〔{new}〕")
-                    report.append(f"✏️ Catégorie renommée → `〔{new}〕`")
-                except Exception as e:
-                    report.append(f"⚠️ Catégorie : {e}")
-
-            # Salons partagés (général, vocal) — renommés par l'équipe A seulement
-            for ch_key, suffix in [("general", "général"), ("vocal", "vocal"), ("tasks", "tasks")]:
-                ch_id = t_data["channels"].get(ch_key)
-                ch = guild.get_channel(ch_id) if ch_id else None
-                if ch:
-                    try:
-                        await ch.edit(name=f"〔{new}〕{suffix}")
-                    except Exception:
-                        pass
-
-            # Historique A
-            hist_a = guild.get_channel(t_data["channels"]["historique"])
-            if hist_a:
-                try:
-                    await hist_a.edit(name=f"〔{new}〕historique")
-                except Exception:
-                    pass
-        else:
-            # Historique B
-            hist_b = guild.get_channel(t_data["channels"]["historique"])
-            if hist_b:
-                try:
-                    await hist_b.edit(name=f"〔{new}²〕historique")
-                except Exception:
-                    pass
-
-        # Mettre à jour les profils joueurs
-        for member_id in t_data.get("members", []):
-            p = load_player(member_id)
-            if p and p.get("team") == old:
-                p["team"] = new
-                save_player(p)
-
-        # Mettre à jour et déplacer le JSON
-        t_data["sigle"] = new
-        old_path = _team_path(old)
-        save_team(t_data)          # écrit sous le nouveau nom
-        if os.path.exists(old_path):
-            os.remove(old_path)    # supprime l'ancien fichier
-
-    # ── Renommer l'équipe A ──────────────────────────────────────────────────
-    await _rename_one(team, sigle, nouveau_sigle)
-    await delete_team_lu(interaction.client, interaction.guild_id, sigle)
-    new_team_a = load_team(nouveau_sigle)
-    if new_team_a:
-        await refresh_team_lu(interaction.client, interaction.guild_id, new_team_a)
-    report.append(f"✅ Équipe **{sigle}** → **{nouveau_sigle}**")
-
-    # ── Renommer l'équipe B si elle existe ───────────────────────────────────
-    team_b = load_team(f"{sigle}²")
-    if team_b:
-        await _rename_one(team_b, f"{sigle}²", f"{nouveau_sigle}²")
-        await delete_team_lu(interaction.client, interaction.guild_id, f"{sigle}²")
-        new_team_b = load_team(f"{nouveau_sigle}²")
-        if new_team_b:
-            await refresh_team_lu(interaction.client, interaction.guild_id, new_team_b)
-        report.append(f"✅ Équipe **{sigle}²** → **{nouveau_sigle}²**")
-
-    await interaction.followup.send("\n".join(report), ephemeral=True)
+    lines = await rename_team_logic(interaction.client, interaction.guild, sigle, nouveau_sigle)
+    await interaction.followup.send("\n".join(lines), ephemeral=True)
     await log_command(interaction.user.display_name, cmd_label, "Completed",
                       f"**{sigle}** renommée en **{nouveau_sigle}** par **{interaction.user.display_name}**")
+
+
+@app_commands.command(
+    name="cbl_rebuild_stats",
+    description="[ADMIN] Recrée tous les posts players-stats (purge + reconstruction complète)",
+)
+async def cbl_rebuild_stats(interaction: discord.Interaction):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("❌ Réservé aux administrateurs.", ephemeral=True)
+        return
+
+    await interaction.response.defer(ephemeral=True)
+    from utils.players_stats import rebuild_all_stats
+    report = await rebuild_all_stats(interaction.client, interaction.guild_id)
+    await interaction.followup.send(f"✅ Reconstruction terminée :\n{report}", ephemeral=True)
+    await log_command(interaction.user.display_name, "cbl_rebuild_stats", "Completed",
+                      f"Posts players-stats reconstruits par **{interaction.user.display_name}**")
 
 
 @app_commands.command(
@@ -985,6 +1006,7 @@ class Teams(commands.Cog):
         self.bot.tree.add_command(cbl_adm_del_team)
         self.bot.tree.add_command(cbl_adm_rename_team)
         self.bot.tree.add_command(cbl_refresh_teams_lu)
+        self.bot.tree.add_command(cbl_rebuild_stats)
         self.bot.loop.create_task(restore_all_join_requests(self.bot))
 
 
