@@ -741,8 +741,8 @@ class ScoreModal(discord.ui.Modal):
         match.banned_stages = []
         match.picked_stage = None
 
-        from cogs.playerstats import record_set_result
-        record_set_result(ca.discord_id, cb.discord_id, takes_a, takes_b, a_won=(loser_side == "B"))
+        from utils.players_stats import record_set_result
+        record_set_result(ca.discord_id, cb.discord_id, takes_a, takes_b)
 
         for item in self.score_view.children:
             item.disabled = True
@@ -755,9 +755,9 @@ class ScoreModal(discord.ui.Modal):
         channel = interaction.channel
         guild = getattr(channel, "guild", None)
 
-        if guild:
-            from cogs.playerstats import refresh_after_set
-            await refresh_after_set(guild, ca.discord_id, cb.discord_id)
+        if guild and _bot_ref:
+            from utils.players_stats import refresh_after_set
+            await refresh_after_set(_bot_ref, guild.id, ca.discord_id, cb.discord_id)
 
         # Résumé public du set terminé
         winner_name = cb.name if loser_side == "A" else ca.name
@@ -1206,9 +1206,12 @@ async def end_crewbattle(channel: discord.TextChannel, match: Match):
             save_season(season)
 
             if guild:
-                from cogs.playerstats import refresh_team_stats_post
-                await refresh_team_stats_post(guild, winner.name)
-                await refresh_team_stats_post(guild, loser.name)
+                from utils.players_stats import refresh_team_stats_post
+                from utils.standings_channel import refresh_standings_channel
+                if _bot_ref:
+                    await refresh_team_stats_post(_bot_ref, guild.id, winner.name)
+                    await refresh_team_stats_post(_bot_ref, guild.id, loser.name)
+                await refresh_standings_channel(guild)
 
         delete_official_match(match.channel_id)
 
@@ -1592,15 +1595,15 @@ async def cbl_force_score(interaction: discord.Interaction, vies_prises_a: int, 
     match.banned_stages = []
     match.picked_stage = None
 
-    from cogs.playerstats import record_set_result
-    record_set_result(ca.discord_id, cb.discord_id, vies_prises_a, vies_prises_b, a_won=(loser_side == "B"))
+    from utils.players_stats import record_set_result
+    record_set_result(ca.discord_id, cb.discord_id, vies_prises_a, vies_prises_b)
 
     channel = interaction.channel
     guild = getattr(channel, "guild", None)
 
-    if guild:
-        from cogs.playerstats import refresh_after_set
-        await refresh_after_set(guild, ca.discord_id, cb.discord_id)
+    if guild and _bot_ref:
+        from utils.players_stats import refresh_after_set
+        await refresh_after_set(_bot_ref, guild.id, ca.discord_id, cb.discord_id)
 
     winner_name = cb.name if loser_side == "A" else ca.name
     rec = match.set_history[-1]
@@ -1642,6 +1645,162 @@ async def cbl_force_score(interaction: discord.Interaction, vies_prises_a: int, 
     view.message = msg
 
 # ---------------------------------------------------------------------------
+# MatchControlView  (boutons ▶️ Lancer / 📊 Statut dans les salons de match)
+# Portée depuis la version GitHub ; le bug current_player (attribut absent de
+# Team) a été corrigé pour utiliser match.current_a/current_b comme le reste
+# du fichier.
+# ---------------------------------------------------------------------------
+
+class MatchControlView(discord.ui.View):
+    """View persistante postée dans chaque salon de match officiel."""
+
+    def __init__(self):
+        super().__init__(timeout=None)
+
+        start_btn = discord.ui.Button(
+            label="▶️ Lancer le match",
+            style=discord.ButtonStyle.success,
+            custom_id="match_start",
+        )
+        start_btn.callback = self._start
+        self.add_item(start_btn)
+
+        status_btn = discord.ui.Button(
+            label="📊 Statut",
+            style=discord.ButtonStyle.secondary,
+            custom_id="match_status",
+        )
+        status_btn.callback = self._status
+        self.add_item(status_btn)
+
+    async def _start(self, interaction: discord.Interaction):
+        channel_id = interaction.channel_id
+        if channel_id in active_matches:
+            await interaction.response.send_message(
+                "❌ Une CrewBattle est déjà en cours sur ce salon.", ephemeral=True
+            )
+            return
+
+        setup = pending_setups.get(channel_id)
+        if not setup or len(setup.lineups) < 2:
+            await interaction.response.send_message(
+                "❌ Les LineUp ne sont pas complètes. "
+                "Utilisez `/cbl_uniquematch_addteam` pour envoyer les deux LineUp.",
+                ephemeral=True,
+            )
+            return
+
+        del pending_setups[channel_id]
+        save_pending_setups()
+
+        lu_a, lu_b = setup.lineups[0], setup.lineups[1]
+        guild  = interaction.guild
+        cap_a  = guild.get_member(lu_a.captain_id)
+        cap_b  = guild.get_member(lu_b.captain_id)
+
+        ta = Team(name=lu_a.team_name, captain_id=lu_a.captain_id, players=lu_a.players, subs=lu_a.subs)
+        tb = Team(name=lu_b.team_name, captain_id=lu_b.captain_id, players=lu_b.players, subs=lu_b.subs)
+        match = Match(team_a=ta, team_b=tb, channel_id=channel_id)
+        active_matches[channel_id] = match
+
+        match.log_row = await log_command(
+            interaction.user.display_name,
+            f"match_start **{ta.name}** vs **{tb.name}**",
+            "In Progress",
+            f"CrewBattle **{ta.name}** vs **{tb.name}** lancée",
+        )
+
+        cap_a_name    = cap_a.display_name    if cap_a else f"<@{lu_a.captain_id}>"
+        cap_a_mention = cap_a.mention         if cap_a else f"<@{lu_a.captain_id}>"
+        cap_b_name    = cap_b.display_name    if cap_b else f"<@{lu_b.captain_id}>"
+        cap_b_mention = cap_b.mention         if cap_b else f"<@{lu_b.captain_id}>"
+
+        def team_field_value(team: Team) -> str:
+            lines = [f"• {p.name}" for p in team.players]
+            if team.subs:
+                lines.append(f"*Remplaçants : {', '.join(p.name for p in team.subs)}*")
+            return "\n".join(lines)
+
+        embed = discord.Embed(title="⚔️ CrewBattle lancée !", color=discord.Color.blue())
+        embed.add_field(name=f"{ta.name}  (cap. {cap_a_name})", value=team_field_value(ta), inline=True)
+        embed.add_field(name=f"{tb.name}  (cap. {cap_b_name})", value=team_field_value(tb), inline=True)
+        embed.add_field(name="Vies de départ", value=f"`{ta.total_lives}` — `{tb.total_lives}`", inline=False)
+
+        await interaction.response.send_message(embed=embed)
+        try:
+            announcement = await interaction.original_response()
+            await announcement.pin()
+        except Exception:
+            pass
+
+        save_matches()
+
+        view = FirstPickView(match=match)
+        msg = await interaction.channel.send(
+            f"📢 {cap_a_mention} ({ta.name}) et {cap_b_mention} ({tb.name}), "
+            f"choisissez votre premier joueur !",
+            view=view,
+        )
+        view.message = msg
+
+    async def _status(self, interaction: discord.Interaction):
+        match = active_matches.get(interaction.channel_id)
+        if not match:
+            # Vérifier si un setup est en attente
+            setup = pending_setups.get(interaction.channel_id)
+            if setup:
+                lines = [f"⏳ Configuration en attente — {setup.nb_players}+{setup.nb_subs}"]
+                for lu in setup.lineups:
+                    lines.append(f"• **{lu.team_name}** : {len(lu.players)} joueur(s)")
+                await interaction.response.send_message(
+                    "\n".join(lines), ephemeral=True
+                )
+            else:
+                await interaction.response.send_message(
+                    "ℹ️ Aucune CrewBattle en cours. "
+                    "Utilisez `/cbl_uniquematch_setup` puis `/cbl_uniquematch_addteam`.",
+                    ephemeral=True,
+                )
+            return
+
+        guild = interaction.guild
+        embed = discord.Embed(title="📊 État de la CrewBattle", color=discord.Color.blurple())
+        embed.add_field(
+            name="Score global",
+            value=(
+                f"**{match.team_a.name}** `{match.team_a.total_lives}` — "
+                f"`{match.team_b.total_lives}` **{match.team_b.name}**"
+            ),
+            inline=False,
+        )
+
+        def team_field(team: Team, current: Optional[Player]) -> str:
+            lines = []
+            for p in team.players:
+                if p.lives == 0:
+                    status = "💀"
+                elif current and p.name == current.name:
+                    status = "⚔️"
+                else:
+                    status = f"`{p.lives}` stock(s)"
+                lines.append(f"• **{p.name}** — {status}")
+            if team.subs:
+                lines.append(f"*Remplaçants : {', '.join(p.name for p in team.subs)}*")
+            return "\n".join(lines) or "—"
+
+        embed.add_field(
+            name=f"Équipe {match.team_a.name}",
+            value=team_field(match.team_a, match.current_a),
+            inline=True,
+        )
+        embed.add_field(
+            name=f"Équipe {match.team_b.name}",
+            value=team_field(match.team_b, match.current_b),
+            inline=True,
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+# ---------------------------------------------------------------------------
 # Cog
 # ---------------------------------------------------------------------------
 
@@ -1672,6 +1831,7 @@ class CrewBattle(commands.Cog):
         _bot_ref = self.bot
         pending_setups.update(_load_pending_setups_from_file())
         self.bot.loop.create_task(restore_all_matches(self.bot))
+        self.bot.add_view(MatchControlView())
         self.bot.tree.add_command(cbl_uniquematch_new)
         self.bot.tree.add_command(cbl_uniquematch_setup)
         self.bot.tree.add_command(cbl_uniquematch_addteam)

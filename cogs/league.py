@@ -402,9 +402,12 @@ async def cbl_admin_start_season(interaction: discord.Interaction, saison: str):
                     })
 
                     # Message d'accueil dans le salon
+                    from cogs.crewbattle import MatchControlView
                     await ch.send(
                         f"⚔️ **{home}** vs **{away}** — Journée {ji} | **{lg}** — Saison {saison}\n"
-                        f"Quand vous êtes prêts, utilisez `/cbl_uniquematch_setup` pour configurer le match."
+                        f"Utilisez `/cbl_uniquematch_setup` puis `/cbl_uniquematch_addteam` (×2), "
+                        f"ensuite lancez le match avec le bouton ci-dessous.",
+                        view=MatchControlView(),
                     )
                     nb_channels += 1
                 except Exception as e:
@@ -450,6 +453,9 @@ async def cbl_admin_end_season(interaction: discord.Interaction):
     season["status"] = "finished"
     barrages = compute_barrages(season)
     save_season(season)
+
+    from utils.standings_channel import refresh_standings_channel
+    await refresh_standings_channel(interaction.guild)
 
     lines = ["**Mouvements directs :**"]
     for lg_high, lg_low in zip(LEAGUE_NAMES, LEAGUE_NAMES[1:]):

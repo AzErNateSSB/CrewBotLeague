@@ -52,6 +52,24 @@ def _make_embed(team: dict) -> discord.Embed:
         value="\n".join(lines) if lines else "*Aucun membre*",
         inline=False,
     )
+
+    # Ajouter les stats de saison si disponibles
+    from utils.season_data import load_season
+    season = load_season()
+    if season and league and league in season.get("standings", {}):
+        s = season["standings"][league].get(sigle)
+        if s:
+            diff = s["lives_scored"] - s["lives_conceded"]
+            sign = "+" if diff >= 0 else ""
+            embed.add_field(
+                name="Saison",
+                value=(
+                    f"**{s['pts']}** pts | {s['wins']}V / {s['losses']}D | "
+                    f"diff: {sign}{diff}"
+                ),
+                inline=False,
+            )
+
     embed.set_footer(text=f"Créée le {created}")
     return embed
 
