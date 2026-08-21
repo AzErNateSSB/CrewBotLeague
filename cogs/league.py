@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-from typing import Optional
 
 from utils.season_data import (
     LEAGUE_NAMES, LEAGUE_CATEGORY_IDS,
@@ -262,47 +261,6 @@ async def cbl_leagueremoveteam(interaction: discord.Interaction, sigle: str):
                       f"**{sigle}** retirée de **{current_league}**")
 
 # ---------------------------------------------------------------------------
-# /cbl_standings
-# ---------------------------------------------------------------------------
-
-@app_commands.command(name="cbl_standings", description="Affiche le classement d'une ligue")
-@app_commands.describe(ligue="Ligue à afficher (toutes si vide)")
-async def cbl_standings(interaction: discord.Interaction, ligue: Optional[str] = None):
-    season = load_season()
-    if not season:
-        await interaction.response.send_message("❌ Aucune saison en cours.", ephemeral=True)
-        return
-
-    if ligue:
-        if ligue not in LEAGUE_NAMES:
-            await interaction.response.send_message(
-                f"❌ Ligue invalide. Disponibles : {', '.join(LEAGUE_NAMES)}", ephemeral=True
-            )
-            return
-        await interaction.response.send_message(embed=_standings_embed(season, ligue))
-    else:
-        embeds = [_standings_embed(season, lg) for lg in LEAGUE_NAMES]
-        await interaction.response.send_message(embeds=embeds)
-
-# ---------------------------------------------------------------------------
-# /cbl_schedule
-# ---------------------------------------------------------------------------
-
-@app_commands.command(name="cbl_schedule", description="Affiche le calendrier des matchs d'une ligue")
-@app_commands.describe(ligue="Ligue à afficher")
-async def cbl_schedule(interaction: discord.Interaction, ligue: str):
-    season = load_season()
-    if not season:
-        await interaction.response.send_message("❌ Aucune saison en cours.", ephemeral=True)
-        return
-    if ligue not in LEAGUE_NAMES:
-        await interaction.response.send_message(
-            f"❌ Ligue invalide. Disponibles : {', '.join(LEAGUE_NAMES)}", ephemeral=True
-        )
-        return
-    await interaction.response.send_message(embed=_schedule_embed(season, ligue))
-
-# ---------------------------------------------------------------------------
 # /cbl_admin_start_season
 # ---------------------------------------------------------------------------
 
@@ -402,9 +360,12 @@ async def cbl_admin_start_season(interaction: discord.Interaction, saison: str):
                     })
 
                     # Message d'accueil dans le salon
+                    from cogs.crewbattle import MatchControlView
                     await ch.send(
                         f"⚔️ **{home}** vs **{away}** — Journée {ji} | **{lg}** — Saison {saison}\n"
-                        f"Quand vous êtes prêts, utilisez `/cbl_uniquematch_setup` pour configurer le match."
+                        f"Utilisez `/cbl_uniquematch_setup` puis `/cbl_uniquematch_addteam` (×2), "
+                        f"ensuite lancez le match avec le bouton ci-dessous.",
+                        view=MatchControlView(),
                     )
                     nb_channels += 1
                 except Exception as e:
@@ -450,6 +411,9 @@ async def cbl_admin_end_season(interaction: discord.Interaction):
     season["status"] = "finished"
     barrages = compute_barrages(season)
     save_season(season)
+
+    from utils.standings_channel import refresh_standings_channel
+    await refresh_standings_channel(interaction.guild)
 
     lines = ["**Mouvements directs :**"]
     for lg_high, lg_low in zip(LEAGUE_NAMES, LEAGUE_NAMES[1:]):
@@ -516,8 +480,6 @@ class League(commands.Cog):
         self.bot.tree.add_command(cbl_teaminfo)
         self.bot.tree.add_command(cbl_leagueaddteam)
         self.bot.tree.add_command(cbl_leagueremoveteam)
-        self.bot.tree.add_command(cbl_standings)
-        self.bot.tree.add_command(cbl_schedule)
         self.bot.tree.add_command(cbl_admin_start_season)
         self.bot.tree.add_command(cbl_admin_end_season)
         self.bot.tree.add_command(cbl_barrages)

@@ -50,6 +50,7 @@ async def load_cogs():
     await bot.load_extension("cogs.freeplay")
     await bot.load_extension("cogs.crewbattle")
     await bot.load_extension("cogs.season")
+    await bot.load_extension("cogs.admin_panel")
 
 
 async def main():

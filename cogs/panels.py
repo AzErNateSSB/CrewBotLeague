@@ -310,13 +310,31 @@ class JoinTeamModal(discord.ui.Modal, title="Rejoindre une équipe"):
 
         from cogs.teams import JoinRequestView
         view = JoinRequestView(applicant=user, team=team, gid=gid, log_row=log_row)
-        msg  = await tasks_channel.send(
-            f"{leader_mention} — {t(gid, 'join_request_received', player=user.display_name, team=sigle)}",
-            view=view,
-        )
-        view.message = msg
+        try:
+            msg = await tasks_channel.send(
+                f"{leader_mention} — {t(gid, 'join_request_received', player=user.display_name, team=sigle)}",
+                view=view,
+            )
+            view.message = msg
+        except discord.Forbidden:
+            await interaction.followup.send(
+                "❌ Le bot n'a pas la permission d'écrire dans le salon tasks de cette équipe.", ephemeral=True
+            )
+            return
+        except Exception as e:
+            await interaction.followup.send(f"❌ Erreur lors de l'envoi de la demande : {e}", ephemeral=True)
+            return
 
         await interaction.followup.send(t(gid, "join_request_sent", team=sigle), ephemeral=True)
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception):
+        import traceback
+        traceback.print_exception(type(error), error, error.__traceback__)
+        msg = f"❌ Erreur inattendue : {error}"
+        if interaction.response.is_done():
+            await interaction.followup.send(msg, ephemeral=True)
+        else:
+            await interaction.response.send_message(msg, ephemeral=True)
 
 
 class JoinTeamView(discord.ui.View):

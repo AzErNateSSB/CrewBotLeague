@@ -490,6 +490,64 @@ async def _remove_player_from_team(
                       f"**{target.display_name}** retiré de **{team_sigle}** par **{interaction.user.display_name}**")
 
 
+async def dissolve_team_logic(
+    bot: discord.Client,
+    guild: discord.Guild,
+    sigle: str,
+) -> str:
+    """Dissout une équipe complètement (indépendant d'une Interaction). Retourne un rapport."""
+    team = load_team(sigle)
+    if not team:
+        return f"❌ Équipe **{sigle}** introuvable."
+    is_b = sigle.endswith("²")
+
+    # 1. Supprimer les posts stats avant de supprimer les salons Discord
+    for member_id in team.get("members", []):
+        await delete_player_stats_post(bot, guild.id, member_id)
+
+    # 2. Mettre à jour les profils membres
+    for member_id in team.get("members", []):
+        player = load_player(member_id)
+        if player:
+            player["team"] = None
+            save_player(player)
+
+    # 3. Supprimer les salons Discord
+    if is_b:
+        hist_ch = guild.get_channel(team["channels"]["historique"])
+        if hist_ch:
+            try:
+                await hist_ch.delete()
+            except Exception:
+                pass
+    else:
+        role = guild.get_role(team["role_id"])
+        if role:
+            try:
+                await role.delete()
+            except Exception:
+                pass
+        category = guild.get_channel(team["category_id"])
+        if category:
+            for ch in list(category.channels):
+                try:
+                    await ch.delete()
+                except Exception:
+                    pass
+            try:
+                await category.delete()
+            except Exception:
+                pass
+
+    path = _team_path(sigle)
+    if os.path.exists(path):
+        os.remove(path)
+
+    from utils.teams_lu import delete_team_lu
+    await delete_team_lu(bot, guild.id, sigle)
+    return f"✅ Équipe **{sigle}** dissoute."
+
+
 async def _dissolve_team(
     interaction: discord.Interaction,
     team: dict,
@@ -639,6 +697,90 @@ async def cbl_adm_remove_player(interaction: discord.Interaction, joueur: discor
     await _remove_player_from_team(interaction, joueur, cmd_label)
 
 
+async def rename_team_logic(
+    bot: discord.Client,
+    guild: discord.Guild,
+    old_sigle: str,
+    new_sigle: str,
+) -> list[str]:
+    """Renomme une équipe (A + B éventuelle). Retourne une liste de lignes de rapport."""
+    report: list[str] = []
+
+    async def _rename_one(t_data: dict, old: str, new: str):
+        if not old.endswith("²"):
+            role = guild.get_role(t_data["role_id"])
+            if role:
+                try:
+                    await role.edit(name=f"[{new}]")
+                    report.append(f"✏️ Rôle renommé → `[{new}]`")
+                except Exception as e:
+                    report.append(f"⚠️ Rôle : {e}")
+
+            category = guild.get_channel(t_data["category_id"])
+            if category:
+                try:
+                    await category.edit(name=f"〔{new}〕")
+                    report.append(f"✏️ Catégorie renommée → `〔{new}〕`")
+                except Exception as e:
+                    report.append(f"⚠️ Catégorie : {e}")
+
+            for ch_key, suffix in [("general", "général"), ("vocal", "vocal")]:
+                ch = guild.get_channel(t_data["channels"].get(ch_key, 0))
+                if ch:
+                    try:
+                        await ch.edit(name=f"〔{new}〕{suffix}")
+                    except Exception:
+                        pass
+
+            hist = guild.get_channel(t_data["channels"].get("historique", 0))
+            if hist:
+                try:
+                    await hist.edit(name=f"〔{new}〕historique")
+                except Exception:
+                    pass
+        else:
+            hist = guild.get_channel(t_data["channels"].get("historique", 0))
+            if hist:
+                try:
+                    await hist.edit(name=f"〔{new}²〕historique")
+                except Exception:
+                    pass
+
+        for member_id in t_data.get("members", []):
+            p = load_player(member_id)
+            if p and p.get("team") == old:
+                p["team"] = new
+                save_player(p)
+
+        t_data["sigle"] = new
+        old_path = _team_path(old)
+        save_team(t_data)
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+    team = load_team(old_sigle)
+    if not team:
+        return [f"❌ L'équipe **{old_sigle}** est introuvable."]
+
+    await _rename_one(team, old_sigle, new_sigle)
+    await delete_team_lu(bot, guild.id, old_sigle)
+    new_team_a = load_team(new_sigle)
+    if new_team_a:
+        await refresh_team_lu(bot, guild.id, new_team_a)
+    report.append(f"✅ Équipe **{old_sigle}** → **{new_sigle}**")
+
+    team_b = load_team(f"{old_sigle}²")
+    if team_b:
+        await _rename_one(team_b, f"{old_sigle}²", f"{new_sigle}²")
+        await delete_team_lu(bot, guild.id, f"{old_sigle}²")
+        new_team_b = load_team(f"{new_sigle}²")
+        if new_team_b:
+            await refresh_team_lu(bot, guild.id, new_team_b)
+        report.append(f"✅ Équipe **{old_sigle}²** → **{new_sigle}²**")
+
+    return report
+
+
 @app_commands.command(name="cbl_adm_rename_team",
                       description="[ADMIN] Renomme une équipe et met à jour tous ses salons/rôles")
 @app_commands.describe(
@@ -651,100 +793,17 @@ async def cbl_adm_rename_team(interaction: discord.Interaction, sigle: str, nouv
         return
 
     await interaction.response.defer(ephemeral=True)
-    guild     = interaction.guild
     cmd_label = f"cbl_adm_rename_team **{sigle}** → **{nouveau_sigle}**"
 
-    team = load_team(sigle)
-    if not team:
+    if not load_team(sigle):
         await interaction.followup.send(f"❌ L'équipe **{sigle}** est introuvable.", ephemeral=True)
         return
-
     if load_team(nouveau_sigle):
         await interaction.followup.send(f"❌ Une équipe **{nouveau_sigle}** existe déjà.", ephemeral=True)
         return
 
-    report = []
-
-    async def _rename_one(t_data: dict, old: str, new: str):
-        """Renomme une équipe (A ou B) sur Discord et en JSON."""
-        # Rôle (seulement pour l'équipe A, la B partage)
-        if not old.endswith("²"):
-            role = guild.get_role(t_data["role_id"])
-            if role:
-                try:
-                    await role.edit(name=f"[{new}]")
-                    report.append(f"✏️ Rôle renommé → `[{new}]`")
-                except Exception as e:
-                    report.append(f"⚠️ Rôle : {e}")
-
-        # Catégorie (seulement pour l'équipe A)
-        if not old.endswith("²"):
-            category = guild.get_channel(t_data["category_id"])
-            if category:
-                try:
-                    await category.edit(name=f"〔{new}〕")
-                    report.append(f"✏️ Catégorie renommée → `〔{new}〕`")
-                except Exception as e:
-                    report.append(f"⚠️ Catégorie : {e}")
-
-            # Salons partagés (général, vocal) — renommés par l'équipe A seulement
-            for ch_key, suffix in [("general", "général"), ("vocal", "vocal")]:
-                ch = guild.get_channel(t_data["channels"][ch_key])
-                if ch:
-                    try:
-                        await ch.edit(name=f"〔{new}〕{suffix}")
-                    except Exception:
-                        pass
-
-            # Historique A
-            hist_a = guild.get_channel(t_data["channels"]["historique"])
-            if hist_a:
-                try:
-                    await hist_a.edit(name=f"〔{new}〕historique")
-                except Exception:
-                    pass
-        else:
-            # Historique B
-            hist_b = guild.get_channel(t_data["channels"]["historique"])
-            if hist_b:
-                try:
-                    await hist_b.edit(name=f"〔{new}²〕historique")
-                except Exception:
-                    pass
-
-        # Mettre à jour les profils joueurs
-        for member_id in t_data.get("members", []):
-            p = load_player(member_id)
-            if p and p.get("team") == old:
-                p["team"] = new
-                save_player(p)
-
-        # Mettre à jour et déplacer le JSON
-        t_data["sigle"] = new
-        old_path = _team_path(old)
-        save_team(t_data)          # écrit sous le nouveau nom
-        if os.path.exists(old_path):
-            os.remove(old_path)    # supprime l'ancien fichier
-
-    # ── Renommer l'équipe A ──────────────────────────────────────────────────
-    await _rename_one(team, sigle, nouveau_sigle)
-    await delete_team_lu(interaction.client, interaction.guild_id, sigle)
-    new_team_a = load_team(nouveau_sigle)
-    if new_team_a:
-        await refresh_team_lu(interaction.client, interaction.guild_id, new_team_a)
-    report.append(f"✅ Équipe **{sigle}** → **{nouveau_sigle}**")
-
-    # ── Renommer l'équipe B si elle existe ───────────────────────────────────
-    team_b = load_team(f"{sigle}²")
-    if team_b:
-        await _rename_one(team_b, f"{sigle}²", f"{nouveau_sigle}²")
-        await delete_team_lu(interaction.client, interaction.guild_id, f"{sigle}²")
-        new_team_b = load_team(f"{nouveau_sigle}²")
-        if new_team_b:
-            await refresh_team_lu(interaction.client, interaction.guild_id, new_team_b)
-        report.append(f"✅ Équipe **{sigle}²** → **{nouveau_sigle}²**")
-
-    await interaction.followup.send("\n".join(report), ephemeral=True)
+    lines = await rename_team_logic(interaction.client, interaction.guild, sigle, nouveau_sigle)
+    await interaction.followup.send("\n".join(lines), ephemeral=True)
     await log_command(interaction.user.display_name, cmd_label, "Completed",
                       f"**{sigle}** renommée en **{nouveau_sigle}** par **{interaction.user.display_name}**")
 
