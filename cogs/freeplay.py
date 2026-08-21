@@ -1,0 +1,1381 @@
+import discord
+from discord.ext import commands
+from discord import app_commands
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from typing import Optional
+import json
+import re
+import os
+
+from cogs.teams import load_team
+from utils.sheets_log import log_command
+from utils.freeplay_data import save_freeplay_active, del_freeplay_active, load_freeplay_active
+
+CHANNEL_FREEPLAY = 1532382640223551640
+FREEPLAY_DIR     = os.path.join("data", "freeplay")
+PANELS_FILE      = os.path.join("data", "panels.json")
+FREEPLAY_SETUPS_FILE = os.path.join("data", "freeplay_setups.json")
+NOT_SET          = -99
+
+DAYS_FR   = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
+MONTHS_FR = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin",
+             "Juil", "Août", "Sep", "Oct", "Nov", "Déc"]
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def get_slots() -> list[str]:
+    today = datetime.now().date()
+    slots = []
+    for i in range(7):
+        d = today + timedelta(days=i)
+        label = f"{DAYS_FR[d.weekday()]} {d.day} {MONTHS_FR[d.month - 1]}"
+        slots.append(f"{label} — Après-midi")
+        slots.append(f"{label} — Soir")
+    return slots
+
+
+def get_led_teams(user_id: int) -> list[dict]:
+    teams_dir = os.path.join("data", "teams")
+    if not os.path.exists(teams_dir):
+        return []
+    result = []
+    for fn in os.listdir(teams_dir):
+        if not fn.endswith(".json"):
+            continue
+        with open(os.path.join(teams_dir, fn), encoding="utf-8") as f:
+            t = json.load(f)
+        if t.get("leader_id") == user_id:
+            result.append(t)
+    return result
+
+
+def find_team_by_role(role_id: int) -> Optional[dict]:
+    teams_dir = os.path.join("data", "teams")
+    if not os.path.exists(teams_dir):
+        return None
+    for fn in os.listdir(teams_dir):
+        if not fn.endswith(".json"):
+            continue
+        with open(os.path.join(teams_dir, fn), encoding="utf-8") as f:
+            t = json.load(f)
+        if t.get("role_id") == role_id:
+            return t
+    return None
+
+
+def parse_mentions(text: str) -> list[int]:
+    return [int(m) for m in re.findall(r"<@!?(\d+)>", text)]
+
+
+def subs_split(nb_fight: int, subs_choice: int) -> tuple[int, int]:
+    """Returns (nb_active, nb_subs) given the fight format and subs choice."""
+    if subs_choice < 0:
+        return max(1, nb_fight + subs_choice), abs(subs_choice)
+    return nb_fight, subs_choice
+
+
+# ---------------------------------------------------------------------------
+# Persistence: matchmaking posts
+# ---------------------------------------------------------------------------
+
+def _fp_path(msg_id: int) -> str:
+    return os.path.join(FREEPLAY_DIR, f"post_{msg_id}.json")
+
+def save_fp_post(msg_id: int, data: dict):
+    os.makedirs(FREEPLAY_DIR, exist_ok=True)
+    with open(_fp_path(msg_id), "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+def del_fp_post(msg_id: int):
+    p = _fp_path(msg_id)
+    if os.path.exists(p):
+        os.remove(p)
+
+# ---------------------------------------------------------------------------
+# In-memory setup state
+# ---------------------------------------------------------------------------
+
+@dataclass
+class SideSetup:
+    name: str
+    sigle: str
+    role_id: int
+    captain_id: int
+    nb_avail: int = NOT_SET
+    subs_choice: int = NOT_SET
+    players: list = field(default_factory=list)
+    subs_list: list = field(default_factory=list)
+
+@dataclass
+class FreeplaySetup:
+    category_id: int
+    slot: str
+    side_a: SideSetup
+    side_b: SideSetup
+    ch_tasks: int
+    ch_a: int
+    ch_b: int
+    ch_general: int
+    nb_fight: int = 0
+
+_setups: dict[int, FreeplaySetup] = {}
+
+
+def _setup_by_ch(ch_id: int) -> Optional[tuple[int, FreeplaySetup, str]]:
+    for cat_id, s in _setups.items():
+        if ch_id == s.ch_a:     return cat_id, s, "a"
+        if ch_id == s.ch_b:     return cat_id, s, "b"
+        if ch_id == s.ch_tasks: return cat_id, s, "tasks"
+    return None
+
+# ---------------------------------------------------------------------------
+# Persistance des setups Freeplay en cours (survit à un redémarrage du bot)
+# ---------------------------------------------------------------------------
+
+def _side_to_dict(s: SideSetup) -> dict:
+    return {
+        "name": s.name, "sigle": s.sigle,
+        "role_id": s.role_id, "captain_id": s.captain_id,
+        "nb_avail": s.nb_avail, "subs_choice": s.subs_choice,
+        "players":   [{"name": p.name, "discord_id": p.discord_id} for p in s.players],
+        "subs_list": [{"name": p.name, "discord_id": p.discord_id} for p in s.subs_list],
+    }
+
+def _side_from_dict(d: dict) -> SideSetup:
+    from cogs.crewbattle import Player
+    return SideSetup(
+        name=d["name"], sigle=d["sigle"],
+        role_id=d["role_id"], captain_id=d["captain_id"],
+        nb_avail=d.get("nb_avail", NOT_SET), subs_choice=d.get("subs_choice", NOT_SET),
+        players   =[Player(name=p["name"], discord_id=p["discord_id"]) for p in d.get("players", [])],
+        subs_list =[Player(name=p["name"], discord_id=p["discord_id"]) for p in d.get("subs_list", [])],
+    )
+
+def _freeplay_setup_to_dict(s: FreeplaySetup) -> dict:
+    return {
+        "category_id": s.category_id, "slot": s.slot,
+        "side_a": _side_to_dict(s.side_a), "side_b": _side_to_dict(s.side_b),
+        "ch_tasks": s.ch_tasks, "ch_a": s.ch_a, "ch_b": s.ch_b, "ch_general": s.ch_general,
+        "nb_fight": s.nb_fight,
+    }
+
+def _freeplay_setup_from_dict(d: dict) -> FreeplaySetup:
+    return FreeplaySetup(
+        category_id=d["category_id"], slot=d["slot"],
+        side_a=_side_from_dict(d["side_a"]), side_b=_side_from_dict(d["side_b"]),
+        ch_tasks=d["ch_tasks"], ch_a=d["ch_a"], ch_b=d["ch_b"], ch_general=d["ch_general"],
+        nb_fight=d.get("nb_fight", 0),
+    )
+
+def _save_setups():
+    try:
+        data = {str(cat_id): _freeplay_setup_to_dict(s) for cat_id, s in _setups.items()}
+        os.makedirs("data", exist_ok=True)
+        with open(FREEPLAY_SETUPS_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[WARN] save freeplay setups: {e}")
+
+def _load_setups_from_file() -> dict[int, FreeplaySetup]:
+    if not os.path.exists(FREEPLAY_SETUPS_FILE):
+        return {}
+    try:
+        with open(FREEPLAY_SETUPS_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+        return {int(cat_id): _freeplay_setup_from_dict(s) for cat_id, s in data.items()}
+    except Exception as e:
+        print(f"[WARN] load freeplay setups: {e}")
+        return {}
+
+def _delete_setup(category_id: int):
+    _setups.pop(category_id, None)
+    _save_setups()
+
+# ---------------------------------------------------------------------------
+# Persistance des posts de recherche publics (matchmaking)
+# ---------------------------------------------------------------------------
+
+def _load_fp_posts() -> dict[int, dict]:
+    if not os.path.exists(FREEPLAY_DIR):
+        return {}
+    result = {}
+    for fn in os.listdir(FREEPLAY_DIR):
+        if not fn.startswith("post_") or not fn.endswith(".json"):
+            continue
+        try:
+            with open(os.path.join(FREEPLAY_DIR, fn), encoding="utf-8") as f:
+                data = json.load(f)
+            result[data["msg_id"]] = data
+        except Exception as e:
+            print(f"[WARN] load fp post {fn}: {e}")
+    return result
+
+
+# ===========================================================================
+# PANEL (persistent)
+# ===========================================================================
+
+class FreeplayPanelView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="⚔️ Chercher un adversaire", style=discord.ButtonStyle.primary,
+                       custom_id="panel_freeplay_search")
+    async def search(self, interaction: discord.Interaction, button: discord.ui.Button):
+        led = get_led_teams(interaction.user.id)
+        if led:
+            if len(led) == 1:
+                await interaction.response.send_message(
+                    f"Sélectionne tes disponibilités pour **{led[0]['sigle']}** :",
+                    view=DateSelectView(led[0]),
+                    ephemeral=True,
+                )
+            else:
+                await interaction.response.send_message(
+                    "Pour quelle équipe cherches-tu un adversaire ?",
+                    view=TeamPickView(led, mode="search"),
+                    ephemeral=True,
+                )
+            return
+
+        # Pas leader d'une équipe enregistrée → recherche en groupe libre
+        # (le rôle officiel d'une équipe ne peut être engagé que par son leader)
+        pickup_team = {"sigle": interaction.user.display_name, "leader_id": interaction.user.id}
+        await interaction.response.send_message(
+            "Tu ne diriges aucune équipe enregistrée — tu peux quand même chercher un "
+            "adversaire en **groupe libre** (non lié à une équipe officielle).\n"
+            "Sélectionne tes disponibilités :",
+            view=DateSelectView(pickup_team),
+            ephemeral=True,
+        )
+
+
+# ===========================================================================
+# TEAM PICK (when leader leads multiple teams)
+# ===========================================================================
+
+class TeamPickView(discord.ui.View):
+    def __init__(self, teams: list[dict], mode: str = "search",
+                 post_data: Optional[dict] = None):
+        super().__init__(timeout=120)
+        self.mode = mode
+        self.post_data = post_data
+        for team in teams[:5]:
+            btn = discord.ui.Button(label=team["sigle"], style=discord.ButtonStyle.secondary)
+            btn.callback = self._make_cb(team)
+            self.add_item(btn)
+
+    def _make_cb(self, team: dict):
+        async def cb(interaction: discord.Interaction):
+            if self.mode == "search":
+                await interaction.response.edit_message(
+                    content=f"Sélectionne tes disponibilités pour **{team['sigle']}** :",
+                    view=DateSelectView(team),
+                )
+            else:
+                await _confirm_matchup(interaction, self.post_data, team)
+        return cb
+
+
+# ===========================================================================
+# DATE SELECT (ephemeral)
+# ===========================================================================
+
+class DateSelectView(discord.ui.View):
+    def __init__(self, team: dict, selected: Optional[list[str]] = None):
+        super().__init__(timeout=300)
+        self.team     = team
+        self.slots    = get_slots()
+        self.selected = selected or []
+        self._build()
+
+    def _build(self):
+        self.clear_items()
+        select = discord.ui.Select(
+            placeholder="Sélectionne tes disponibilités...",
+            min_values=1,
+            max_values=len(self.slots),
+            options=[
+                discord.SelectOption(label=s, value=str(i),
+                                     default=(s in self.selected))
+                for i, s in enumerate(self.slots)
+            ],
+        )
+        select.callback = self._on_select
+        self.add_item(select)
+
+        confirm = discord.ui.Button(
+            label="✅ Publier ma recherche",
+            style=discord.ButtonStyle.success,
+            disabled=not self.selected,
+        )
+        confirm.callback = self._confirm
+        self.add_item(confirm)
+
+    async def _on_select(self, interaction: discord.Interaction):
+        indices = [int(v) for v in interaction.data["values"]]
+        self.selected = [self.slots[i] for i in indices]
+        self._build()
+        await interaction.response.edit_message(
+            content=f"**{len(self.selected)}** créneaux sélectionnés — publie quand tu es prêt !",
+            view=self,
+        )
+
+    async def _confirm(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        freeplay_ch = interaction.guild.get_channel(CHANNEL_FREEPLAY)
+        if not freeplay_ch:
+            await interaction.followup.send("❌ Salon freeplay introuvable.", ephemeral=True)
+            return
+
+        team = self.team
+        embed = discord.Embed(
+            title=f"🔍 {team['sigle']} cherche un adversaire !",
+            description="Cliquez sur un créneau pour accepter l'affrontement.",
+            color=discord.Color.orange(),
+        )
+        embed.add_field(
+            name="Disponibilités",
+            value="\n".join(f"• {s}" for s in self.selected),
+            inline=False,
+        )
+
+        view = MatchmakingView(team["sigle"], team["leader_id"], self.selected)
+        msg = await freeplay_ch.send(embed=embed, view=view)
+        save_fp_post(msg.id, {
+            "msg_id":      msg.id,
+            "team_sigle":  team["sigle"],
+            "leader_id":   team["leader_id"],
+            "slots":       self.selected,
+        })
+
+        await interaction.edit_original_response(
+            content=f"✅ Recherche publiée ! {msg.jump_url}",
+            view=None,
+        )
+
+
+# ===========================================================================
+# MATCHMAKING VIEW (in freeplay channel)
+# ===========================================================================
+
+class MatchmakingView(discord.ui.View):
+    def __init__(self, team_sigle: str, leader_id: int, slots: list[str]):
+        super().__init__(timeout=None)
+        self.team_sigle = team_sigle
+        self.leader_id  = leader_id
+        self.slots      = slots
+        for slot in slots:
+            btn = discord.ui.Button(label=slot, style=discord.ButtonStyle.secondary)
+            btn.callback = self._make_cb(slot)
+            self.add_item(btn)
+
+    def _make_cb(self, slot: str):
+        async def cb(interaction: discord.Interaction):
+            if interaction.user.id == self.leader_id:
+                await interaction.response.send_message(
+                    "❌ Tu ne peux pas répondre à ta propre recherche.", ephemeral=True
+                )
+                return
+            led = [t for t in get_led_teams(interaction.user.id)
+                   if t["sigle"] != self.team_sigle]
+            post_data = {
+                "msg_id":     interaction.message.id,
+                "team_sigle": self.team_sigle,
+                "leader_id":  self.leader_id,
+                "slot":       slot,
+            }
+            if led:
+                if len(led) == 1:
+                    await _confirm_matchup(interaction, post_data, led[0])
+                else:
+                    await interaction.response.send_message(
+                        "Pour quelle équipe acceptes-tu ce match ?",
+                        view=TeamPickView(led, mode="respond", post_data=post_data),
+                        ephemeral=True,
+                    )
+                return
+
+            # Pas leader d'une équipe enregistrée → réponse en groupe libre
+            pickup_team = {"sigle": interaction.user.display_name, "leader_id": interaction.user.id}
+            await _confirm_matchup(interaction, post_data, pickup_team)
+        return cb
+
+
+# ===========================================================================
+# CONFIRM MATCHUP → création catégorie + channels
+# ===========================================================================
+
+async def _confirm_matchup(interaction: discord.Interaction,
+                            post_data: dict, team_b_data: dict):
+    if not interaction.response.is_done():
+        await interaction.response.defer(ephemeral=True)
+
+    guild     = interaction.guild
+    slot      = post_data["slot"]
+    team_a_data = load_team(post_data["team_sigle"])
+    if not team_a_data:
+        # Groupe libre (le chercheur ne dirigeait aucune équipe enregistrée)
+        team_a_data = {"sigle": post_data["team_sigle"], "leader_id": post_data.get("leader_id")}
+
+    role_a = guild.get_role(team_a_data.get("role_id", 0))
+    role_b = guild.get_role(team_b_data.get("role_id", 0))
+    cap_a  = guild.get_member(team_a_data["leader_id"])
+    cap_b  = guild.get_member(team_b_data["leader_id"])
+
+    # ── Overwrites ────────────────────────────────────────────────────────────
+    bot_ow = discord.PermissionOverwrite(view_channel=True, send_messages=True,
+                                          manage_channels=True, read_message_history=True)
+    deny   = discord.PermissionOverwrite(view_channel=False)
+
+    def team_ow(role, cap, write=True):
+        ow = {}
+        if role:
+            ow[role] = discord.PermissionOverwrite(view_channel=True, send_messages=write,
+                                                    read_message_history=True)
+        elif cap:
+            ow[cap] = discord.PermissionOverwrite(view_channel=True, send_messages=write,
+                                                   read_message_history=True)
+        return ow
+
+    cat_ow = {guild.default_role: deny, guild.me: bot_ow}
+    if role_a: cat_ow[role_a] = discord.PermissionOverwrite(view_channel=True)
+    if role_b: cat_ow[role_b] = discord.PermissionOverwrite(view_channel=True)
+    if not role_a and cap_a: cat_ow[cap_a] = discord.PermissionOverwrite(view_channel=True)
+    if not role_b and cap_b: cat_ow[cap_b] = discord.PermissionOverwrite(view_channel=True)
+
+    # ── Créer la catégorie ───────────────────────────────────────────────────
+    cat_name = f"Freeplay 〔{post_data['team_sigle']}〕vs〔{team_b_data['sigle']}〕"
+    try:
+        category = await guild.create_category(cat_name, overwrites=cat_ow)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Erreur : {e}", ephemeral=True)
+        return
+
+    tasks_ow = {guild.default_role: deny, guild.me: bot_ow,
+                **team_ow(role_a, cap_a), **team_ow(role_b, cap_b)}
+    ch_a_ow  = {guild.default_role: deny, guild.me: bot_ow, **team_ow(role_a, cap_a)}
+    ch_b_ow  = {guild.default_role: deny, guild.me: bot_ow, **team_ow(role_b, cap_b)}
+    gen_ow   = {guild.default_role: deny, guild.me: bot_ow,
+                **team_ow(role_a, cap_a), **team_ow(role_b, cap_b)}
+
+    ch_tasks   = await guild.create_text_channel("tasks",                          category=category, overwrites=tasks_ow)
+    ch_a       = await guild.create_text_channel(f"〔{post_data['team_sigle']}〕", category=category, overwrites=ch_a_ow)
+    ch_b       = await guild.create_text_channel(f"〔{team_b_data['sigle']}〕",    category=category, overwrites=ch_b_ow)
+    ch_general = await guild.create_text_channel("général",                        category=category, overwrites=gen_ow)
+
+    # ── Setup en mémoire ─────────────────────────────────────────────────────
+    side_a = SideSetup(name=post_data["team_sigle"], sigle=post_data["team_sigle"],
+                       role_id=team_a_data.get("role_id", 0),
+                       captain_id=team_a_data["leader_id"])
+    side_b = SideSetup(name=team_b_data["sigle"], sigle=team_b_data["sigle"],
+                       role_id=team_b_data.get("role_id", 0),
+                       captain_id=team_b_data["leader_id"])
+    setup = FreeplaySetup(
+        category_id=category.id, slot=slot,
+        side_a=side_a, side_b=side_b,
+        ch_tasks=ch_tasks.id, ch_a=ch_a.id,
+        ch_b=ch_b.id, ch_general=ch_general.id,
+    )
+    _setups[category.id] = setup
+    _save_setups()
+
+    # ── Messages d'accueil ───────────────────────────────────────────────────
+    await ch_tasks.send(
+        f"⚔️ **Freeplay : {side_a.name} vs {side_b.name}**\n"
+        f"📅 Créneau : **{slot}**\n\n"
+        "En attente de la configuration des équipes..."
+    )
+    await ch_general.send(
+        f"🎮 Bienvenue dans ce match Freeplay !\n"
+        f"**{side_a.name}** vs **{side_b.name}** — {slot}\n\n"
+        f"La CB sera lancée depuis {ch_tasks.mention}."
+    )
+
+    # ── Demander le nombre de joueurs ────────────────────────────────────────
+    await ch_a.send(
+        f"{cap_a.mention if cap_a else ''} — "
+        f"Combien de joueurs **{side_a.name}** a-t-il de disponibles ?",
+        view=PlayerCountView(category.id, "a"),
+    )
+    await ch_b.send(
+        f"{cap_b.mention if cap_b else ''} — "
+        f"Combien de joueurs **{side_b.name}** a-t-il de disponibles ?",
+        view=PlayerCountView(category.id, "b"),
+    )
+
+    # ── Supprimer l'annonce matchmaking ──────────────────────────────────────
+    try:
+        freeplay_ch = guild.get_channel(CHANNEL_FREEPLAY)
+        if freeplay_ch:
+            old_msg = await freeplay_ch.fetch_message(post_data["msg_id"])
+            await old_msg.delete()
+    except Exception:
+        pass
+    del_fp_post(post_data["msg_id"])
+
+    await interaction.followup.send(
+        f"✅ Match accepté ! La catégorie **{cat_name}** a été créée.",
+        ephemeral=True,
+    )
+
+
+# ===========================================================================
+# PLAYER COUNT
+# ===========================================================================
+
+class PlayerCountModal(discord.ui.Modal, title="Joueurs disponibles"):
+    count = discord.ui.TextInput(
+        label="Nombre de joueurs disponibles",
+        placeholder="Ex: 5",
+        min_length=1, max_length=2,
+    )
+
+    def __init__(self, category_id: int, side: str):
+        super().__init__()
+        self.category_id = category_id
+        self.side        = side
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            n = int(self.count.value.strip())
+            if not (1 <= n <= 20):
+                raise ValueError
+        except ValueError:
+            await interaction.response.send_message(
+                "❌ Nombre invalide (entre 1 et 20).", ephemeral=True
+            )
+            return
+
+        setup = _setups.get(self.category_id)
+        if not setup:
+            await interaction.response.send_message("❌ Session expirée.", ephemeral=True)
+            return
+
+        side_obj = setup.side_a if self.side == "a" else setup.side_b
+        side_obj.nb_avail = n
+        _save_setups()
+
+        await interaction.response.send_message(f"✅ {n} joueurs enregistrés.", ephemeral=True)
+        await interaction.channel.send(f"✅ **{side_obj.name}** : **{n}** joueurs disponibles.")
+        await _check_player_counts(interaction.client, interaction.guild, setup)
+
+
+class PlayerCountView(discord.ui.View):
+    def __init__(self, category_id: int, side: str):
+        super().__init__(timeout=None)
+        self.category_id = category_id
+        self.side        = side
+
+    @discord.ui.button(label="📝 Entrer un nombre", style=discord.ButtonStyle.primary)
+    async def enter(self, interaction: discord.Interaction, button: discord.ui.Button):
+        setup = _setups.get(self.category_id)
+        if not setup:
+            await interaction.response.send_message("❌ Session expirée.", ephemeral=True)
+            return
+        side_obj = setup.side_a if self.side == "a" else setup.side_b
+        if interaction.user.id != side_obj.captain_id:
+            await interaction.response.send_message(
+                "❌ Seul le leader peut répondre.", ephemeral=True
+            )
+            return
+        if side_obj.nb_avail != NOT_SET:
+            await interaction.response.send_message("✅ Déjà renseigné.", ephemeral=True)
+            return
+        await interaction.response.send_modal(PlayerCountModal(self.category_id, self.side))
+
+
+async def _check_player_counts(bot, guild, setup: FreeplaySetup):
+    if setup.side_a.nb_avail == NOT_SET or setup.side_b.nb_avail == NOT_SET:
+        return
+
+    nb_fight = min(setup.side_a.nb_avail, setup.side_b.nb_avail)
+    setup.nb_fight = nb_fight
+    _save_setups()
+
+    ch_tasks = guild.get_channel(setup.ch_tasks)
+    ch_a     = guild.get_channel(setup.ch_a)
+    ch_b     = guild.get_channel(setup.ch_b)
+
+    if ch_tasks:
+        await ch_tasks.send(
+            f"📊 **Format retenu : {nb_fight}v{nb_fight}**\n"
+            f"({setup.side_a.name} : {setup.side_a.nb_avail} dispo | "
+            f"{setup.side_b.name} : {setup.side_b.nb_avail} dispo)"
+        )
+    if ch_a:
+        await ch_a.send(
+            f"⚔️ La CrewBattle se jouera en **{nb_fight}v{nb_fight}**.\n"
+            f"Combien de remplaçants souhaitez-vous ?",
+            view=SubsView(setup.category_id, "a", nb_fight),
+        )
+    if ch_b:
+        await ch_b.send(
+            f"⚔️ La CrewBattle se jouera en **{nb_fight}v{nb_fight}**.\n"
+            f"Combien de remplaçants souhaitez-vous ?",
+            view=SubsView(setup.category_id, "b", nb_fight),
+        )
+
+
+# ===========================================================================
+# SUBS
+# ===========================================================================
+
+SUBS_OPTS = [
+    (-2, "−2 actifs  (+2 subs parmi les dispo)"),
+    (-1, "−1 actif   (+1 sub parmi les dispo)"),
+    ( 0, "0 remplaçant"),
+    ( 1, "+1 remplaçant supplémentaire"),
+    ( 2, "+2 remplaçants supplémentaires"),
+]
+
+
+class SubsView(discord.ui.View):
+    def __init__(self, category_id: int, side: str, nb_fight: int):
+        super().__init__(timeout=None)
+        self.category_id = category_id
+        self.side        = side
+        self.nb_fight    = nb_fight
+        for val, label in SUBS_OPTS:
+            btn = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary)
+            btn.callback = self._make_cb(val)
+            self.add_item(btn)
+
+    def _make_cb(self, val: int):
+        async def cb(interaction: discord.Interaction):
+            setup = _setups.get(self.category_id)
+            if not setup:
+                await interaction.response.send_message("❌ Session expirée.", ephemeral=True)
+                return
+            side_obj = setup.side_a if self.side == "a" else setup.side_b
+            if interaction.user.id != side_obj.captain_id:
+                await interaction.response.send_message(
+                    "❌ Seul le leader peut répondre.", ephemeral=True
+                )
+                return
+            if side_obj.subs_choice != NOT_SET:
+                await interaction.response.send_message("✅ Déjà renseigné.", ephemeral=True)
+                return
+
+            side_obj.subs_choice = val
+            _save_setups()
+            nb_active, nb_subs = subs_split(self.nb_fight, val)
+
+            for item in self.children:
+                item.disabled = True
+            await interaction.response.edit_message(view=self)
+            await interaction.channel.send(
+                f"✅ **{side_obj.name}** : **{nb_active}** joueurs actifs"
+                + (f" + **{nb_subs}** remplaçant(s)" if nb_subs else "") + "."
+            )
+            await _check_subs(interaction.client, interaction.guild, setup)
+        return cb
+
+
+async def _check_subs(bot, guild, setup: FreeplaySetup):
+    if setup.side_a.subs_choice == NOT_SET or setup.side_b.subs_choice == NOT_SET:
+        return
+
+    ch_a = guild.get_channel(setup.ch_a)
+    ch_b = guild.get_channel(setup.ch_b)
+
+    for ch, side_str in [(ch_a, "a"), (ch_b, "b")]:
+        if not ch:
+            continue
+        side_obj = setup.side_a if side_str == "a" else setup.side_b
+        nb_active, nb_subs = subs_split(setup.nb_fight, side_obj.subs_choice)
+        desc = f"**{nb_active}** actif(s)"
+        if nb_subs:
+            desc += f" + **{nb_subs}** remplaçant(s)"
+        await ch.send(
+            f"🎯 Composition de **{side_obj.name}** : {desc}\n"
+            "Entrez maintenant votre équipe.",
+            view=RosterView(setup.category_id, side_str, nb_active, nb_subs),
+        )
+
+
+# ===========================================================================
+# ROSTER
+# ===========================================================================
+
+class RosterModal(discord.ui.Modal, title="Composition de l'équipe"):
+    def __init__(self, category_id: int, side: str, nb_active: int, nb_subs: int):
+        super().__init__()
+        self.category_id = category_id
+        self.side        = side
+        self.nb_active   = nb_active
+        self.nb_subs     = nb_subs
+
+        self.team_field = discord.ui.TextInput(
+            label="Nom ou @rôle de l'équipe",
+            placeholder="Ex: HoJ   ou   @[HoJ]",
+            max_length=100,
+        )
+        self.players_field = discord.ui.TextInput(
+            label=f"Joueurs actifs ({nb_active}) — mentionnez-les",
+            placeholder="@Joueur1, @Joueur2...",
+            style=discord.TextStyle.paragraph,
+            max_length=500,
+        )
+        self.add_item(self.team_field)
+        self.add_item(self.players_field)
+
+        if nb_subs > 0:
+            self.subs_field: Optional[discord.ui.TextInput] = discord.ui.TextInput(
+                label=f"Remplaçants ({nb_subs}) — mentionnez-les",
+                placeholder="@Remplaçant1...",
+                style=discord.TextStyle.paragraph,
+                max_length=300,
+                required=False,
+            )
+            self.add_item(self.subs_field)
+        else:
+            self.subs_field = None
+
+    async def on_submit(self, interaction: discord.Interaction):
+        from cogs.crewbattle import Player
+
+        setup = _setups.get(self.category_id)
+        if not setup:
+            await interaction.response.send_message("❌ Session expirée.", ephemeral=True)
+            return
+
+        guild    = interaction.guild
+        side_obj = setup.side_a if self.side == "a" else setup.side_b
+
+        # Nom ou rôle — seul le leader de l'équipe propriétaire du rôle peut
+        # engager celui-ci (et donc restreindre la sélection à ses membres).
+        team_input = self.team_field.value.strip()
+        role_match = re.match(r"<@&(\d+)>", team_input)
+        restrict_to: Optional[set[int]] = None
+        role = None
+        if role_match:
+            role_id = int(role_match.group(1))
+            role = guild.get_role(role_id)
+            owning_team = find_team_by_role(role_id)
+            if not owning_team or owning_team.get("leader_id") != interaction.user.id:
+                await interaction.response.send_message(
+                    "❌ Seul le leader de cette équipe peut la faire jouer sous son rôle officiel. "
+                    "Indique un nom libre à la place pour un groupe non restreint.",
+                    ephemeral=True,
+                )
+                return
+            side_obj.name    = role.name if role else team_input
+            side_obj.role_id = role_id
+            restrict_to = {m.id for m in role.members} if role else set()
+        elif team_input:
+            side_obj.name = team_input
+
+        # Joueurs actifs
+        ids = parse_mentions(self.players_field.value)
+        if len(ids) < self.nb_active:
+            await interaction.response.send_message(
+                f"❌ Il faut {self.nb_active} joueur(s) actif(s), "
+                f"tu en as mentionné {len(ids)}.",
+                ephemeral=True,
+            )
+            return
+
+        sub_ids = parse_mentions(self.subs_field.value)[:self.nb_subs] if self.subs_field and self.subs_field.value else []
+
+        if restrict_to is not None:
+            invalid = [i for i in ids[:self.nb_active] + sub_ids if i not in restrict_to]
+            if invalid:
+                names = ", ".join(f"<@{i}>" for i in invalid)
+                await interaction.response.send_message(
+                    f"❌ Ces joueurs ne sont pas membres du rôle {role.mention if role else team_input} "
+                    f"et ne peuvent pas être sélectionnés : {names}",
+                    ephemeral=True,
+                )
+                return
+
+        players = []
+        for disc_id in ids[:self.nb_active]:
+            m = guild.get_member(disc_id)
+            players.append(Player(name=m.display_name if m else str(disc_id),
+                                  discord_id=disc_id))
+        side_obj.players = players
+
+        # Remplaçants
+        subs = []
+        for disc_id in sub_ids:
+            m = guild.get_member(disc_id)
+            subs.append(Player(name=m.display_name if m else str(disc_id),
+                               discord_id=disc_id))
+        side_obj.subs_list = subs
+        _save_setups()
+
+        # Accès tasks pour les joueurs mentionnés
+        ch_tasks = guild.get_channel(setup.ch_tasks)
+        if ch_tasks:
+            for p in side_obj.players + side_obj.subs_list:
+                member = guild.get_member(p.discord_id)
+                if member:
+                    try:
+                        await ch_tasks.set_permissions(
+                            member, view_channel=True, read_message_history=True,
+                            send_messages=False,
+                        )
+                    except Exception:
+                        pass
+
+        await interaction.response.send_message(
+            f"✅ **{side_obj.name}** enregistrée !\n"
+            f"Actifs : {', '.join(p.name for p in side_obj.players)}"
+            + (f"\nRemplaçants : {', '.join(p.name for p in side_obj.subs_list)}"
+               if side_obj.subs_list else ""),
+            ephemeral=True,
+        )
+        await interaction.channel.send(
+            f"✅ Équipe **{side_obj.name}** prête !\n"
+            f"Actifs : {', '.join(p.name for p in side_obj.players)}"
+            + (f" | Remplaçants : {', '.join(p.name for p in side_obj.subs_list)}"
+               if side_obj.subs_list else "")
+        )
+        await _check_rosters(interaction.client, guild, setup)
+
+
+class RosterView(discord.ui.View):
+    def __init__(self, category_id: int, side: str, nb_active: int, nb_subs: int):
+        super().__init__(timeout=None)
+        self.category_id = category_id
+        self.side        = side
+        self.nb_active   = nb_active
+        self.nb_subs     = nb_subs
+
+    @discord.ui.button(label="📋 Entrer l'équipe", style=discord.ButtonStyle.primary)
+    async def enter(self, interaction: discord.Interaction, button: discord.ui.Button):
+        setup = _setups.get(self.category_id)
+        if not setup:
+            await interaction.response.send_message("❌ Session expirée.", ephemeral=True)
+            return
+        side_obj = setup.side_a if self.side == "a" else setup.side_b
+        if interaction.user.id != side_obj.captain_id:
+            await interaction.response.send_message(
+                "❌ Seul le leader peut entrer l'équipe.", ephemeral=True
+            )
+            return
+        if side_obj.players:
+            await interaction.response.send_message("✅ Équipe déjà enregistrée.", ephemeral=True)
+            return
+        await interaction.response.send_modal(
+            RosterModal(self.category_id, self.side, self.nb_active, self.nb_subs)
+        )
+
+
+# ===========================================================================
+# ANNULATION DE LA CB (freeplay) — demande + confirmation mutuelle
+# ===========================================================================
+
+CANCEL_CB_PROMPT = (
+    "Besoin d'annuler cette CrewBattle ? Un leader peut le proposer ci-dessous "
+    "(l'autre leader devra confirmer)."
+)
+
+
+class CancelCBView(discord.ui.View):
+    """Bouton persistant 'Annuler la CB', posté dans le salon tasks d'un freeplay."""
+
+    def __init__(self, channel_id: int):
+        super().__init__(timeout=None)
+        self.channel_id = channel_id
+        btn = discord.ui.Button(
+            label="🚫 Annuler la CB", style=discord.ButtonStyle.danger,
+            custom_id=f"fp_cancel_request_{channel_id}",
+        )
+        btn.callback = self._request
+        self.add_item(btn)
+
+    async def _request(self, interaction: discord.Interaction):
+        from cogs.crewbattle import active_matches
+        match = active_matches.get(self.channel_id)
+        if not match:
+            await interaction.response.send_message("❌ Aucune CrewBattle en cours ici.", ephemeral=True)
+            return
+
+        if interaction.user.id == match.team_a.captain_id:
+            other_team = match.team_b
+        elif interaction.user.id == match.team_b.captain_id:
+            other_team = match.team_a
+        else:
+            await interaction.response.send_message("❌ Seul un leader peut demander l'annulation.", ephemeral=True)
+            return
+
+        other_id = other_team.captain_id
+        other_mention = f"<@{other_id}>" if other_id else other_team.name
+
+        view = CancelConfirmView(self.channel_id, requester_id=interaction.user.id, confirm_id=other_id)
+        await interaction.response.send_message(
+            f"{other_mention} — **{interaction.user.display_name}** souhaite annuler la CB. "
+            f"Appuyez sur **Oui, annuler la CB** pour annuler la CrewBattle en cours.",
+            view=view,
+        )
+
+
+class CancelConfirmView(discord.ui.View):
+    def __init__(self, channel_id: int, requester_id: int, confirm_id: int):
+        super().__init__(timeout=600)
+        self.channel_id   = channel_id
+        self.requester_id = requester_id
+        self.confirm_id   = confirm_id
+
+    @discord.ui.button(label="✅ Oui, annuler la CB", style=discord.ButtonStyle.danger)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.confirm_id:
+            await interaction.response.send_message(
+                "❌ Seul l'autre leader peut confirmer l'annulation.", ephemeral=True
+            )
+            return
+
+        from cogs.crewbattle import active_matches, save_matches
+        from utils.sheets_log import update_log
+
+        match = active_matches.pop(self.channel_id, None)
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(view=self)
+
+        if not match:
+            await interaction.followup.send("❌ La CrewBattle n'était déjà plus en cours.")
+            return
+
+        save_matches()
+        await update_log(match.log_row, "Canceled",
+                         f"CrewBattle annulée d'un commun accord (confirmé par **{interaction.user.display_name}**)")
+        await interaction.followup.send("🛑 CrewBattle annulée d'un commun accord.")
+
+    @discord.ui.button(label="❌ Non, je ne veux pas annuler la CB", style=discord.ButtonStyle.secondary)
+    async def deny(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id not in (self.requester_id, self.confirm_id):
+            await interaction.response.send_message("❌ Action non autorisée.", ephemeral=True)
+            return
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(
+            content="Demande d'annulation retirée — la CrewBattle continue.", view=self
+        )
+
+
+async def restore_all_cancel_views(bot: commands.Bot) -> int:
+    """Ré-enregistre les boutons 'Annuler la CB' déjà postés (aucun appel réseau)."""
+    from utils.freeplay_data import FREEPLAY_ACT_DIR
+    if not os.path.exists(FREEPLAY_ACT_DIR):
+        return 0
+    count = 0
+    for fn in os.listdir(FREEPLAY_ACT_DIR):
+        if not fn.endswith(".json"):
+            continue
+        with open(os.path.join(FREEPLAY_ACT_DIR, fn), encoding="utf-8") as f:
+            data = json.load(f)
+        msg_id = data.get("cancel_msg_id")
+        channel_id = data.get("channel_id")
+        if not msg_id or not channel_id:
+            continue
+        bot.add_view(CancelCBView(channel_id), message_id=msg_id)
+        count += 1
+    return count
+
+
+async def ensure_all_cancel_buttons(bot: commands.Bot) -> int:
+    """Vérifie que chaque CB freeplay en cours a bien son message + bouton
+    'Annuler la CB' ; le reposte s'il est absent. Utilisé par /cbl_setup_all."""
+    from utils.freeplay_data import FREEPLAY_ACT_DIR
+    if not os.path.exists(FREEPLAY_ACT_DIR):
+        return 0
+
+    count = 0
+    for fn in os.listdir(FREEPLAY_ACT_DIR):
+        if not fn.endswith(".json"):
+            continue
+        channel_id = int(fn[:-5])
+        data = load_freeplay_active(channel_id)
+        if not data:
+            continue
+        channel = bot.get_channel(channel_id)
+        if not channel:
+            continue
+
+        msg_id = data.get("cancel_msg_id")
+        present = False
+        if msg_id:
+            try:
+                await channel.fetch_message(msg_id)
+                present = True
+            except Exception:
+                present = False
+
+        if present:
+            continue
+
+        msg = await channel.send(CANCEL_CB_PROMPT, view=CancelCBView(channel_id))
+        data["cancel_msg_id"] = msg.id
+        save_freeplay_active(channel_id, data)
+        count += 1
+
+    return count
+
+# ===========================================================================
+# LANCEMENT DE LA CREWBATTLE
+# ===========================================================================
+
+async def _check_rosters(bot, guild, setup: FreeplaySetup):
+    if not setup.side_a.players or not setup.side_b.players:
+        return
+
+    from cogs.crewbattle import Team, Match, active_matches, save_matches, FirstPickView
+
+    ch_tasks = guild.get_channel(setup.ch_tasks)
+    if not ch_tasks:
+        return
+
+    ta = Team(name=setup.side_a.name, captain_id=setup.side_a.captain_id,
+              players=setup.side_a.players, subs=setup.side_a.subs_list)
+    tb = Team(name=setup.side_b.name, captain_id=setup.side_b.captain_id,
+              players=setup.side_b.players, subs=setup.side_b.subs_list)
+
+    match = Match(team_a=ta, team_b=tb, channel_id=ch_tasks.id)
+    active_matches[ch_tasks.id] = match
+
+    match.log_row = await log_command(
+        "Freeplay",
+        f"freeplay **{ta.name}** vs **{tb.name}**",
+        "In Progress",
+        f"Freeplay CB {ta.name} vs {tb.name} — {setup.slot}",
+    )
+    save_matches()
+
+    # Sauvegarder pour le résumé post-match
+    save_freeplay_active(ch_tasks.id, {
+        "channel_id":   ch_tasks.id,
+        "category_id":  setup.category_id,
+        "team_a_sigle": setup.side_a.sigle,
+        "team_b_sigle": setup.side_b.sigle,
+    })
+
+    # Libérer la mémoire du setup
+    _delete_setup(setup.category_id)
+
+    def team_val(team: Team) -> str:
+        lines = [f"• {p.name}" for p in team.players]
+        if team.subs:
+            lines.append(f"*Remplaçants : {', '.join(p.name for p in team.subs)}*")
+        return "\n".join(lines)
+
+    cap_a = guild.get_member(ta.captain_id)
+    cap_b = guild.get_member(tb.captain_id)
+
+    embed = discord.Embed(
+        title=f"⚔️ Freeplay — {ta.name} vs {tb.name}",
+        color=discord.Color.blue(),
+    )
+    embed.add_field(name=f"{ta.name}  (cap. {cap_a.display_name if cap_a else '?'})",
+                    value=team_val(ta), inline=True)
+    embed.add_field(name=f"{tb.name}  (cap. {cap_b.display_name if cap_b else '?'})",
+                    value=team_val(tb), inline=True)
+    embed.add_field(name="Créneau", value=setup.slot, inline=False)
+
+    msg = await ch_tasks.send(embed=embed)
+    try:
+        await msg.pin()
+    except Exception:
+        pass
+
+    view = FirstPickView(match=match)
+    pick_msg = await ch_tasks.send(
+        f"📢 {cap_a.mention if cap_a else f'<@{ta.captain_id}>'} ({ta.name}) "
+        f"et {cap_b.mention if cap_b else f'<@{tb.captain_id}>'} ({tb.name}), "
+        f"choisissez votre premier joueur !",
+        view=view,
+    )
+    view.message = pick_msg
+
+    cancel_msg = await ch_tasks.send(CANCEL_CB_PROMPT, view=CancelCBView(ch_tasks.id))
+    freeplay_info = load_freeplay_active(ch_tasks.id) or {}
+    freeplay_info["cancel_msg_id"] = cancel_msg.id
+    save_freeplay_active(ch_tasks.id, freeplay_info)
+
+
+# ===========================================================================
+# Reprise après redémarrage du bot
+# ===========================================================================
+
+async def _restore_setup(bot: commands.Bot, setup: FreeplaySetup):
+    """Reposte la bonne vue dans les bons salons selon l'étape où le setup s'est arrêté."""
+    await bot.wait_until_ready()
+
+    ch_a     = bot.get_channel(setup.ch_a)
+    ch_b     = bot.get_channel(setup.ch_b)
+    ch_tasks = bot.get_channel(setup.ch_tasks)
+    guild = getattr(ch_tasks, "guild", None) or getattr(ch_a, "guild", None) or getattr(ch_b, "guild", None)
+
+    if not guild:
+        # Catégorie/salons supprimés entre-temps : setup obsolète
+        _delete_setup(setup.category_id)
+        return
+
+    async def notice(ch):
+        if ch:
+            try:
+                await ch.send("🔄 **Configuration reprise après redémarrage du bot.**")
+            except Exception:
+                pass
+
+    if setup.side_a.nb_avail == NOT_SET or setup.side_b.nb_avail == NOT_SET:
+        for side_str, ch, side_obj in (("a", ch_a, setup.side_a), ("b", ch_b, setup.side_b)):
+            if side_obj.nb_avail == NOT_SET and ch:
+                await notice(ch)
+                cap = guild.get_member(side_obj.captain_id)
+                await ch.send(
+                    f"{cap.mention if cap else ''} — "
+                    f"Combien de joueurs **{side_obj.name}** a-t-il de disponibles ?",
+                    view=PlayerCountView(setup.category_id, side_str),
+                )
+        return
+
+    if setup.side_a.subs_choice == NOT_SET or setup.side_b.subs_choice == NOT_SET:
+        for side_str, ch, side_obj in (("a", ch_a, setup.side_a), ("b", ch_b, setup.side_b)):
+            if side_obj.subs_choice == NOT_SET and ch:
+                await notice(ch)
+                await ch.send(
+                    f"⚔️ La CrewBattle se jouera en **{setup.nb_fight}v{setup.nb_fight}**.\n"
+                    f"Combien de remplaçants souhaitez-vous ?",
+                    view=SubsView(setup.category_id, side_str, setup.nb_fight),
+                )
+        return
+
+    if not setup.side_a.players or not setup.side_b.players:
+        for side_str, ch, side_obj in (("a", ch_a, setup.side_a), ("b", ch_b, setup.side_b)):
+            if not side_obj.players and ch:
+                nb_active, nb_subs = subs_split(setup.nb_fight, side_obj.subs_choice)
+                await notice(ch)
+                await ch.send(
+                    f"🎯 Composition de **{side_obj.name}** à renseigner "
+                    f"({nb_active} actif(s)" + (f" + {nb_subs} remplaçant(s)" if nb_subs else "") + ") :",
+                    view=RosterView(setup.category_id, side_str, nb_active, nb_subs),
+                )
+        return
+
+    # Les deux rosters étaient complets : soit le crash a eu lieu juste avant le
+    # lancement de la CrewBattle, soit juste après (Match déjà créé et sauvegardé
+    # côté crewbattle.py, qui se charge alors lui-même de sa reprise).
+    from cogs.crewbattle import active_matches
+    if ch_tasks and ch_tasks.id in active_matches:
+        _delete_setup(setup.category_id)
+        return
+    await _check_rosters(bot, guild, setup)
+
+
+async def _restore_fp_post(bot: commands.Bot, old_msg_id: int, data: dict):
+    """Reposte une annonce de recherche d'adversaire (les anciens boutons sont morts)."""
+    await bot.wait_until_ready()
+
+    ch = bot.get_channel(CHANNEL_FREEPLAY)
+    if not ch:
+        return
+
+    try:
+        old_msg = await ch.fetch_message(old_msg_id)
+        await old_msg.delete()
+    except Exception:
+        pass
+
+    embed = discord.Embed(
+        title=f"🔍 {data['team_sigle']} cherche un adversaire !",
+        description=(
+            "Cliquez sur un créneau pour accepter l'affrontement.\n"
+            "*Seul le leader d'une équipe peut répondre.*\n"
+            "🔄 *Recherche reprise après redémarrage du bot.*"
+        ),
+        color=discord.Color.orange(),
+    )
+    embed.add_field(
+        name="Disponibilités",
+        value="\n".join(f"• {s}" for s in data["slots"]),
+        inline=False,
+    )
+
+    view = MatchmakingView(data["team_sigle"], data["leader_id"], data["slots"])
+    msg = await ch.send(embed=embed, view=view)
+
+    del_fp_post(old_msg_id)
+    save_fp_post(msg.id, {**data, "msg_id": msg.id})
+
+# ===========================================================================
+# /cbl_setup_freeplay  +  Cog
+# ===========================================================================
+
+@app_commands.command(name="cbl_setup_freeplay",
+                      description="[ADMIN] Poste le panel de recherche Freeplay")
+async def cbl_setup_freeplay(interaction: discord.Interaction):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("❌ Réservé aux administrateurs.", ephemeral=True)
+        return
+
+    await interaction.response.defer(ephemeral=True)
+    guild = interaction.guild
+    ch    = guild.get_channel(CHANNEL_FREEPLAY)
+    if not ch:
+        await interaction.followup.send(
+            f"❌ Salon freeplay introuvable (ID {CHANNEL_FREEPLAY}).", ephemeral=True
+        )
+        return
+
+    # Vérifier si le panel existe déjà
+    if not os.path.exists(PANELS_FILE):
+        panels = {}
+    else:
+        with open(PANELS_FILE, encoding="utf-8") as f:
+            panels = json.load(f)
+
+    existing_id = panels.get("freeplay_panel_msg")
+    if existing_id:
+        try:
+            await ch.fetch_message(existing_id)
+            await interaction.followup.send(
+                "✓ Panel déjà présent — rien à faire.", ephemeral=True
+            )
+            return
+        except discord.NotFound:
+            pass
+
+    embed = discord.Embed(
+        title="⚔️ Freeplay CrewBattle",
+        description=(
+            "Tu veux faire une CrewBattle en dehors du calendrier officiel ?\n\n"
+            "Clique sur le bouton ci-dessous pour chercher un adversaire.\n"
+            "Le bot te proposera des créneaux sur les **7 prochains jours**.\n\n"
+            "*(Réservé aux leaders d'équipe)*"
+        ),
+        color=discord.Color.red(),
+    )
+    msg = await ch.send(embed=embed, view=FreeplayPanelView())
+
+    panels["freeplay_panel_msg"] = msg.id
+    os.makedirs("data", exist_ok=True)
+    with open(PANELS_FILE, "w", encoding="utf-8") as f:
+        json.dump(panels, f, indent=2)
+
+    await interaction.followup.send(f"✅ Panel freeplay posté dans {ch.mention}.", ephemeral=True)
+
+
+async def restore_all_freeplay_setups(bot: commands.Bot) -> int:
+    """Recharge les setups Freeplay en cours et reposte les boutons de l'étape en attente.
+
+    Utilisé au démarrage du bot ET par /cbl_setup_all (reprise manuelle).
+    Renvoie le nombre de setups restaurés.
+    """
+    await bot.wait_until_ready()
+    loaded = _load_setups_from_file()
+    _setups.update(loaded)
+    for setup in list(loaded.values()):
+        try:
+            await _restore_setup(bot, setup)
+        except Exception as e:
+            print(f"[WARN] restore freeplay setup {setup.category_id}: {e}")
+    return len(loaded)
+
+
+async def restore_all_fp_posts(bot: commands.Bot) -> int:
+    """Recharge les annonces de recherche d'adversaire et les reposte avec des boutons frais.
+
+    Utilisé au démarrage du bot ET par /cbl_setup_all (reprise manuelle).
+    Renvoie le nombre d'annonces restaurées.
+    """
+    await bot.wait_until_ready()
+    loaded = _load_fp_posts()
+    for msg_id, data in loaded.items():
+        try:
+            await _restore_fp_post(bot, msg_id, data)
+        except Exception as e:
+            print(f"[WARN] restore freeplay post {msg_id}: {e}")
+    return len(loaded)
+
+# ---------------------------------------------------------------------------
+# /admcbl_kill_cb
+# ---------------------------------------------------------------------------
+
+@app_commands.command(
+    name="admcbl_kill_cb",
+    description="[ADMIN] Annule de force la CrewBattle Freeplay de cette catégorie",
+)
+async def admcbl_kill_cb(interaction: discord.Interaction):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("❌ Réservé aux administrateurs.", ephemeral=True)
+        return
+
+    category = getattr(interaction.channel, "category", None)
+    if not category:
+        await interaction.response.send_message("❌ Ce salon n'appartient à aucune catégorie.", ephemeral=True)
+        return
+
+    from utils.freeplay_data import FREEPLAY_ACT_DIR, del_freeplay_active
+
+    target_channel_id = None
+    if os.path.exists(FREEPLAY_ACT_DIR):
+        for fn in os.listdir(FREEPLAY_ACT_DIR):
+            if not fn.endswith(".json"):
+                continue
+            channel_id = int(fn[:-5])
+            data = load_freeplay_active(channel_id)
+            if data and data.get("category_id") == category.id:
+                target_channel_id = channel_id
+                break
+
+    if target_channel_id is None:
+        await interaction.response.send_message(
+            "❌ Aucune CrewBattle Freeplay en cours dans cette catégorie.", ephemeral=True
+        )
+        return
+
+    from cogs.crewbattle import active_matches, save_matches
+    from utils.sheets_log import update_log
+
+    match = active_matches.pop(target_channel_id, None)
+    del_freeplay_active(target_channel_id)
+
+    if not match:
+        await interaction.response.send_message(
+            "⚠️ Aucun match actif trouvé pour cette catégorie (nettoyage effectué quand même).",
+            ephemeral=True,
+        )
+        return
+
+    save_matches()
+    await update_log(match.log_row, "Canceled",
+                     f"CrewBattle Freeplay annulée de force par **{interaction.user.display_name}** (/admcbl_kill_cb)")
+    await log_command(interaction.user.display_name, "admcbl_kill_cb", "Completed",
+                      f"CrewBattle Freeplay **{match.team_a.name}** vs **{match.team_b.name}** annulée de force")
+
+    await interaction.response.send_message(
+        f"🛑 CrewBattle Freeplay **{match.team_a.name}** vs **{match.team_b.name}** annulée de force."
+    )
+
+    tasks_ch = interaction.guild.get_channel(target_channel_id)
+    if tasks_ch and tasks_ch.id != interaction.channel_id:
+        try:
+            await tasks_ch.send(
+                f"🛑 Cette CrewBattle a été annulée de force par un administrateur "
+                f"(**{interaction.user.display_name}**)."
+            )
+        except Exception:
+            pass
+
+
+class Freeplay(commands.Cog):
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+
+    async def cog_load(self):
+        self.bot.add_view(FreeplayPanelView())
+        self.bot.tree.add_command(cbl_setup_freeplay)
+        self.bot.tree.add_command(admcbl_kill_cb)
+        self.bot.loop.create_task(restore_all_freeplay_setups(self.bot))
+        self.bot.loop.create_task(restore_all_fp_posts(self.bot))
+        await restore_all_cancel_views(self.bot)
+
+
+async def setup(bot: commands.Bot):
+    await bot.add_cog(Freeplay(bot))

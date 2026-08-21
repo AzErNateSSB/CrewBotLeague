@@ -1,0 +1,35 @@
+{
+  "lang_set": "✅ Bot language set to **English** for this server.",
+  "lang_unknown": "❌ Unknown language: `{lang}`. Available languages: {available}.",
+  "lang_admin_only": "❌ Only administrators can change the bot language.",
+
+  "player_created": "✅ Profile created! Welcome **{name}**.",
+  "player_already_exists": "❌ You already have a player profile.",
+
+  "team_created": "✅ Team **{sigle}** created! You are the leader.",
+  "team_already_exists": "❌ A team with this tag already exists.",
+  "team_not_found": "❌ Team `{sigle}` not found.",
+  "team_leader_only": "❌ Only the team leader can perform this action.",
+  "team_already_in_team": "❌ You are already in a team. Leave it first.",
+
+  "join_request_sent": "✅ Request sent to **{team}**'s leader!",
+  "join_request_received": "📩 **{player}** wants to join **{team}**.",
+  "join_accepted": "✅ **{player}** has joined **{team}**!",
+  "join_refused": "❌ Your request to join **{team}** was refused.",
+  "join_no_profile": "❌ You must first create a profile with `/cbl_newplayer`.",
+  "join_already_member": "❌ This player is already in a team.",
+
+  "league_add_already_in": "⚠️ **{team}** is already in **{current_league}**. Move them to **{new_league}**?",
+  "league_add_success": "✅ **{team}** added to **{league}**.",
+  "league_remove_success": "✅ **{team}** removed from **{league}**.",
+  "league_season_locked": "❌ Cannot modify leagues during an active season.",
+  "league_team_not_in_league": "❌ **{team}** is not in any league.",
+  "league_not_found": "❌ League `{league}` not found. Available: Ligue-1, Ligue-2, Ligue-3, Ligue-4.",
+
+  "admin_only": "❌ This command is restricted to administrators.",
+
+  "yes": "Yes",
+  "no": "No",
+  "cancel": "Cancelled.",
+  "confirm": "Confirm"
+}
