@@ -827,6 +827,7 @@ async def refresh_team_stats_post(
     bot: discord.Client,
     guild_id: int,
     sigle: str,
+    changed_member_ids: set[int] | None = None,
 ) -> None:
     """Met à jour l'embed d'équipe et synchronise les messages membres."""
     team = _load_team(sigle)
@@ -879,7 +880,10 @@ async def refresh_team_stats_post(
             pass
 
     # Mettre à jour les embeds des membres existants (main ou stats changé)
-    for mid_str in current_members & stored_members:
+    to_update = current_members & stored_members
+    if changed_member_ids is not None:
+        to_update &= {str(mid) for mid in changed_member_ids}
+    for mid_str in to_update:
         mid    = int(mid_str)
         player = _load_player(mid)
         if not player:
@@ -1077,7 +1081,7 @@ async def refresh_after_set(bot: discord.Client, guild_id: int, discord_id_a: in
 
         team_sigle = player.get("team")
         if team_sigle:
-            await refresh_team_stats_post(bot, guild_id, team_sigle)
+            await refresh_team_stats_post(bot, guild_id, team_sigle, changed_member_ids={discord_id})
 
 
 # ---------------------------------------------------------------------------

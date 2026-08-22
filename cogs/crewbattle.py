@@ -686,6 +686,15 @@ class ScoreModal(discord.ui.Modal):
         self.add_item(self.score_b_input)
 
     async def on_submit(self, interaction: discord.Interaction):
+        match = self.match
+        if match.state != State.WAITING_RESULT:
+            await interaction.response.send_message(
+                "⚠️ Ce set a déjà été reporté entre-temps. Le salon devrait afficher la suite du match "
+                "(sélection du prochain joueur, bans, etc.) — regarde le message le plus récent.",
+                ephemeral=True,
+            )
+            return
+
         try:
             takes_a = int(self.score_a_input.value.strip())
             takes_b = int(self.score_b_input.value.strip())
@@ -693,7 +702,6 @@ class ScoreModal(discord.ui.Modal):
             await interaction.response.send_message("❌ Valeurs invalides (entiers attendus).", ephemeral=True)
             return
 
-        match = self.match
         ca = match.current_a
         cb = match.current_b
 
@@ -1078,6 +1086,13 @@ class ScoreView(discord.ui.View):
         valid = {self.match.team_a.captain_id, self.match.team_b.captain_id}
         if not is_authorized(interaction.user.id, *valid):
             await interaction.response.send_message("❌ Seuls les capitaines peuvent entrer les scores.", ephemeral=True)
+            return
+        if self.match.state != State.WAITING_RESULT:
+            await interaction.response.send_message(
+                "⚠️ Ce set a déjà été reporté. Le salon devrait afficher la suite du match "
+                "(sélection du prochain joueur, bans, etc.) — regarde le message le plus récent.",
+                ephemeral=True,
+            )
             return
         await interaction.response.send_modal(ScoreModal(self.match, self))
 

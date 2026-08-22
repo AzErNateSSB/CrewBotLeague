@@ -1,0 +1,111 @@
+{
+  "1540789526606123018": {
+    "channel_id": 1540789526606123018,
+    "set_number": 0,
+    "state": "WAITING_RESULT",
+    "team_a": {
+      "name": "HoJ",
+      "captain_id": 461601543121010691,
+      "players": [
+        {
+          "name": "HoJ | AzErNate",
+          "lives": 3,
+          "character": "",
+          "discord_id": 461601543121010691
+        },
+        {
+          "name": "Lyh",
+          "lives": 3,
+          "character": "",
+          "discord_id": 1325398811119456277
+        },
+        {
+          "name": "LT | RC | Pluck",
+          "lives": 3,
+          "character": "",
+          "discord_id": 1282934454876110868
+        },
+        {
+          "name": "HoJ | Delta",
+          "lives": 3,
+          "character": "17_Zelda",
+          "discord_id": 258217574540640256
+        },
+        {
+          "name": "teclord_live",
+          "lives": 3,
+          "character": "",
+          "discord_id": 442826598840795136
+        }
+      ],
+      "subs": []
+    },
+    "team_b": {
+      "name": "LT",
+      "captain_id": 847882608254910544,
+      "players": [
+        {
+          "name": "Cailloux",
+          "lives": 3,
+          "character": "",
+          "discord_id": 663342221252231180
+        },
+        {
+          "name": "Mathieu",
+          "lives": 3,
+          "character": "",
+          "discord_id": 294188051146735616
+        },
+        {
+          "name": "LT|ARK|Turbo",
+          "lives": 3,
+          "character": "07_Fox",
+          "discord_id": 1496562128428073202
+        },
+        {
+          "name": "Yu",
+          "lives": 3,
+          "character": "",
+          "discord_id": 763104131564830732
+        },
+        {
+          "name": "Mondiba",
+          "lives": 3,
+          "character": "",
+          "discord_id": 1341384704309334028
+        }
+      ],
+      "subs": []
+    },
+    "current_a": {
+      "name": "HoJ | Delta",
+      "lives": 3,
+      "character": "17_Zelda",
+      "discord_id": 258217574540640256
+    },
+    "current_b": {
+      "name": "LT|ARK|Turbo",
+      "lives": 3,
+      "character": "07_Fox",
+      "discord_id": 1496562128428073202
+    },
+    "picked_a": true,
+    "picked_b": true,
+    "banned_stages": [
+      "Town and City",
+      "Smashville",
+      "Kalos Pokémon League",
+      "Yoshi's Story",
+      "Small Battlefield",
+      "Battlefield",
+      "Final Destination"
+    ],
+    "picked_stage": "Pokémon Stadium 2",
+    "first_banner": "B",
+    "picker": "B",
+    "pending_char": null,
+    "pending_side": null,
+    "log_row": 294,
+    "set_history": []
+  }
+}

@@ -3,7 +3,9 @@
   "name": "Delta",
   "team": "HoJ",
   "stats": {
-    "main": "Zelda"
+    "main": "Zelda",
+    "cb_joues": 2,
+    "stocks_pris": 0
   },
   "stats_thread_id": 1536874000007823431
 }
