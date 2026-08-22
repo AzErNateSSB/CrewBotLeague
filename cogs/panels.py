@@ -481,7 +481,7 @@ async def _backfill_team_tasks_channels(guild: discord.Guild) -> list[str]:
 async def _backfill_player_stats(guild: discord.Guild, bot: commands.Bot) -> list[str]:
     """Crée le forum 'players--stats' manquant, le post stats de chaque équipe,
     et le post individuel de chaque joueur qui n'en a pas encore."""
-    from utils.players_stats import register_all_views
+    from utils.players_stats import register_all_views, team_stats_post_exists, player_stats_post_exists
 
     teams_dir = os.path.join("data", "teams")
     report: list[str] = []
@@ -540,9 +540,11 @@ async def _backfill_player_stats(guild: discord.Guild, bot: commands.Bot) -> lis
             report.append(f"⚠️ **{sigle}** : forum de l'équipe A pas encore disponible, ignoré")
 
     # ── Post stats d'équipe — une par équipe (A et B) ────────────────────────
+    # Vérifie l'existence réelle sur Discord (pas juste la présence d'un
+    # stats_thread_id dans le JSON) pour rattraper les posts supprimés à la main.
     nb_team_posts = 0
     for team in (load_team(t["sigle"]) for t in all_teams):
-        if not team or team.get("stats_thread_id"):
+        if not team or await team_stats_post_exists(bot, guild.id, team["sigle"]):
             continue
         try:
             await create_team_stats_post(bot, guild.id, team)
@@ -551,7 +553,7 @@ async def _backfill_player_stats(guild: discord.Guild, bot: commands.Bot) -> lis
         except Exception as e:
             report.append(f"❌ **{team['sigle']}** : erreur création post stats d'équipe : {e}")
     if nb_team_posts:
-        report.append(f"✅ {nb_team_posts} post(s) stats d'équipe créé(s)")
+        report.append(f"✅ {nb_team_posts} post(s) stats d'équipe créé(s) ou recréé(s)")
 
     # ── Post individuel de chaque joueur affilié à une équipe ───────────────
     players_dir = os.path.join("data", "players")
@@ -563,7 +565,9 @@ async def _backfill_player_stats(guild: discord.Guild, bot: commands.Bot) -> lis
             with open(os.path.join(players_dir, fn), encoding="utf-8") as f:
                 player = json.load(f)
             team_sigle = player.get("team")
-            if not team_sigle or player.get("stats_thread_id"):
+            if not team_sigle:
+                continue
+            if await player_stats_post_exists(bot, guild.id, player["discord_id"]):
                 continue
             team = load_team(team_sigle)
             member = guild.get_member(player["discord_id"])
@@ -575,7 +579,7 @@ async def _backfill_player_stats(guild: discord.Guild, bot: commands.Bot) -> lis
             except Exception as e:
                 report.append(f"❌ Post de **{member.display_name}** : erreur : {e}")
     if nb_player_posts:
-        report.append(f"✅ {nb_player_posts} post(s) joueur créé(s)")
+        report.append(f"✅ {nb_player_posts} post(s) joueur créé(s) ou recréé(s)")
 
     # ── Ré-enregistrer les boutons de tous les posts actifs ─────────────────
     nb_views = register_all_views(bot)

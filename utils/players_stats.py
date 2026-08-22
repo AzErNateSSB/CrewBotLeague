@@ -60,6 +60,37 @@ def _save_team(data: dict):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
+async def _get_thread(guild: discord.Guild, thread_id: int | None) -> "discord.Thread | None":
+    """Résout un thread par ID (y compris hors cache). None si absent/introuvable/supprimé."""
+    if not thread_id or not guild:
+        return None
+    thread = guild.get_thread(thread_id)
+    if thread:
+        return thread
+    try:
+        return await guild.fetch_channel(thread_id)
+    except Exception:
+        return None
+
+
+async def team_stats_post_exists(bot: discord.Client, guild_id: int, sigle: str) -> bool:
+    """Vérifie sur Discord (pas juste dans le JSON) que le post de stats de l'équipe existe encore."""
+    team = _load_team(sigle)
+    if not team:
+        return False
+    guild = bot.get_guild(guild_id)
+    return await _get_thread(guild, team.get("stats_thread_id")) is not None
+
+
+async def player_stats_post_exists(bot: discord.Client, guild_id: int, player_id: int) -> bool:
+    """Vérifie sur Discord (pas juste dans le JSON) que le post de stats du joueur existe encore."""
+    player = _load_player(player_id)
+    if not player:
+        return False
+    guild = bot.get_guild(guild_id)
+    return await _get_thread(guild, player.get("stats_thread_id")) is not None
+
+
 # ---------------------------------------------------------------------------
 # Embeds
 # ---------------------------------------------------------------------------
@@ -802,17 +833,10 @@ async def refresh_team_stats_post(
     if not team:
         return
 
-    thread_id = team.get("stats_thread_id")
-    if not thread_id:
-        return
-
     guild  = bot.get_guild(guild_id)
-    thread = guild.get_thread(thread_id)
+    thread = await _get_thread(guild, team.get("stats_thread_id"))
     if not thread:
-        try:
-            thread = await guild.fetch_channel(thread_id)
-        except Exception:
-            return
+        return
 
     # ── 1. Rafraîchir l'embed d'équipe (1er message du bot) ──────────────────
     members_data = _get_members_stats(team)
@@ -881,20 +905,13 @@ async def delete_player_stats_post(
     if not player:
         return
 
-    thread_id = player.get("stats_thread_id")
-    if thread_id:
-        guild  = bot.get_guild(guild_id)
-        thread = guild.get_thread(thread_id)
-        if not thread:
-            try:
-                thread = await guild.fetch_channel(thread_id)
-            except Exception:
-                thread = None
-        if thread:
-            try:
-                await thread.delete()
-            except Exception:
-                pass
+    guild  = bot.get_guild(guild_id)
+    thread = await _get_thread(guild, player.get("stats_thread_id"))
+    if thread:
+        try:
+            await thread.delete()
+        except Exception:
+            pass
 
     player.pop("stats_thread_id", None)
     _save_player(player)
