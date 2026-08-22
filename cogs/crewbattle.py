@@ -734,6 +734,11 @@ class ScoreModal(discord.ui.Modal):
 
         loser_side = "A" if new_a == 0 else "B"
 
+        # On acquitte tout de suite : les appels réseau qui suivent (édition de
+        # messages, rafraîchissement des stats) peuvent prendre plus longtemps
+        # que la fenêtre de 3s d'une réponse d'interaction initiale.
+        await interaction.response.defer()
+
         match.set_history.append(SetRecord(
             player_a=ca.name, char_a=ca.character,
             player_b=cb.name, char_b=cb.character,
@@ -796,7 +801,7 @@ class ScoreModal(discord.ui.Modal):
             _hist = "…\n" + _hist[-1021:].split("\n", 1)[-1]
         embed.add_field(name="Historique", value=_hist, inline=False)
 
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
 
         if match.team_a.total_lives == 0 or match.team_b.total_lives == 0:
             await end_crewbattle(channel, match)
@@ -1596,6 +1601,8 @@ async def cbl_force_score(interaction: discord.Interaction, vies_prises_a: int, 
 
     loser_side = "A" if new_a == 0 else "B"
 
+    await interaction.response.defer()
+
     match.set_history.append(SetRecord(
         player_a=ca.name, char_a=ca.character,
         player_b=cb.name, char_b=cb.character,
@@ -1639,7 +1646,7 @@ async def cbl_force_score(interaction: discord.Interaction, vies_prises_a: int, 
     )
     embed.add_field(name="Score global", value=current_score, inline=False)
     embed.add_field(name="Historique", value="\n".join(history_lines), inline=False)
-    await interaction.response.send_message(embed=embed)
+    await interaction.followup.send(embed=embed)
     await log_command(interaction.user.display_name,
                       f"cbl_force_score {vies_prises_a}-{vies_prises_b}", "Completed",
                       f"[FORCE] Set {match.set_number} : **{ca.name}** {vies_prises_a}-{vies_prises_b} **{cb.name}**")
