@@ -27,5 +27,34 @@
     "ch_b": 1540494714145472664,
     "ch_general": 1540494715525275668,
     "nb_fight": 6
+  },
+  "1540789524794310667": {
+    "category_id": 1540789524794310667,
+    "slot": "Sam 22 Août — Soir",
+    "side_a": {
+      "name": "HoJ",
+      "sigle": "HoJ",
+      "role_id": 1533383800975790120,
+      "captain_id": 461601543121010691,
+      "nb_avail": 5,
+      "subs_choice": 0,
+      "players": [],
+      "subs_list": []
+    },
+    "side_b": {
+      "name": "LT",
+      "sigle": "LT",
+      "role_id": 1532891327774330940,
+      "captain_id": 847882608254910544,
+      "nb_avail": 5,
+      "subs_choice": 0,
+      "players": [],
+      "subs_list": []
+    },
+    "ch_tasks": 1540789526606123018,
+    "ch_a": 1540789528120397874,
+    "ch_b": 1540789529739526264,
+    "ch_general": 1540789531228250112,
+    "nb_fight": 5
   }
 }

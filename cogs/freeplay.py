@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Optional
 import json
-import re
 import os
 
 from cogs.teams import load_team
@@ -50,24 +49,6 @@ def get_led_teams(user_id: int) -> list[dict]:
         if t.get("leader_id") == user_id:
             result.append(t)
     return result
-
-
-def find_team_by_role(role_id: int) -> Optional[dict]:
-    teams_dir = os.path.join("data", "teams")
-    if not os.path.exists(teams_dir):
-        return None
-    for fn in os.listdir(teams_dir):
-        if not fn.endswith(".json"):
-            continue
-        with open(os.path.join(teams_dir, fn), encoding="utf-8") as f:
-            t = json.load(f)
-        if t.get("role_id") == role_id:
-            return t
-    return None
-
-
-def parse_mentions(text: str) -> list[int]:
-    return [int(m) for m in re.findall(r"<@!?(\d+)>", text)]
 
 
 def subs_split(nb_fight: int, subs_choice: int) -> tuple[int, int]:
@@ -724,141 +705,139 @@ async def _check_subs(bot, guild, setup: FreeplaySetup):
 # ROSTER
 # ===========================================================================
 
-class RosterModal(discord.ui.Modal, title="Composition de l'équipe"):
-    def __init__(self, category_id: int, side: str, nb_active: int, nb_subs: int):
-        super().__init__()
+async def _finalize_roster(interaction: discord.Interaction, setup: "FreeplaySetup",
+                            side_obj: "SideSetup", active_ids: list[int], sub_ids: list[int]):
+    from cogs.crewbattle import Player
+
+    guild = interaction.guild
+
+    players = []
+    for disc_id in active_ids:
+        m = guild.get_member(disc_id)
+        players.append(Player(name=m.display_name if m else str(disc_id), discord_id=disc_id))
+    side_obj.players = players
+
+    subs = []
+    for disc_id in sub_ids:
+        m = guild.get_member(disc_id)
+        subs.append(Player(name=m.display_name if m else str(disc_id), discord_id=disc_id))
+    side_obj.subs_list = subs
+    _save_setups()
+
+    ch_tasks = guild.get_channel(setup.ch_tasks)
+    if ch_tasks:
+        for p in side_obj.players + side_obj.subs_list:
+            member = guild.get_member(p.discord_id)
+            if member:
+                try:
+                    await ch_tasks.set_permissions(
+                        member, view_channel=True, read_message_history=True,
+                        send_messages=False,
+                    )
+                except Exception:
+                    pass
+
+    summary = (
+        f"✅ **{side_obj.name}** enregistrée !\n"
+        f"Actifs : {', '.join(p.name for p in side_obj.players)}"
+        + (f"\nRemplaçants : {', '.join(p.name for p in side_obj.subs_list)}"
+           if side_obj.subs_list else "")
+    )
+    await interaction.response.edit_message(content=summary, view=None)
+    await interaction.channel.send(
+        f"✅ Équipe **{side_obj.name}** prête !\n"
+        f"Actifs : {', '.join(p.name for p in side_obj.players)}"
+        + (f" | Remplaçants : {', '.join(p.name for p in side_obj.subs_list)}"
+           if side_obj.subs_list else "")
+    )
+    await _check_rosters(interaction.client, guild, setup)
+
+
+class RosterSelectView(discord.ui.View):
+    """Composition d'équipe via menu déroulant (équipe enregistrée) ou sélecteur
+    de membres du serveur (groupe libre / pickup)."""
+
+    def __init__(self, category_id: int, side: str, nb_active: int, nb_subs: int,
+                 member_options: Optional[list[discord.SelectOption]]):
+        super().__init__(timeout=300)
         self.category_id = category_id
-        self.side        = side
-        self.nb_active   = nb_active
-        self.nb_subs     = nb_subs
+        self.side         = side
+        self.nb_active    = nb_active
+        self.nb_subs      = nb_subs
+        self.active_ids: list[int] = []
+        self.sub_ids: list[int]    = []
 
-        self.team_field = discord.ui.TextInput(
-            label="Nom ou @rôle de l'équipe",
-            placeholder="Ex: HoJ   ou   @[HoJ]",
-            max_length=100,
-        )
-        self.players_field = discord.ui.TextInput(
-            label=f"Joueurs actifs ({nb_active}) — mentionnez-les",
-            placeholder="@Joueur1, @Joueur2...",
-            style=discord.TextStyle.paragraph,
-            max_length=500,
-        )
-        self.add_item(self.team_field)
-        self.add_item(self.players_field)
-
-        if nb_subs > 0:
-            self.subs_field: Optional[discord.ui.TextInput] = discord.ui.TextInput(
-                label=f"Remplaçants ({nb_subs}) — mentionnez-les",
-                placeholder="@Remplaçant1...",
-                style=discord.TextStyle.paragraph,
-                max_length=300,
-                required=False,
+        if member_options is not None:
+            self.active_select = discord.ui.Select(
+                placeholder=f"Joueurs actifs ({nb_active})",
+                min_values=nb_active, max_values=nb_active,
+                options=member_options,
             )
-            self.add_item(self.subs_field)
         else:
-            self.subs_field = None
+            self.active_select = discord.ui.UserSelect(
+                placeholder=f"Joueurs actifs ({nb_active})",
+                min_values=nb_active, max_values=nb_active,
+            )
+        self.active_select.callback = self._on_active
+        self.add_item(self.active_select)
 
-    async def on_submit(self, interaction: discord.Interaction):
-        from cogs.crewbattle import Player
+        self.subs_select = None
+        if nb_subs > 0:
+            if member_options is not None:
+                self.subs_select = discord.ui.Select(
+                    placeholder=f"Remplaçants ({nb_subs})",
+                    min_values=nb_subs, max_values=nb_subs,
+                    options=member_options,
+                )
+            else:
+                self.subs_select = discord.ui.UserSelect(
+                    placeholder=f"Remplaçants ({nb_subs})",
+                    min_values=nb_subs, max_values=nb_subs,
+                )
+            self.subs_select.callback = self._on_subs
+            self.add_item(self.subs_select)
 
+        self.confirm_btn = discord.ui.Button(
+            label="✅ Valider la composition", style=discord.ButtonStyle.success, disabled=True,
+        )
+        self.confirm_btn.callback = self._confirm
+        self.add_item(self.confirm_btn)
+
+    def _values_of(self, select) -> list[int]:
+        if isinstance(select, discord.ui.UserSelect):
+            return [u.id for u in select.values]
+        return [int(v) for v in select.values]
+
+    def _update_confirm_state(self):
+        active_ok = len(self.active_ids) == self.nb_active
+        subs_ok   = self.nb_subs == 0 or len(self.sub_ids) == self.nb_subs
+        overlap   = bool(set(self.active_ids) & set(self.sub_ids))
+        self.confirm_btn.disabled = not (active_ok and subs_ok and not overlap)
+        self.confirm_btn.label = (
+            "⚠️ Un joueur ne peut pas être actif et remplaçant" if overlap
+            else "✅ Valider la composition"
+        )
+
+    async def _on_active(self, interaction: discord.Interaction):
+        self.active_ids = self._values_of(self.active_select)
+        self._update_confirm_state()
+        await interaction.response.edit_message(view=self)
+
+    async def _on_subs(self, interaction: discord.Interaction):
+        self.sub_ids = self._values_of(self.subs_select)
+        self._update_confirm_state()
+        await interaction.response.edit_message(view=self)
+
+    async def _confirm(self, interaction: discord.Interaction):
         setup = _setups.get(self.category_id)
         if not setup:
-            await interaction.response.send_message("❌ Session expirée.", ephemeral=True)
+            await interaction.response.edit_message(content="❌ Session expirée.", view=None)
             return
-
-        guild    = interaction.guild
         side_obj = setup.side_a if self.side == "a" else setup.side_b
-
-        # Nom ou rôle — seul le leader de l'équipe propriétaire du rôle peut
-        # engager celui-ci (et donc restreindre la sélection à ses membres).
-        team_input = self.team_field.value.strip()
-        role_match = re.match(r"<@&(\d+)>", team_input)
-        restrict_to: Optional[set[int]] = None
-        role = None
-        if role_match:
-            role_id = int(role_match.group(1))
-            role = guild.get_role(role_id)
-            owning_team = find_team_by_role(role_id)
-            if not owning_team or owning_team.get("leader_id") != interaction.user.id:
-                await interaction.response.send_message(
-                    "❌ Seul le leader de cette équipe peut la faire jouer sous son rôle officiel. "
-                    "Indique un nom libre à la place pour un groupe non restreint.",
-                    ephemeral=True,
-                )
-                return
-            side_obj.name    = role.name if role else team_input
-            side_obj.role_id = role_id
-            restrict_to = {m.id for m in role.members} if role else set()
-        elif team_input:
-            side_obj.name = team_input
-
-        # Joueurs actifs
-        ids = parse_mentions(self.players_field.value)
-        if len(ids) < self.nb_active:
-            await interaction.response.send_message(
-                f"❌ Il faut {self.nb_active} joueur(s) actif(s), "
-                f"tu en as mentionné {len(ids)}.",
-                ephemeral=True,
-            )
+        if side_obj.players:
+            await interaction.response.edit_message(content="✅ Équipe déjà enregistrée.", view=None)
             return
-
-        sub_ids = parse_mentions(self.subs_field.value)[:self.nb_subs] if self.subs_field and self.subs_field.value else []
-
-        if restrict_to is not None:
-            invalid = [i for i in ids[:self.nb_active] + sub_ids if i not in restrict_to]
-            if invalid:
-                names = ", ".join(f"<@{i}>" for i in invalid)
-                await interaction.response.send_message(
-                    f"❌ Ces joueurs ne sont pas membres du rôle {role.mention if role else team_input} "
-                    f"et ne peuvent pas être sélectionnés : {names}",
-                    ephemeral=True,
-                )
-                return
-
-        players = []
-        for disc_id in ids[:self.nb_active]:
-            m = guild.get_member(disc_id)
-            players.append(Player(name=m.display_name if m else str(disc_id),
-                                  discord_id=disc_id))
-        side_obj.players = players
-
-        # Remplaçants
-        subs = []
-        for disc_id in sub_ids:
-            m = guild.get_member(disc_id)
-            subs.append(Player(name=m.display_name if m else str(disc_id),
-                               discord_id=disc_id))
-        side_obj.subs_list = subs
-        _save_setups()
-
-        # Accès tasks pour les joueurs mentionnés
-        ch_tasks = guild.get_channel(setup.ch_tasks)
-        if ch_tasks:
-            for p in side_obj.players + side_obj.subs_list:
-                member = guild.get_member(p.discord_id)
-                if member:
-                    try:
-                        await ch_tasks.set_permissions(
-                            member, view_channel=True, read_message_history=True,
-                            send_messages=False,
-                        )
-                    except Exception:
-                        pass
-
-        await interaction.response.send_message(
-            f"✅ **{side_obj.name}** enregistrée !\n"
-            f"Actifs : {', '.join(p.name for p in side_obj.players)}"
-            + (f"\nRemplaçants : {', '.join(p.name for p in side_obj.subs_list)}"
-               if side_obj.subs_list else ""),
-            ephemeral=True,
-        )
-        await interaction.channel.send(
-            f"✅ Équipe **{side_obj.name}** prête !\n"
-            f"Actifs : {', '.join(p.name for p in side_obj.players)}"
-            + (f" | Remplaçants : {', '.join(p.name for p in side_obj.subs_list)}"
-               if side_obj.subs_list else "")
-        )
-        await _check_rosters(interaction.client, guild, setup)
+        await _finalize_roster(interaction, setup, side_obj, self.active_ids, self.sub_ids)
 
 
 class RosterView(discord.ui.View):
@@ -884,8 +863,30 @@ class RosterView(discord.ui.View):
         if side_obj.players:
             await interaction.response.send_message("✅ Équipe déjà enregistrée.", ephemeral=True)
             return
-        await interaction.response.send_modal(
-            RosterModal(self.category_id, self.side, self.nb_active, self.nb_subs)
+
+        team = load_team(side_obj.sigle)
+        member_options = None
+        if team:
+            member_ids = team.get("members", [])
+            options = []
+            for mid in member_ids:
+                m = interaction.guild.get_member(mid)
+                options.append(discord.SelectOption(
+                    label=(m.display_name if m else str(mid))[:100], value=str(mid),
+                ))
+            needed = self.nb_active + self.nb_subs
+            if len(options) < needed:
+                await interaction.response.send_message(
+                    f"❌ L'équipe **{side_obj.sigle}** n'a que {len(options)} membre(s) enregistré(s), "
+                    f"il en faut {needed} ({self.nb_active} actif(s) + {self.nb_subs} remplaçant(s)).",
+                    ephemeral=True,
+                )
+                return
+            member_options = options[:25]
+
+        view = RosterSelectView(self.category_id, self.side, self.nb_active, self.nb_subs, member_options)
+        await interaction.response.send_message(
+            f"Sélectionne la composition de **{side_obj.name}** :", view=view, ephemeral=True,
         )
 
 
