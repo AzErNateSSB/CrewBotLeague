@@ -282,6 +282,8 @@ async def cbl_newteam(
             save_player(player)
             await refresh_team_lu(interaction.client, interaction.guild_id, team_data)
             await create_team_stats_post(interaction.client, interaction.guild_id, team_data)
+            # L'équipe A gagne le bouton "Déplacer vers B" sur ses membres existants
+            await refresh_team_stats_post(interaction.client, interaction.guild_id, sigle)
 
             embed = discord.Embed(title=f"⚔️ Équipe **{full_sigle}** créée !", color=discord.Color.blurple())
             embed.add_field(name="Leader", value=user.mention, inline=True)

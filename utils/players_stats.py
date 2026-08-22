@@ -236,8 +236,76 @@ class TeamStatsView(discord.ui.View):
         await interaction.response.send_modal(_TeamRenameModal(self.sigle))
 
 
+def _twin_sigle(sigle: str) -> str:
+    """Sigle de l'équipe jumelle (A <-> B) — n'implique pas qu'elle existe."""
+    return sigle[:-1] if sigle.endswith("²") else f"{sigle}²"
+
+
+class _MoveTeamBtn(discord.ui.Button):
+    """Déplace un membre vers l'équipe jumelle (A -> B ou B -> A)."""
+
+    def __init__(self, sigle: str, member_id: int, target_sigle: str):
+        super().__init__(
+            label=f"🔀 Déplacer vers {target_sigle}",
+            style=discord.ButtonStyle.secondary,
+            custom_id=f"ts_move:{sigle}:{member_id}",
+        )
+        self.sigle        = sigle
+        self.member_id    = member_id
+        self.target_sigle = target_sigle
+
+    async def callback(self, interaction: discord.Interaction):
+        team = _load_team(self.sigle)
+        if not team:
+            await interaction.response.send_message("❌ Équipe introuvable.", ephemeral=True)
+            return
+        if self.member_id == team["leader_id"]:
+            await interaction.response.send_message(
+                "❌ Tu ne peux pas déplacer le leader. Transfère d'abord le leadership.", ephemeral=True
+            )
+            return
+
+        target_team = _load_team(self.target_sigle)
+        if not target_team:
+            await interaction.response.send_message(
+                f"❌ Équipe **{self.target_sigle}** introuvable.", ephemeral=True
+            )
+            return
+        if self.member_id in target_team.get("members", []):
+            await interaction.response.send_message(
+                f"ℹ️ Ce joueur est déjà dans **{self.target_sigle}**.", ephemeral=True
+            )
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        if self.member_id in team.get("members", []):
+            team["members"].remove(self.member_id)
+        _save_team(team)
+
+        target_team.setdefault("members", []).append(self.member_id)
+        _save_team(target_team)
+
+        player = _load_player(self.member_id)
+        name = player.get("name", str(self.member_id)) if player else str(self.member_id)
+        if player:
+            player["team"] = self.target_sigle
+            _save_player(player)
+
+        from utils.teams_lu import refresh_team_lu
+        await refresh_team_lu(interaction.client, interaction.guild_id, team)
+        await refresh_team_lu(interaction.client, interaction.guild_id, target_team)
+        await refresh_team_stats_post(interaction.client, interaction.guild_id, self.sigle)
+        await refresh_team_stats_post(interaction.client, interaction.guild_id, self.target_sigle)
+
+        await interaction.followup.send(
+            f"✅ **{name}** déplacé de **{self.sigle}** vers **{self.target_sigle}**.", ephemeral=True
+        )
+
+
 class TeamMemberView(discord.ui.View):
-    """Bouton 'Retirer de l'équipe' par membre dans le post de stats d'équipe."""
+    """Bouton 'Retirer de l'équipe' (+ 'Déplacer vers A/B' si l'équipe jumelle
+    existe) par membre dans le post de stats d'équipe."""
 
     def __init__(self, sigle: str, member_id: int):
         super().__init__(timeout=None)
@@ -251,6 +319,10 @@ class TeamMemberView(discord.ui.View):
         )
         btn.callback = self._remove
         self.add_item(btn)
+
+        twin_sigle = _twin_sigle(sigle)
+        if _load_team(twin_sigle):
+            self.add_item(_MoveTeamBtn(sigle, member_id, twin_sigle))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         team = _load_team(self.sigle)

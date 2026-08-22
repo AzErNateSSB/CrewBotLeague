@@ -14,7 +14,7 @@ from utils.sheets_log import log_command, update_log
 from utils.i18n import t
 from utils.teams_lu import refresh_team_lu
 from utils.alerts import alert_error
-from utils.players_stats import create_team_stats_post, create_player_stats_post
+from utils.players_stats import create_team_stats_post, create_player_stats_post, refresh_team_stats_post
 
 PANELS_FILE        = os.path.join("data", "panels.json")
 CHANNEL_CREATETEAM = 1532064361324089525
@@ -126,6 +126,8 @@ class CreateTeamModal(discord.ui.Modal, title="Créer mon équipe"):
                 save_player(player)
                 await refresh_team_lu(interaction.client, interaction.guild_id, team_data)
                 await create_team_stats_post(interaction.client, interaction.guild_id, team_data)
+                # L'équipe A gagne le bouton "Déplacer vers B" sur ses membres existants
+                await refresh_team_stats_post(interaction.client, interaction.guild_id, raw_sigle)
 
                 general_ch = guild.get_channel(existing_a["channels"]["general"])
                 embed = discord.Embed(title=f"⚔️ Équipe **{full_sigle}** créée !", color=discord.Color.blurple())
