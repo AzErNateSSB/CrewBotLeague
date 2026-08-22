@@ -1,1 +1,31 @@
-{}
+{
+  "1540494708386832485": {
+    "category_id": 1540494708386832485,
+    "slot": "Dim 23 Août — Soir",
+    "side_a": {
+      "name": "RC",
+      "sigle": "RC",
+      "role_id": 1532818386038296697,
+      "captain_id": 1161362172664885268,
+      "nb_avail": 8,
+      "subs_choice": 2,
+      "players": [],
+      "subs_list": []
+    },
+    "side_b": {
+      "name": "LT",
+      "sigle": "LT",
+      "role_id": 1532891327774330940,
+      "captain_id": 847882608254910544,
+      "nb_avail": 6,
+      "subs_choice": 0,
+      "players": [],
+      "subs_list": []
+    },
+    "ch_tasks": 1540494710622392351,
+    "ch_a": 1540494712727797791,
+    "ch_b": 1540494714145472664,
+    "ch_general": 1540494715525275668,
+    "nb_fight": 6
+  }
+}
