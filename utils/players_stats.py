@@ -473,6 +473,21 @@ class _StatsBtn(discord.ui.Button):
         embed.add_field(name="CB jouées",   value=str(stats.get("cb_joues", 0)),       inline=True)
         embed.add_field(name="Stocks pris", value=str(stats.get("stocks_pris", 0)),    inline=True)
         embed.add_field(name="Équipe",      value=player.get("team") or "*Aucune*",    inline=True)
+
+        by_opp = stats.get("stocks_par_adversaire", {})
+        if by_opp:
+            ranked = sorted(by_opp.items(), key=lambda kv: kv[1], reverse=True)[:10]
+            lines = []
+            for opp_id_str, count in ranked:
+                opp_id = int(opp_id_str)
+                opp = _load_player(opp_id)
+                opp_name = opp.get("name") if opp else None
+                if not opp_name:
+                    m = interaction.guild.get_member(opp_id) if interaction.guild else None
+                    opp_name = m.display_name if m else str(opp_id)
+                lines.append(f"• **{opp_name}** — {count}")
+            embed.add_field(name="Stocks pris par adversaire", value="\n".join(lines), inline=False)
+
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
@@ -1040,20 +1055,25 @@ def register_all_views(bot: discord.Client) -> int:
 # la version GitHub, portée depuis la session locale.
 # ---------------------------------------------------------------------------
 
-def _update_one_stat(discord_id: int, stocks_taken: int):
+def _update_one_stat(discord_id: int, stocks_taken: int, opponent_id: int):
     if not discord_id:
         return
     player = _load_player(discord_id) or {"discord_id": discord_id, "name": str(discord_id), "team": None}
     stats = player.setdefault("stats", {})
     stats["cb_joues"]    = stats.get("cb_joues", 0) + 1
     stats["stocks_pris"] = stats.get("stocks_pris", 0) + stocks_taken
+    if stocks_taken > 0 and opponent_id:
+        by_opp = stats.setdefault("stocks_par_adversaire", {})
+        key = str(opponent_id)
+        by_opp[key] = by_opp.get(key, 0) + stocks_taken
     _save_player(player)
 
 
 def record_set_result(discord_id_a: int, discord_id_b: int, takes_a: int, takes_b: int):
-    """Incrémente cb_joues (+1) et stocks_pris (+stocks pris ce set) pour les deux joueurs."""
-    _update_one_stat(discord_id_a, takes_a)
-    _update_one_stat(discord_id_b, takes_b)
+    """Incrémente cb_joues (+1), stocks_pris (+stocks pris ce set) et le détail
+    par adversaire (stocks_par_adversaire) pour les deux joueurs."""
+    _update_one_stat(discord_id_a, takes_a, discord_id_b)
+    _update_one_stat(discord_id_b, takes_b, discord_id_a)
 
 
 async def refresh_after_set(bot: discord.Client, guild_id: int, discord_id_a: int, discord_id_b: int):

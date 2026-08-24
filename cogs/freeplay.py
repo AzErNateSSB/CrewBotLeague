@@ -36,21 +36,6 @@ def get_slots() -> list[str]:
     return slots
 
 
-def get_led_teams(user_id: int) -> list[dict]:
-    teams_dir = os.path.join("data", "teams")
-    if not os.path.exists(teams_dir):
-        return []
-    result = []
-    for fn in os.listdir(teams_dir):
-        if not fn.endswith(".json"):
-            continue
-        with open(os.path.join(teams_dir, fn), encoding="utf-8") as f:
-            t = json.load(f)
-        if t.get("leader_id") == user_id:
-            result.append(t)
-    return result
-
-
 def subs_split(nb_fight: int, subs_choice: int) -> tuple[int, int]:
     """Returns (nb_active, nb_subs) given the fight format and subs choice."""
     if subs_choice < 0:
@@ -206,51 +191,62 @@ class FreeplayPanelView(discord.ui.View):
     @discord.ui.button(label="⚔️ Chercher un adversaire", style=discord.ButtonStyle.primary,
                        custom_id="panel_freeplay_search")
     async def search(self, interaction: discord.Interaction, button: discord.ui.Button):
-        led = get_led_teams(interaction.user.id)
-        if led:
-            if len(led) == 1:
-                await interaction.response.send_message(
-                    f"Sélectionne tes disponibilités pour **{led[0]['sigle']}** :",
-                    view=DateSelectView(led[0]),
-                    ephemeral=True,
-                )
-            else:
-                await interaction.response.send_message(
-                    "Pour quelle équipe cherches-tu un adversaire ?",
-                    view=TeamPickView(led, mode="search"),
-                    ephemeral=True,
-                )
+        from cogs.teams import find_team_of_player
+        sigle = find_team_of_player(interaction.user.id)
+        current_team = load_team(sigle) if sigle else None
+
+        if not current_team:
+            # Pas dans une équipe → équipe personnalisée d'emblée, pas de choix à faire.
+            await interaction.response.send_modal(
+                CustomTeamNameModal(mode="search", post_data=None, user_id=interaction.user.id)
+            )
             return
 
-        # Pas leader d'une équipe enregistrée → recherche en groupe libre
-        # (le rôle officiel d'une équipe ne peut être engagé que par son leader)
-        pickup_team = {"sigle": interaction.user.display_name, "leader_id": interaction.user.id}
         await interaction.response.send_message(
-            "Tu ne diriges aucune équipe enregistrée — tu peux quand même chercher un "
-            "adversaire en **groupe libre** (non lié à une équipe officielle).\n"
-            "Sélectionne tes disponibilités :",
-            view=DateSelectView(pickup_team),
+            "Avec quelle équipe veux-tu chercher un adversaire ?",
+            view=TeamTypeChoiceView(interaction.user.id, current_team, mode="search"),
             ephemeral=True,
         )
 
 
 # ===========================================================================
-# TEAM PICK (when leader leads multiple teams)
+# CHOIX DU TYPE D'ÉQUIPE (équipe actuelle vs équipe personnalisée)
 # ===========================================================================
 
-class TeamPickView(discord.ui.View):
-    def __init__(self, teams: list[dict], mode: str = "search",
-                 post_data: Optional[dict] = None):
-        super().__init__(timeout=120)
-        self.mode = mode
-        self.post_data = post_data
-        for team in teams[:5]:
-            btn = discord.ui.Button(label=team["sigle"], style=discord.ButtonStyle.secondary)
-            btn.callback = self._make_cb(team)
-            self.add_item(btn)
+class TeamTypeChoiceView(discord.ui.View):
+    """Étape 'avec quelle équipe ?' — proposée à la recherche comme à la réponse.
+    mode='search' (lancer une recherche) ou 'respond' (répondre à une recherche)."""
 
-    def _make_cb(self, team: dict):
-        async def cb(interaction: discord.Interaction):
+    def __init__(self, user_id: int, current_team: Optional[dict], mode: str,
+                 post_data: Optional[dict] = None):
+        super().__init__(timeout=180)
+        self.user_id      = user_id
+        self.current_team = current_team
+        self.mode         = mode
+        self.post_data    = post_data
+
+        if current_team:
+            cur_btn = discord.ui.Button(
+                label=f"🏠 Mon équipe actuelle ({current_team['sigle']})",
+                style=discord.ButtonStyle.primary,
+            )
+            cur_btn.callback = self._pick_current
+            self.add_item(cur_btn)
+
+        custom_btn = discord.ui.Button(
+            label="🎭 Équipe personnalisée",
+            style=discord.ButtonStyle.secondary,
+        )
+        custom_btn.callback = self._pick_custom
+        self.add_item(custom_btn)
+
+    async def _pick_current(self, interaction: discord.Interaction):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("❌ Ce choix ne t'est pas destiné.", ephemeral=True)
+            return
+
+        team = self.current_team
+        if interaction.user.id == team["leader_id"]:
             if self.mode == "search":
                 await interaction.response.edit_message(
                     content=f"Sélectionne tes disponibilités pour **{team['sigle']}** :",
@@ -258,19 +254,217 @@ class TeamPickView(discord.ui.View):
                 )
             else:
                 await _confirm_matchup(interaction, self.post_data, team)
-        return cb
+            return
+
+        # Pas leader → il faut l'accord du leader avant d'engager l'équipe.
+        if self.mode == "search":
+            await interaction.response.send_message(
+                "Sélectionne tes disponibilités (elles seront proposées à ton leader pour confirmation) :",
+                view=DateSelectView(team, needs_leader_ok=True),
+                ephemeral=True,
+            )
+        else:
+            opponent_sigle = self.post_data["team_sigle"]
+            description = (
+                f"**{interaction.user.display_name}** souhaite affronter **{opponent_sigle}** "
+                f"le **{self.post_data['slot']}** avec **{team['sigle']}**. Confirmer ?"
+            )
+            await _request_team_confirm(
+                interaction, team, action="respond",
+                payload={"post_data": self.post_data}, description=description,
+            )
+
+    async def _pick_custom(self, interaction: discord.Interaction):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("❌ Ce choix ne t'est pas destiné.", ephemeral=True)
+            return
+        await interaction.response.send_modal(
+            CustomTeamNameModal(mode=self.mode, post_data=self.post_data, user_id=interaction.user.id)
+        )
+
+
+class CustomTeamNameModal(discord.ui.Modal, title="Équipe personnalisée"):
+    name = discord.ui.TextInput(
+        label="Nom de l'équipe",
+        placeholder="Ex: Les Invincibles",
+        max_length=50,
+    )
+
+    def __init__(self, mode: str, post_data: Optional[dict], user_id: int):
+        super().__init__()
+        self.mode      = mode
+        self.post_data = post_data
+        self.user_id   = user_id
+
+    async def on_submit(self, interaction: discord.Interaction):
+        team = {"sigle": self.name.value.strip(), "leader_id": self.user_id}
+        if self.mode == "search":
+            await interaction.response.send_message(
+                f"Sélectionne tes disponibilités pour **{team['sigle']}** (équipe personnalisée) :",
+                view=DateSelectView(team),
+                ephemeral=True,
+            )
+        else:
+            await _confirm_matchup(interaction, self.post_data, team)
+
+
+# ===========================================================================
+# CONFIRMATION DU LEADER (quand un non-leader engage l'équipe actuelle)
+# ===========================================================================
+
+FREEPLAY_TEAM_CONFIRM_DIR = os.path.join("data", "freeplay_team_confirms")
+
+
+def _team_confirm_path(msg_id: int) -> str:
+    return os.path.join(FREEPLAY_TEAM_CONFIRM_DIR, f"{msg_id}.json")
+
+def _save_team_confirm(msg_id: int, data: dict):
+    os.makedirs(FREEPLAY_TEAM_CONFIRM_DIR, exist_ok=True)
+    with open(_team_confirm_path(msg_id), "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+def _load_team_confirm(msg_id: int) -> Optional[dict]:
+    p = _team_confirm_path(msg_id)
+    if not os.path.exists(p):
+        return None
+    with open(p, encoding="utf-8") as f:
+        return json.load(f)
+
+def _del_team_confirm(msg_id: int):
+    p = _team_confirm_path(msg_id)
+    if os.path.exists(p):
+        os.remove(p)
+
+
+async def _request_team_confirm(interaction: discord.Interaction, team: dict, action: str,
+                                  payload: dict, description: str):
+    tasks_ch = interaction.guild.get_channel(team["channels"].get("tasks") or team["channels"]["general"])
+    if not tasks_ch:
+        await interaction.response.send_message("❌ Salon tasks de l'équipe introuvable.", ephemeral=True)
+        return
+
+    leader = interaction.guild.get_member(team["leader_id"])
+    leader_mention = leader.mention if leader else f"<@{team['leader_id']}>"
+
+    await interaction.response.send_message(
+        f"📨 Demande envoyée à {leader_mention} dans {tasks_ch.mention} — en attente de confirmation.",
+        ephemeral=True,
+    )
+
+    msg = await tasks_ch.send(f"{leader_mention} — {description}")
+    view = TeamConfirmView(msg.id)
+    await msg.edit(view=view)
+    _save_team_confirm(msg.id, {
+        "action": action, "team_sigle": team["sigle"],
+        "requester_id": interaction.user.id, "channel_id": tasks_ch.id,
+        **payload,
+    })
+
+
+class TeamConfirmView(discord.ui.View):
+    """Boutons Accepter/Refuser postés dans le salon tasks quand un non-leader
+    veut engager l'équipe (recherche ou réponse à une recherche Freeplay)."""
+
+    def __init__(self, msg_id: int):
+        super().__init__(timeout=None)
+        self.msg_id = msg_id
+
+        accept = discord.ui.Button(
+            label="✅ Accepter", style=discord.ButtonStyle.success,
+            custom_id=f"fp_teamconfirm_accept_{msg_id}",
+        )
+        accept.callback = self._accept
+        self.add_item(accept)
+
+        refuse = discord.ui.Button(
+            label="❌ Refuser", style=discord.ButtonStyle.danger,
+            custom_id=f"fp_teamconfirm_refuse_{msg_id}",
+        )
+        refuse.callback = self._refuse
+        self.add_item(refuse)
+
+    async def _accept(self, interaction: discord.Interaction):
+        data = _load_team_confirm(self.msg_id)
+        if not data:
+            for item in self.children:
+                item.disabled = True
+            await interaction.response.edit_message(content="⌛ Cette demande n'est plus valide.", view=self)
+            return
+
+        team = load_team(data["team_sigle"])
+        if not team or interaction.user.id != team["leader_id"]:
+            await interaction.response.send_message(
+                "❌ Seul le leader de l'équipe peut confirmer.", ephemeral=True
+            )
+            return
+
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(
+            content=f"✅ Confirmé par {interaction.user.mention}.", view=self
+        )
+        _del_team_confirm(self.msg_id)
+
+        if data["action"] == "search":
+            await _publish_search(interaction, team, data["slots"])
+        else:
+            await _confirm_matchup(interaction, data["post_data"], team)
+
+    async def _refuse(self, interaction: discord.Interaction):
+        data = _load_team_confirm(self.msg_id)
+        team = load_team(data["team_sigle"]) if data else None
+        if not team or interaction.user.id != team["leader_id"]:
+            await interaction.response.send_message(
+                "❌ Seul le leader de l'équipe peut refuser.", ephemeral=True
+            )
+            return
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(content=f"❌ Refusé par {interaction.user.mention}.", view=self)
+        _del_team_confirm(self.msg_id)
 
 
 # ===========================================================================
 # DATE SELECT (ephemeral)
 # ===========================================================================
 
+async def _publish_search(interaction: discord.Interaction, team: dict, slots: list[str]):
+    freeplay_ch = interaction.guild.get_channel(CHANNEL_FREEPLAY)
+    if not freeplay_ch:
+        await interaction.followup.send("❌ Salon freeplay introuvable.", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title=f"🔍 {team['sigle']} cherche un adversaire !",
+        description="Cliquez sur un créneau pour accepter l'affrontement.",
+        color=discord.Color.orange(),
+    )
+    embed.add_field(
+        name="Disponibilités",
+        value="\n".join(f"• {s}" for s in slots),
+        inline=False,
+    )
+
+    view = MatchmakingView(team["sigle"], team["leader_id"], slots)
+    msg = await freeplay_ch.send(embed=embed, view=view)
+    save_fp_post(msg.id, {
+        "msg_id":      msg.id,
+        "team_sigle":  team["sigle"],
+        "leader_id":   team["leader_id"],
+        "slots":       slots,
+    })
+
+    await interaction.followup.send(f"✅ Recherche publiée ! {msg.jump_url}", ephemeral=True)
+
+
 class DateSelectView(discord.ui.View):
-    def __init__(self, team: dict, selected: Optional[list[str]] = None):
+    def __init__(self, team: dict, selected: Optional[list[str]] = None,
+                 needs_leader_ok: bool = False):
         super().__init__(timeout=300)
-        self.team     = team
-        self.slots    = get_slots()
-        self.selected = selected or []
+        self.team            = team
+        self.slots           = get_slots()
+        self.selected        = selected or []
+        self.needs_leader_ok = needs_leader_ok
         self._build()
 
     def _build(self):
@@ -289,7 +483,7 @@ class DateSelectView(discord.ui.View):
         self.add_item(select)
 
         confirm = discord.ui.Button(
-            label="✅ Publier ma recherche",
+            label="📨 Envoyer à mon leader" if self.needs_leader_ok else "✅ Publier ma recherche",
             style=discord.ButtonStyle.success,
             disabled=not self.selected,
         )
@@ -306,37 +500,19 @@ class DateSelectView(discord.ui.View):
         )
 
     async def _confirm(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
-        freeplay_ch = interaction.guild.get_channel(CHANNEL_FREEPLAY)
-        if not freeplay_ch:
-            await interaction.followup.send("❌ Salon freeplay introuvable.", ephemeral=True)
+        if self.needs_leader_ok:
+            description = (
+                f"**{interaction.user.display_name}** souhaite lancer une recherche d'adversaire pour "
+                f"**{self.team['sigle']}** (créneaux : {', '.join(self.selected)}). Confirmer ?"
+            )
+            await _request_team_confirm(
+                interaction, self.team, action="search",
+                payload={"slots": self.selected}, description=description,
+            )
             return
 
-        team = self.team
-        embed = discord.Embed(
-            title=f"🔍 {team['sigle']} cherche un adversaire !",
-            description="Cliquez sur un créneau pour accepter l'affrontement.",
-            color=discord.Color.orange(),
-        )
-        embed.add_field(
-            name="Disponibilités",
-            value="\n".join(f"• {s}" for s in self.selected),
-            inline=False,
-        )
-
-        view = MatchmakingView(team["sigle"], team["leader_id"], self.selected)
-        msg = await freeplay_ch.send(embed=embed, view=view)
-        save_fp_post(msg.id, {
-            "msg_id":      msg.id,
-            "team_sigle":  team["sigle"],
-            "leader_id":   team["leader_id"],
-            "slots":       self.selected,
-        })
-
-        await interaction.edit_original_response(
-            content=f"✅ Recherche publiée ! {msg.jump_url}",
-            view=None,
-        )
+        await interaction.response.defer(ephemeral=True)
+        await _publish_search(interaction, self.team, self.selected)
 
 
 # ===========================================================================
@@ -384,28 +560,28 @@ class MatchmakingView(discord.ui.View):
                     "❌ Tu ne peux pas répondre à ta propre recherche.", ephemeral=True
                 )
                 return
-            led = [t for t in get_led_teams(interaction.user.id)
-                   if t["sigle"] != self.team_sigle]
             post_data = {
                 "msg_id":     interaction.message.id,
                 "team_sigle": self.team_sigle,
                 "leader_id":  self.leader_id,
                 "slot":       slot,
             }
-            if led:
-                if len(led) == 1:
-                    await _confirm_matchup(interaction, post_data, led[0])
-                else:
-                    await interaction.response.send_message(
-                        "Pour quelle équipe acceptes-tu ce match ?",
-                        view=TeamPickView(led, mode="respond", post_data=post_data),
-                        ephemeral=True,
-                    )
+
+            from cogs.teams import find_team_of_player
+            sigle = find_team_of_player(interaction.user.id)
+            current_team = load_team(sigle) if sigle else None
+
+            if not current_team:
+                await interaction.response.send_modal(
+                    CustomTeamNameModal(mode="respond", post_data=post_data, user_id=interaction.user.id)
+                )
                 return
 
-            # Pas leader d'une équipe enregistrée → réponse en groupe libre
-            pickup_team = {"sigle": interaction.user.display_name, "leader_id": interaction.user.id}
-            await _confirm_matchup(interaction, post_data, pickup_team)
+            await interaction.response.send_message(
+                f"Avec quelle équipe acceptes-tu ce match du **{slot}** ?",
+                view=TeamTypeChoiceView(interaction.user.id, current_team, mode="respond", post_data=post_data),
+                ephemeral=True,
+            )
         return cb
 
 
@@ -1005,6 +1181,21 @@ async def restore_all_cancel_views(bot: commands.Bot) -> int:
     return count
 
 
+async def restore_all_team_confirms(bot: commands.Bot) -> int:
+    """Ré-enregistre les boutons 'Accepter/Refuser' des demandes d'engagement
+    d'équipe (recherche/réponse Freeplay par un non-leader), aucun appel réseau."""
+    if not os.path.exists(FREEPLAY_TEAM_CONFIRM_DIR):
+        return 0
+    count = 0
+    for fn in os.listdir(FREEPLAY_TEAM_CONFIRM_DIR):
+        if not fn.endswith(".json"):
+            continue
+        msg_id = int(fn[:-5])
+        bot.add_view(TeamConfirmView(msg_id), message_id=msg_id)
+        count += 1
+    return count
+
+
 async def ensure_all_cancel_buttons(bot: commands.Bot) -> int:
     """Vérifie que chaque CB freeplay en cours a bien son message + bouton
     'Annuler la CB' ; le reposte s'il est absent. Utilisé par /cbl_setup_all."""
@@ -1050,20 +1241,20 @@ async def ensure_all_cancel_buttons(bot: commands.Bot) -> int:
 
 FINISH_CB_PROMPT = (
     "✅ CrewBattle terminée ! Les salons restent disponibles pour relire l'historique. "
-    "Quand vous n'en avez plus besoin, un leader (ou un admin) peut clore le Freeplay "
-    "ci-dessous pour supprimer la catégorie et ses salons."
+    "Un leader (ou un admin) peut cliquer ci-dessous pour renvoyer le résumé de la CB."
 )
 
 
 class FinishCBView(discord.ui.View):
     """Bouton persistant 'Terminer la CB', posté dans le salon tasks une fois le
-    Freeplay terminé. Supprime la catégorie + ses salons après confirmation."""
+    Freeplay terminé. N'efface rien : envoie juste le résumé, et révèle le
+    bouton de suppression (réservé à l'admin)."""
 
     def __init__(self, channel_id: int):
         super().__init__(timeout=None)
         self.channel_id = channel_id
         btn = discord.ui.Button(
-            label="🏁 Terminer la CB", style=discord.ButtonStyle.danger,
+            label="🏁 Terminer la CB", style=discord.ButtonStyle.primary,
             custom_id=f"fp_finish_request_{channel_id}",
         )
         btn.callback = self._request
@@ -1087,31 +1278,49 @@ class FinishCBView(discord.ui.View):
             )
             return
 
-        await interaction.response.send_message(
-            "⚠️ **Cette action va supprimer définitivement la catégorie et tous les salons de ce Freeplay.**\n"
-            "Assure-toi que tout ce qui devait être noté (scores, historique...) l'a bien été.\n"
-            "Confirmer la clôture ?",
-            view=FinishConfirmView(self.channel_id),
-            ephemeral=True,
+        lines = info.get("summary_lines") or ["*Résumé indisponible.*"]
+        embed = discord.Embed(
+            title="📋 Résumé de la CrewBattle",
+            description="\n".join(lines),
+            color=discord.Color.gold(),
         )
+        await interaction.response.send_message(embed=embed)
+
+        del_msg = await interaction.channel.send(
+            "Un admin peut supprimer les salons de ce Freeplay ci-dessous.",
+            view=DeleteChannelsView(self.channel_id),
+        )
+        info["delete_msg_id"] = del_msg.id
+        save_freeplay_active(self.channel_id, info)
 
 
-class FinishConfirmView(discord.ui.View):
+class DeleteChannelsView(discord.ui.View):
+    """Bouton persistant 'Supprimer les salons' — réservé à l'admin."""
+
     def __init__(self, channel_id: int):
-        super().__init__(timeout=300)
+        super().__init__(timeout=None)
         self.channel_id = channel_id
-
-    @discord.ui.button(label="✅ Oui, supprimer les salons", style=discord.ButtonStyle.danger)
-    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
-        for item in self.children:
-            item.disabled = True
-        await interaction.response.edit_message(
-            content="🏁 Clôture en cours — suppression des salons...", view=self
+        btn = discord.ui.Button(
+            label="🗑️ Supprimer les salons", style=discord.ButtonStyle.danger,
+            custom_id=f"fp_delete_channels_{channel_id}",
         )
+        btn.callback = self._delete
+        self.add_item(btn)
+
+    async def _delete(self, interaction: discord.Interaction):
+        from cogs.crewbattle import ADMIN_ID
+        if interaction.user.id != ADMIN_ID:
+            await interaction.response.send_message(
+                "❌ Seul l'admin peut supprimer les salons.", ephemeral=True
+            )
+            return
 
         info = load_freeplay_active(self.channel_id)
         if not info:
+            await interaction.response.send_message("❌ Session déjà clôturée.", ephemeral=True)
             return
+
+        await interaction.response.defer()
 
         guild = interaction.guild
         cat = guild.get_channel(info.get("category_id", 0)) if guild else None
@@ -1124,15 +1333,10 @@ class FinishConfirmView(discord.ui.View):
                 pass
         del_freeplay_active(self.channel_id)
 
-    @discord.ui.button(label="❌ Annuler", style=discord.ButtonStyle.secondary)
-    async def deny(self, interaction: discord.Interaction, button: discord.ui.Button):
-        for item in self.children:
-            item.disabled = True
-        await interaction.response.edit_message(content="Clôture annulée.", view=self)
-
 
 async def restore_all_finish_views(bot: commands.Bot) -> int:
-    """Ré-enregistre les boutons 'Terminer la CB' déjà postés (aucun appel réseau)."""
+    """Ré-enregistre les boutons 'Terminer la CB'/'Supprimer les salons' déjà
+    postés (aucun appel réseau)."""
     from utils.freeplay_data import FREEPLAY_ACT_DIR
     if not os.path.exists(FREEPLAY_ACT_DIR):
         return 0
@@ -1144,12 +1348,17 @@ async def restore_all_finish_views(bot: commands.Bot) -> int:
             data = json.load(f)
         if not data.get("finished"):
             continue
-        msg_id = data.get("finish_msg_id")
         channel_id = data.get("channel_id")
-        if not msg_id or not channel_id:
+        if not channel_id:
             continue
-        bot.add_view(FinishCBView(channel_id), message_id=msg_id)
-        count += 1
+        msg_id = data.get("finish_msg_id")
+        if msg_id:
+            bot.add_view(FinishCBView(channel_id), message_id=msg_id)
+            count += 1
+        del_msg_id = data.get("delete_msg_id")
+        if del_msg_id:
+            bot.add_view(DeleteChannelsView(channel_id), message_id=del_msg_id)
+            count += 1
     return count
 
 
@@ -1554,6 +1763,7 @@ class Freeplay(commands.Cog):
         self.bot.loop.create_task(restore_all_fp_posts(self.bot))
         await restore_all_cancel_views(self.bot)
         await restore_all_finish_views(self.bot)
+        await restore_all_team_confirms(self.bot)
 
 
 async def setup(bot: commands.Bot):

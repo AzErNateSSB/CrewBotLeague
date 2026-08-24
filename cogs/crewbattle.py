@@ -243,8 +243,6 @@ class Match:
     picked_stage: Optional[str] = None
     first_banner: str = ""
     picker: str = ""
-    pending_char: Optional[str] = None
-    pending_side: Optional[str] = None
     set_history: list[SetRecord] = field(default_factory=list)
     log_row: int = -1
 
@@ -295,8 +293,6 @@ def _match_to_dict(m: "Match") -> dict:
         "picked_stage": m.picked_stage,
         "first_banner": m.first_banner,
         "picker":       m.picker,
-        "pending_char": m.pending_char,
-        "pending_side": m.pending_side,
         "log_row":     m.log_row,
         "set_history": [
             {"player_a": r.player_a, "char_a": r.char_a,
@@ -322,8 +318,6 @@ def _match_from_dict(d: dict) -> "Match":
         picked_stage=d.get("picked_stage"),
         first_banner=d["first_banner"],
         picker      =d["picker"],
-        pending_char=d.get("pending_char"),
-        pending_side=d.get("pending_side"),
         set_history =[SetRecord(**r) for r in d["set_history"]],
         log_row     =d.get("log_row", -1),
     )
@@ -497,14 +491,28 @@ class PlayerSelectView(discord.ui.View):
         if not is_authorized(interaction.user.id, team.captain_id):
             await interaction.response.send_message("❌ Ce n'est pas votre tour.", ephemeral=True)
             return
-        view = CharacterSelectView(
-            self.match, self.side, self.selected, self.parent_view, self, self.mode, interaction.client
-        )
-        view.message = self.message
+
+        player = self.selected
+        for item in self.children:
+            item.disabled = True
         await interaction.response.edit_message(
-            content=f"**{self.selected.name}** — Quel personnage ?",
-            view=view,
+            content=f"✅ **{player.name}** sélectionné — en attente de son choix de personnage.",
+            view=self,
         )
+
+        # Le personnage est choisi par le joueur lui-même, pas par le leader —
+        # il faut donc un nouveau message PUBLIC (le leader a un message éphémère
+        # que le joueur sélectionné ne peut pas voir).
+        char_view = CharacterSelectView(
+            self.match, self.side, player, self.parent_view, self, self.mode, interaction.client
+        )
+        member = interaction.guild.get_member(player.discord_id) if player.discord_id else None
+        mention = member.mention if member else f"**{player.name}**"
+        msg = await interaction.channel.send(
+            f"{mention} — Quel personnage vas-tu jouer ?",
+            view=char_view,
+        )
+        char_view.message = msg
 
 
 class CharacterSelectView(discord.ui.View):
@@ -572,9 +580,8 @@ class CharacterSelectView(discord.ui.View):
 
     def _make_char_cb(self, char: str):
         async def cb(interaction: discord.Interaction):
-            team = self.match.team_a if self.side == "A" else self.match.team_b
-            if not is_authorized(interaction.user.id, team.captain_id):
-                await interaction.response.send_message("❌ Ce n'est pas votre tour.", ephemeral=True)
+            if not is_authorized(interaction.user.id, self.player.discord_id):
+                await interaction.response.send_message("❌ Ce n'est pas à toi de choisir.", ephemeral=True)
                 return
             self.selected_char = char
             self._build()
@@ -582,33 +589,32 @@ class CharacterSelectView(discord.ui.View):
         return cb
 
     async def _prev(self, interaction: discord.Interaction):
-        team = self.match.team_a if self.side == "A" else self.match.team_b
-        if not is_authorized(interaction.user.id, team.captain_id):
-            await interaction.response.send_message("❌ Ce n'est pas votre tour.", ephemeral=True)
+        if not is_authorized(interaction.user.id, self.player.discord_id):
+            await interaction.response.send_message("❌ Ce n'est pas à toi de choisir.", ephemeral=True)
             return
         self.page -= 1
         self._build()
         await interaction.response.edit_message(view=self)
 
     async def _next(self, interaction: discord.Interaction):
-        team = self.match.team_a if self.side == "A" else self.match.team_b
-        if not is_authorized(interaction.user.id, team.captain_id):
-            await interaction.response.send_message("❌ Ce n'est pas votre tour.", ephemeral=True)
+        if not is_authorized(interaction.user.id, self.player.discord_id):
+            await interaction.response.send_message("❌ Ce n'est pas à toi de choisir.", ephemeral=True)
             return
         self.page += 1
         self._build()
         await interaction.response.edit_message(view=self)
 
     async def _confirm(self, interaction: discord.Interaction):
-        team = self.match.team_a if self.side == "A" else self.match.team_b
-        if not is_authorized(interaction.user.id, team.captain_id):
-            await interaction.response.send_message("❌ Ce n'est pas votre tour.", ephemeral=True)
+        if not is_authorized(interaction.user.id, self.player.discord_id):
+            await interaction.response.send_message("❌ Ce n'est pas à toi de choisir.", ephemeral=True)
             return
 
+        team = self.match.team_a if self.side == "A" else self.match.team_b
         char = self.selected_char
         player = self.player
         match = self.match
         side = self.side
+        player.character = char
 
         for item in self.children:
             item.disabled = True
@@ -623,7 +629,6 @@ class CharacterSelectView(discord.ui.View):
         )
 
         if self.mode == "first":
-            player.character = char
             if side == "A":
                 match.current_a = player
                 match.picked_a = True
@@ -653,8 +658,6 @@ class CharacterSelectView(discord.ui.View):
             else:
                 match.current_b = player
 
-            match.pending_char = char
-            match.pending_side = side
             match.state = State.BAN_FIRST
 
             for item in self.parent_view.children:
@@ -1123,16 +1126,15 @@ async def start_ban_phase(channel: discord.TextChannel, match: Match):
     cb = match.current_b
 
     if match.set_number == 0:
-        # Set 1 : les deux persos sont connus, équipe aléatoire banne en premier
+        # Set 1 : équipe aléatoire banne en premier
         title = f"**{ca.name}** {char_display(ca.character)} — {char_display(cb.character)} **{cb.name}**"
         match.first_banner = random.choice(["A", "B"])
         match.picker = match.first_banner
     else:
-        # Sets suivants : le perso de l'entrant est caché, on affiche les vies du gagnant
-        if match.pending_side == "A":
-            title = f"**{ca.name}** ??? — {char_display(cb.character)} **{cb.name}** ({cb.lives}♥)"
-        else:
-            title = f"({ca.lives}♥) **{ca.name}** {char_display(ca.character)} — **{cb.name}** ???"
+        title = (
+            f"({ca.lives}♥) **{ca.name}** {char_display(ca.character)}"
+            f" — {char_display(cb.character)} **{cb.name}** ({cb.lives}♥)"
+        )
 
     match.state = State.BAN_FIRST
     save_matches()
@@ -1153,16 +1155,6 @@ async def announce_set(channel: discord.TextChannel, match: Match):
     guild = getattr(channel, "guild", None)
     ca = match.current_a
     cb = match.current_b
-
-    # Révéler le personnage de l'entrant maintenant que le stage est choisi
-    if match.pending_side == "B" and match.pending_char:
-        cb.character = match.pending_char
-        match.pending_char = None
-        match.pending_side = None
-    elif match.pending_side == "A" and match.pending_char:
-        ca.character = match.pending_char
-        match.pending_char = None
-        match.pending_side = None
 
     if match.set_number == 0:
         desc = f"**{ca.name}** {char_display(ca.character)} — {char_display(cb.character)} **{cb.name}**"
@@ -1282,10 +1274,6 @@ async def end_crewbattle(channel: discord.TextChannel, match: Match):
                 await hist_ch.send(embed=hist_embed)
             except Exception as e:
                 print(f"[WARN] freeplay hist post ({sigle}): {e}")
-        # Les salons restent en place : un leader (ou l'admin) doit confirmer
-        # la clôture via le bouton "Terminer la CB" pour les supprimer.
-        freeplay_info["finished"] = True
-        save_freeplay_active(match.channel_id, freeplay_info)
 
     lines = build_history_lines(match, guild)
     lines.append("")
@@ -1305,14 +1293,21 @@ async def end_crewbattle(channel: discord.TextChannel, match: Match):
     except Exception:
         pass
 
-    if freeplay_info and guild:
-        from cogs.freeplay import FinishCBView, FINISH_CB_PROMPT
-        try:
-            finish_msg = await channel.send(FINISH_CB_PROMPT, view=FinishCBView(match.channel_id))
-            freeplay_info["finish_msg_id"] = finish_msg.id
-            save_freeplay_active(match.channel_id, freeplay_info)
-        except Exception:
-            pass
+    if freeplay_info:
+        # Les salons restent en place : "Terminer la CB" ne fait qu'envoyer le
+        # résumé ; seul un admin peut ensuite supprimer les salons.
+        freeplay_info["finished"] = True
+        freeplay_info["summary_lines"] = lines
+        save_freeplay_active(match.channel_id, freeplay_info)
+
+        if guild:
+            from cogs.freeplay import FinishCBView, FINISH_CB_PROMPT
+            try:
+                finish_msg = await channel.send(FINISH_CB_PROMPT, view=FinishCBView(match.channel_id))
+                freeplay_info["finish_msg_id"] = finish_msg.id
+                save_freeplay_active(match.channel_id, freeplay_info)
+            except Exception:
+                pass
 
 # ---------------------------------------------------------------------------
 # Commands
