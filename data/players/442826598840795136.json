@@ -2,6 +2,9 @@
   "discord_id": 442826598840795136,
   "name": "teclord_live",
   "team": "HoJ",
-  "stats": {},
+  "stats": {
+    "cb_joues": 2,
+    "stocks_pris": 4
+  },
   "stats_thread_id": 1538149066091921479
 }

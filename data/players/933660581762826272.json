@@ -2,6 +2,8 @@
   "discord_id": 933660581762826272,
   "name": "Jon_The_Fox",
   "team": "SSL",
-  "stats": {},
+  "stats": {
+    "main": "Pokemon trainer"
+  },
   "stats_thread_id": 1540700769148338248
 }

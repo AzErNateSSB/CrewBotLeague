@@ -3,5 +3,8 @@
   "name": "TZ | Bill Wick",
   "team": "LT",
   "stats_thread_id": 1536050289852031048,
-  "stats": {}
+  "stats": {
+    "cb_joues": 2,
+    "stocks_pris": 4
+  }
 }

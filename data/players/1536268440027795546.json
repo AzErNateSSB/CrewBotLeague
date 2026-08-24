@@ -2,6 +2,9 @@
   "discord_id": 1536268440027795546,
   "name": "Rumi",
   "team": "RC",
-  "stats": {},
+  "stats": {
+    "cb_joues": 1,
+    "stocks_pris": 2
+  },
   "stats_thread_id": 1540633467312803923
 }

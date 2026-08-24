@@ -670,19 +670,24 @@ async def cbl_setup_all(interaction: discord.Interaction):
 
     # ── Reprise de tous les flux interactifs en cours (boutons cassés) ───────
     from cogs.crewbattle import restore_all_matches
-    from cogs.freeplay import restore_all_freeplay_setups, restore_all_fp_posts, ensure_all_cancel_buttons
+    from cogs.freeplay import (
+        restore_all_freeplay_setups, restore_all_fp_posts,
+        ensure_all_cancel_buttons, ensure_all_finish_buttons,
+    )
 
     nb_matches = await restore_all_matches(interaction.client)
     nb_setups  = await restore_all_freeplay_setups(interaction.client)
     nb_posts   = await restore_all_fp_posts(interaction.client)
     nb_joins   = await restore_all_join_requests(interaction.client)
     nb_cancel  = await ensure_all_cancel_buttons(interaction.client)
+    nb_finish  = await ensure_all_finish_buttons(interaction.client)
 
     report.append(f"🔄 {nb_matches} CrewBattle(s) en cours — boutons reposés")
     report.append(f"🔄 {nb_setups} configuration(s) Freeplay en cours — boutons reposés")
     report.append(f"🔄 {nb_posts} recherche(s) d'adversaire — boutons reposés")
     report.append(f"🔄 {nb_joins} demande(s) de join — boutons reposés / migrés vers tasks")
     report.append(f"🔄 {nb_cancel} bouton(s) \"Annuler la CB\" manquant(s) — reposté(s)")
+    report.append(f"🔄 {nb_finish} bouton(s) \"Terminer la CB\" manquant(s) — reposté(s)")
 
     await interaction.followup.send("\n".join(report), ephemeral=True)
 

@@ -3,5 +3,8 @@
   "name": "Derq",
   "team": "RC",
   "stats_thread_id": 1536050623320039538,
-  "stats": {}
+  "stats": {
+    "cb_joues": 1,
+    "stocks_pris": 0
+  }
 }

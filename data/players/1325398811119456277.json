@@ -2,6 +2,9 @@
   "discord_id": 1325398811119456277,
   "name": "Lyh",
   "team": "HoJ",
-  "stats": {},
+  "stats": {
+    "cb_joues": 1,
+    "stocks_pris": 0
+  },
   "stats_thread_id": 1536050239545286779
 }

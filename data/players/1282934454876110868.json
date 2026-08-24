@@ -3,5 +3,8 @@
   "name": "LT | RC | Pluck",
   "team": "HoJ",
   "stats_thread_id": 1536050240916951192,
-  "stats": {}
+  "stats": {
+    "cb_joues": 2,
+    "stocks_pris": 2
+  }
 }

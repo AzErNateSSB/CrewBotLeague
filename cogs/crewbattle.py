@@ -200,6 +200,18 @@ class Team:
     def all_players(self) -> list[Player]:
         return self.players + self.subs
 
+    @property
+    def nb_defeated(self) -> int:
+        """Nombre de joueurs (titulaires ou remplaçants entrés en jeu) éliminés."""
+        return sum(1 for p in self.all_players if p.lives <= 0)
+
+    @property
+    def is_eliminated(self) -> bool:
+        """L'équipe a perdu dès que le nombre de titulaires prévus a été battu —
+        les remplaçants élargissent juste le vivier de joueurs sélectionnables,
+        ils n'augmentent pas le nombre de joueurs à battre pour gagner."""
+        return self.nb_defeated >= len(self.players)
+
 
 @dataclass
 class PendingLineup:
@@ -803,7 +815,7 @@ class ScoreModal(discord.ui.Modal):
 
         await interaction.followup.send(embed=embed)
 
-        if match.team_a.total_lives == 0 or match.team_b.total_lives == 0:
+        if match.team_a.is_eliminated or match.team_b.is_eliminated:
             await end_crewbattle(channel, match)
             return
 
@@ -1184,7 +1196,7 @@ async def end_crewbattle(channel: discord.TextChannel, match: Match):
         del active_matches[match.channel_id]
     save_matches()
 
-    winner = match.team_b if match.team_a.total_lives == 0 else match.team_a
+    winner = match.team_b if match.team_a.is_eliminated else match.team_a
     loser  = match.team_a if winner is match.team_b else match.team_b
     await update_log(match.log_row, "Completed",
                      f"**{winner.name}** remporte la CrewBattle contre **{loser.name}**")
@@ -1242,7 +1254,7 @@ async def end_crewbattle(channel: discord.TextChannel, match: Match):
             pass
 
     # ── Résumé freeplay ──────────────────────────────────────────────────────
-    from utils.freeplay_data import load_freeplay_active, del_freeplay_active
+    from utils.freeplay_data import load_freeplay_active, save_freeplay_active
     from cogs.teams import load_team as _lt
     freeplay_info = load_freeplay_active(match.channel_id)
     if freeplay_info:
@@ -1270,16 +1282,10 @@ async def end_crewbattle(channel: discord.TextChannel, match: Match):
                 await hist_ch.send(embed=hist_embed)
             except Exception as e:
                 print(f"[WARN] freeplay hist post ({sigle}): {e}")
-        del_freeplay_active(match.channel_id)
-        # Supprimer la catégorie freeplay
-        cat = guild.get_channel(freeplay_info.get("category_id", 0)) if guild else None
-        if cat:
-            try:
-                for ch in list(cat.channels):
-                    await ch.delete()
-                await cat.delete()
-            except Exception:
-                pass
+        # Les salons restent en place : un leader (ou l'admin) doit confirmer
+        # la clôture via le bouton "Terminer la CB" pour les supprimer.
+        freeplay_info["finished"] = True
+        save_freeplay_active(match.channel_id, freeplay_info)
 
     lines = build_history_lines(match, guild)
     lines.append("")
@@ -1298,6 +1304,15 @@ async def end_crewbattle(channel: discord.TextChannel, match: Match):
         await msg.pin()
     except Exception:
         pass
+
+    if freeplay_info and guild:
+        from cogs.freeplay import FinishCBView, FINISH_CB_PROMPT
+        try:
+            finish_msg = await channel.send(FINISH_CB_PROMPT, view=FinishCBView(match.channel_id))
+            freeplay_info["finish_msg_id"] = finish_msg.id
+            save_freeplay_active(match.channel_id, freeplay_info)
+        except Exception:
+            pass
 
 # ---------------------------------------------------------------------------
 # Commands
@@ -1651,7 +1666,7 @@ async def cbl_force_score(interaction: discord.Interaction, vies_prises_a: int, 
                       f"cbl_force_score {vies_prises_a}-{vies_prises_b}", "Completed",
                       f"[FORCE] Set {match.set_number} : **{ca.name}** {vies_prises_a}-{vies_prises_b} **{cb.name}**")
 
-    if match.team_a.total_lives == 0 or match.team_b.total_lives == 0:
+    if match.team_a.is_eliminated or match.team_b.is_eliminated:
         await end_crewbattle(channel, match)
         return
 

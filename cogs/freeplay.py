@@ -994,6 +994,8 @@ async def restore_all_cancel_views(bot: commands.Bot) -> int:
             continue
         with open(os.path.join(FREEPLAY_ACT_DIR, fn), encoding="utf-8") as f:
             data = json.load(f)
+        if data.get("finished"):
+            continue
         msg_id = data.get("cancel_msg_id")
         channel_id = data.get("channel_id")
         if not msg_id or not channel_id:
@@ -1016,7 +1018,7 @@ async def ensure_all_cancel_buttons(bot: commands.Bot) -> int:
             continue
         channel_id = int(fn[:-5])
         data = load_freeplay_active(channel_id)
-        if not data:
+        if not data or data.get("finished"):
             continue
         channel = bot.get_channel(channel_id)
         if not channel:
@@ -1036,6 +1038,156 @@ async def ensure_all_cancel_buttons(bot: commands.Bot) -> int:
 
         msg = await channel.send(CANCEL_CB_PROMPT, view=CancelCBView(channel_id))
         data["cancel_msg_id"] = msg.id
+        save_freeplay_active(channel_id, data)
+        count += 1
+
+    return count
+
+
+# ===========================================================================
+# CLÔTURE DE LA CB (freeplay) — bouton "Terminer la CB" + confirmation
+# ===========================================================================
+
+FINISH_CB_PROMPT = (
+    "✅ CrewBattle terminée ! Les salons restent disponibles pour relire l'historique. "
+    "Quand vous n'en avez plus besoin, un leader (ou un admin) peut clore le Freeplay "
+    "ci-dessous pour supprimer la catégorie et ses salons."
+)
+
+
+class FinishCBView(discord.ui.View):
+    """Bouton persistant 'Terminer la CB', posté dans le salon tasks une fois le
+    Freeplay terminé. Supprime la catégorie + ses salons après confirmation."""
+
+    def __init__(self, channel_id: int):
+        super().__init__(timeout=None)
+        self.channel_id = channel_id
+        btn = discord.ui.Button(
+            label="🏁 Terminer la CB", style=discord.ButtonStyle.danger,
+            custom_id=f"fp_finish_request_{channel_id}",
+        )
+        btn.callback = self._request
+        self.add_item(btn)
+
+    async def _request(self, interaction: discord.Interaction):
+        from cogs.crewbattle import ADMIN_ID
+
+        info = load_freeplay_active(self.channel_id)
+        if not info:
+            await interaction.response.send_message(
+                "❌ Cette session Freeplay est introuvable (déjà clôturée ?).", ephemeral=True
+            )
+            return
+
+        allowed = {info.get("captain_a_id"), info.get("captain_b_id"), ADMIN_ID}
+        if interaction.user.id not in allowed:
+            await interaction.response.send_message(
+                "❌ Seuls les leaders des deux équipes (ou un admin) peuvent clore ce Freeplay.",
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.send_message(
+            "⚠️ **Cette action va supprimer définitivement la catégorie et tous les salons de ce Freeplay.**\n"
+            "Assure-toi que tout ce qui devait être noté (scores, historique...) l'a bien été.\n"
+            "Confirmer la clôture ?",
+            view=FinishConfirmView(self.channel_id),
+            ephemeral=True,
+        )
+
+
+class FinishConfirmView(discord.ui.View):
+    def __init__(self, channel_id: int):
+        super().__init__(timeout=300)
+        self.channel_id = channel_id
+
+    @discord.ui.button(label="✅ Oui, supprimer les salons", style=discord.ButtonStyle.danger)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(
+            content="🏁 Clôture en cours — suppression des salons...", view=self
+        )
+
+        info = load_freeplay_active(self.channel_id)
+        if not info:
+            return
+
+        guild = interaction.guild
+        cat = guild.get_channel(info.get("category_id", 0)) if guild else None
+        if cat:
+            try:
+                for ch in list(cat.channels):
+                    await ch.delete()
+                await cat.delete()
+            except Exception:
+                pass
+        del_freeplay_active(self.channel_id)
+
+    @discord.ui.button(label="❌ Annuler", style=discord.ButtonStyle.secondary)
+    async def deny(self, interaction: discord.Interaction, button: discord.ui.Button):
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(content="Clôture annulée.", view=self)
+
+
+async def restore_all_finish_views(bot: commands.Bot) -> int:
+    """Ré-enregistre les boutons 'Terminer la CB' déjà postés (aucun appel réseau)."""
+    from utils.freeplay_data import FREEPLAY_ACT_DIR
+    if not os.path.exists(FREEPLAY_ACT_DIR):
+        return 0
+    count = 0
+    for fn in os.listdir(FREEPLAY_ACT_DIR):
+        if not fn.endswith(".json"):
+            continue
+        with open(os.path.join(FREEPLAY_ACT_DIR, fn), encoding="utf-8") as f:
+            data = json.load(f)
+        if not data.get("finished"):
+            continue
+        msg_id = data.get("finish_msg_id")
+        channel_id = data.get("channel_id")
+        if not msg_id or not channel_id:
+            continue
+        bot.add_view(FinishCBView(channel_id), message_id=msg_id)
+        count += 1
+    return count
+
+
+async def ensure_all_finish_buttons(bot: commands.Bot) -> int:
+    """Vérifie que chaque Freeplay terminé a bien son message + bouton
+    'Terminer la CB' ; le reposte s'il est absent. Utilisé par /cbl_setup_all."""
+    from utils.freeplay_data import FREEPLAY_ACT_DIR
+    if not os.path.exists(FREEPLAY_ACT_DIR):
+        return 0
+
+    count = 0
+    for fn in os.listdir(FREEPLAY_ACT_DIR):
+        if not fn.endswith(".json"):
+            continue
+        channel_id = int(fn[:-5])
+        data = load_freeplay_active(channel_id)
+        if not data or not data.get("finished"):
+            continue
+        channel = bot.get_channel(channel_id)
+        if not channel:
+            # Le salon a disparu sans passer par la clôture propre : on nettoie.
+            del_freeplay_active(channel_id)
+            continue
+
+        msg_id = data.get("finish_msg_id")
+        present = False
+        if msg_id:
+            try:
+                await channel.fetch_message(msg_id)
+                present = True
+            except Exception:
+                present = False
+
+        if present:
+            continue
+
+        msg = await channel.send(FINISH_CB_PROMPT, view=FinishCBView(channel_id))
+        data["finish_msg_id"] = msg.id
         save_freeplay_active(channel_id, data)
         count += 1
 
@@ -1073,10 +1225,12 @@ async def _check_rosters(bot, guild, setup: FreeplaySetup):
 
     # Sauvegarder pour le résumé post-match
     save_freeplay_active(ch_tasks.id, {
-        "channel_id":   ch_tasks.id,
-        "category_id":  setup.category_id,
-        "team_a_sigle": setup.side_a.sigle,
-        "team_b_sigle": setup.side_b.sigle,
+        "channel_id":     ch_tasks.id,
+        "category_id":    setup.category_id,
+        "team_a_sigle":   setup.side_a.sigle,
+        "team_b_sigle":   setup.side_b.sigle,
+        "captain_a_id":   ta.captain_id,
+        "captain_b_id":   tb.captain_id,
     })
 
     # Libérer la mémoire du setup
@@ -1399,6 +1553,7 @@ class Freeplay(commands.Cog):
         self.bot.loop.create_task(restore_all_freeplay_setups(self.bot))
         self.bot.loop.create_task(restore_all_fp_posts(self.bot))
         await restore_all_cancel_views(self.bot)
+        await restore_all_finish_views(self.bot)
 
 
 async def setup(bot: commands.Bot):

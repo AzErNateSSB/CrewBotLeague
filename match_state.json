@@ -1,111 +1,250 @@
 {
-  "1540789526606123018": {
-    "channel_id": 1540789526606123018,
-    "set_number": 0,
-    "state": "WAITING_RESULT",
+  "1540494710622392351": {
+    "channel_id": 1540494710622392351,
+    "set_number": 11,
+    "state": "LOSER_PICK",
     "team_a": {
-      "name": "HoJ",
-      "captain_id": 461601543121010691,
+      "name": "RC",
+      "captain_id": 1161362172664885268,
       "players": [
         {
-          "name": "HoJ | AzErNate",
-          "lives": 3,
-          "character": "",
-          "discord_id": 461601543121010691
+          "name": "RC | Mad ness ;)",
+          "lives": 0,
+          "character": "52_MiiSwordfighter",
+          "discord_id": 1161362172664885268
         },
         {
-          "name": "Lyh",
-          "lives": 3,
-          "character": "",
-          "discord_id": 1325398811119456277
+          "name": "RC | Ilan-_-",
+          "lives": 0,
+          "character": "54_Palutena",
+          "discord_id": 1288991546577911840
         },
         {
-          "name": "LT | RC | Pluck",
-          "lives": 3,
-          "character": "",
-          "discord_id": 1282934454876110868
+          "name": "RC | AxelSwitch",
+          "lives": 0,
+          "character": "64_Inkling",
+          "discord_id": 635456069984059405
         },
         {
-          "name": "HoJ | Delta",
-          "lives": 3,
-          "character": "17_Zelda",
-          "discord_id": 258217574540640256
+          "name": "Wanderer",
+          "lives": 0,
+          "character": "63_Bayonetta",
+          "discord_id": 1089479271623426133
         },
         {
-          "name": "teclord_live",
+          "name": "Rumi",
+          "lives": 0,
+          "character": "39_KingDedede",
+          "discord_id": 1536268440027795546
+        },
+        {
+          "name": "RC | Spermatron 🦍",
           "lives": 3,
           "character": "",
-          "discord_id": 442826598840795136
+          "discord_id": 831650424498946059
         }
       ],
-      "subs": []
+      "subs": [
+        {
+          "name": "Derq",
+          "lives": 0,
+          "character": "65_Ridley",
+          "discord_id": 811581202318229554
+        },
+        {
+          "name": "RC | Tek",
+          "lives": 3,
+          "character": "",
+          "discord_id": 894597808039002232
+        }
+      ]
     },
     "team_b": {
       "name": "LT",
       "captain_id": 847882608254910544,
       "players": [
         {
-          "name": "Cailloux",
-          "lives": 3,
-          "character": "",
-          "discord_id": 663342221252231180
+          "name": "bomberKILL",
+          "lives": 0,
+          "character": "08_Pikachu",
+          "discord_id": 842043813316263949
         },
         {
           "name": "Mathieu",
-          "lives": 3,
-          "character": "",
+          "lives": 0,
+          "character": "08_Pikachu",
           "discord_id": 294188051146735616
         },
         {
-          "name": "LT|ARK|Turbo",
-          "lives": 3,
-          "character": "07_Fox",
-          "discord_id": 1496562128428073202
+          "name": "TZ | Bill Wick",
+          "lives": 1,
+          "character": "82_Sora",
+          "discord_id": 877506317076541440
         },
         {
-          "name": "Yu",
-          "lives": 3,
-          "character": "",
+          "name": "Yugl0ve",
+          "lives": 0,
+          "character": "20_Falco",
           "discord_id": 763104131564830732
         },
         {
-          "name": "Mondiba",
-          "lives": 3,
-          "character": "",
-          "discord_id": 1341384704309334028
+          "name": "❥₊˚ʚ 𝕱𝖑𝖔𝖗𝖊𝖗𝖊₊➻",
+          "lives": 0,
+          "character": "71_Joker",
+          "discord_id": 858063509899051018
+        },
+        {
+          "name": "LuluX",
+          "lives": 0,
+          "character": "73_BanjoKazooie",
+          "discord_id": 431929276850241537
         }
       ],
       "subs": []
     },
     "current_a": {
-      "name": "HoJ | Delta",
-      "lives": 3,
-      "character": "17_Zelda",
-      "discord_id": 258217574540640256
+      "name": "Rumi",
+      "lives": 0,
+      "character": "39_KingDedede",
+      "discord_id": 1536268440027795546
     },
     "current_b": {
-      "name": "LT|ARK|Turbo",
-      "lives": 3,
-      "character": "07_Fox",
-      "discord_id": 1496562128428073202
+      "name": "TZ | Bill Wick",
+      "lives": 1,
+      "character": "82_Sora",
+      "discord_id": 877506317076541440
     },
     "picked_a": true,
     "picked_b": true,
-    "banned_stages": [
-      "Town and City",
-      "Smashville",
-      "Kalos Pokémon League",
-      "Yoshi's Story",
-      "Small Battlefield",
-      "Battlefield",
-      "Final Destination"
-    ],
-    "picked_stage": "Pokémon Stadium 2",
+    "banned_stages": [],
+    "picked_stage": null,
     "first_banner": "B",
-    "picker": "B",
+    "picker": "A",
     "pending_char": null,
     "pending_side": null,
-    "log_row": 294,
-    "set_history": []
+    "log_row": 302,
+    "set_history": [
+      {
+        "player_a": "Derq",
+        "char_a": "65_Ridley",
+        "player_b": "Mathieu",
+        "char_b": "08_Pikachu",
+        "score_a": 0,
+        "score_b": 3,
+        "stage": "Small Battlefield",
+        "lives_a_after": 0,
+        "lives_b_after": 3
+      },
+      {
+        "player_a": "Wanderer",
+        "char_a": "63_Bayonetta",
+        "player_b": "Mathieu",
+        "char_b": "08_Pikachu",
+        "score_a": 3,
+        "score_b": 2,
+        "stage": "Small Battlefield",
+        "lives_a_after": 1,
+        "lives_b_after": 0
+      },
+      {
+        "player_a": "Wanderer",
+        "char_a": "63_Bayonetta",
+        "player_b": "LuluX",
+        "char_b": "73_BanjoKazooie",
+        "score_a": 2,
+        "score_b": 1,
+        "stage": "Pokémon Stadium 2",
+        "lives_a_after": 0,
+        "lives_b_after": 1
+      },
+      {
+        "player_a": "RC | Ilan-_-",
+        "char_a": "54_Palutena",
+        "player_b": "LuluX",
+        "char_b": "73_BanjoKazooie",
+        "score_a": 1,
+        "score_b": 1,
+        "stage": "Battlefield",
+        "lives_a_after": 2,
+        "lives_b_after": 0
+      },
+      {
+        "player_a": "RC | Ilan-_-",
+        "char_a": "54_Palutena",
+        "player_b": "❥₊˚ʚ 𝕱𝖑𝖔𝖗𝖊𝖗𝖊₊➻",
+        "char_b": "71_Joker",
+        "score_a": 3,
+        "score_b": 1,
+        "stage": "Small Battlefield",
+        "lives_a_after": 1,
+        "lives_b_after": 0
+      },
+      {
+        "player_a": "RC | Ilan-_-",
+        "char_a": "54_Palutena",
+        "player_b": "Yugl0ve",
+        "char_b": "20_Falco",
+        "score_a": 0,
+        "score_b": 1,
+        "stage": "Kalos Pokémon League",
+        "lives_a_after": 0,
+        "lives_b_after": 3
+      },
+      {
+        "player_a": "RC | Mad ness ;)",
+        "char_a": "52_MiiSwordfighter",
+        "player_b": "Yugl0ve",
+        "char_b": "20_Falco",
+        "score_a": 3,
+        "score_b": 1,
+        "stage": "Pokémon Stadium 2",
+        "lives_a_after": 2,
+        "lives_b_after": 0
+      },
+      {
+        "player_a": "RC | Mad ness ;)",
+        "char_a": "52_MiiSwordfighter",
+        "player_b": "bomberKILL",
+        "char_b": "08_Pikachu",
+        "score_a": 1,
+        "score_b": 2,
+        "stage": "Small Battlefield",
+        "lives_a_after": 0,
+        "lives_b_after": 2
+      },
+      {
+        "player_a": "RC | AxelSwitch",
+        "char_a": "64_Inkling",
+        "player_b": "bomberKILL",
+        "char_b": "08_Pikachu",
+        "score_a": 2,
+        "score_b": 2,
+        "stage": "Small Battlefield",
+        "lives_a_after": 1,
+        "lives_b_after": 0
+      },
+      {
+        "player_a": "RC | AxelSwitch",
+        "char_a": "64_Inkling",
+        "player_b": "TZ | Bill Wick",
+        "char_b": "82_Sora",
+        "score_a": 0,
+        "score_b": 1,
+        "stage": "Battlefield",
+        "lives_a_after": 0,
+        "lives_b_after": 3
+      },
+      {
+        "player_a": "Rumi",
+        "char_a": "39_KingDedede",
+        "player_b": "TZ | Bill Wick",
+        "char_b": "82_Sora",
+        "score_a": 2,
+        "score_b": 3,
+        "stage": "Smashville",
+        "lives_a_after": 0,
+        "lives_b_after": 1
+      }
+    ]
   }
 }

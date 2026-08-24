@@ -3,5 +3,8 @@
   "name": "Mathieu",
   "team": "LT",
   "stats_thread_id": 1536050286638927949,
-  "stats": {}
+  "stats": {
+    "cb_joues": 5,
+    "stocks_pris": 14
+  }
 }
