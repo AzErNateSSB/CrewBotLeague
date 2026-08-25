@@ -214,21 +214,6 @@ class Team:
 
 
 @dataclass
-class PendingLineup:
-    team_name: str
-    captain_id: int
-    players: list[Player]
-    subs: list[Player]
-
-
-@dataclass
-class PendingSetup:
-    nb_players: int
-    nb_subs: int
-    lineups: list[PendingLineup] = field(default_factory=list)
-
-
-@dataclass
 class Match:
     team_a: Team
     team_b: Team
@@ -248,11 +233,9 @@ class Match:
 
 
 active_matches: dict[int, Match] = {}
-pending_setups: dict[int, PendingSetup] = {}
 _bot_ref: Optional[commands.Bot] = None
 
 SAVE_FILE = "match_state.json"
-PENDING_SETUPS_FILE = "pending_setups.json"
 
 # ---------------------------------------------------------------------------
 # Persistance des matchs
@@ -339,59 +322,6 @@ def _load_matches_from_file() -> dict[int, "Match"]:
         return {int(ch): _match_from_dict(m) for ch, m in data.items()}
     except Exception as e:
         print(f"[WARN] load_matches: {e}")
-        return {}
-
-# ---------------------------------------------------------------------------
-# Persistance des configurations de match en attente (pending_setups)
-# ---------------------------------------------------------------------------
-
-def _pending_lineup_to_dict(lu: "PendingLineup") -> dict:
-    return {
-        "team_name":   lu.team_name,
-        "captain_id":  lu.captain_id,
-        "players":     [_player_to_dict(p) for p in lu.players],
-        "subs":        [_player_to_dict(p) for p in lu.subs],
-    }
-
-def _pending_lineup_from_dict(d: dict) -> "PendingLineup":
-    return PendingLineup(
-        team_name  =d["team_name"],
-        captain_id =d["captain_id"],
-        players    =[_player_from_dict(p) for p in d["players"]],
-        subs       =[_player_from_dict(p) for p in d["subs"]],
-    )
-
-def _pending_setup_to_dict(s: "PendingSetup") -> dict:
-    return {
-        "nb_players": s.nb_players,
-        "nb_subs":    s.nb_subs,
-        "lineups":    [_pending_lineup_to_dict(lu) for lu in s.lineups],
-    }
-
-def _pending_setup_from_dict(d: dict) -> "PendingSetup":
-    return PendingSetup(
-        nb_players=d["nb_players"],
-        nb_subs   =d["nb_subs"],
-        lineups   =[_pending_lineup_from_dict(lu) for lu in d["lineups"]],
-    )
-
-def save_pending_setups():
-    try:
-        data = {str(ch): _pending_setup_to_dict(s) for ch, s in pending_setups.items()}
-        with open(PENDING_SETUPS_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"[WARN] save_pending_setups: {e}")
-
-def _load_pending_setups_from_file() -> dict[int, "PendingSetup"]:
-    if not os.path.exists(PENDING_SETUPS_FILE):
-        return {}
-    try:
-        with open(PENDING_SETUPS_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return {int(ch): _pending_setup_from_dict(s) for ch, s in data.items()}
-    except Exception as e:
-        print(f"[WARN] load_pending_setups: {e}")
         return {}
 
 async def _restore_match_view(bot: commands.Bot, match: "Match"):
@@ -1313,260 +1243,6 @@ async def end_crewbattle(channel: discord.TextChannel, match: Match):
 # Commands
 # ---------------------------------------------------------------------------
 
-@app_commands.command(name="cbl_uniquematch_new", description="Crée un salon privé pour un match entre deux équipes")
-@app_commands.describe(
-    equipe1="Rôle de l'équipe 1",
-    equipe2="Rôle de l'équipe 2",
-)
-async def cbl_uniquematch_new(
-    interaction: discord.Interaction,
-    equipe1: discord.Role,
-    equipe2: discord.Role,
-):
-    guild = interaction.guild
-    category = interaction.channel.category
-
-    def clean(name: str) -> str:
-        return name.lower().replace(" ", "-")
-
-    channel_name = f"〔{clean(equipe1.name)}〕vs〔{clean(equipe2.name)}〕"
-
-    overwrites = {
-        guild.default_role: discord.PermissionOverwrite(view_channel=False),
-        equipe1: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
-        equipe2: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
-        guild.me:  discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
-    }
-
-    try:
-        channel = await guild.create_text_channel(
-            name=channel_name,
-            category=category,
-            overwrites=overwrites,
-        )
-        await interaction.response.send_message(f"✅ Salon {channel.mention} créé !", ephemeral=True)
-    except Exception as e:
-        await interaction.response.send_message(f"❌ Erreur lors de la création du salon : {e}", ephemeral=True)
-
-
-@app_commands.command(name="cbl_uniquematch_setup", description="Prépare un match hors-événement dans ce salon")
-@app_commands.describe(roster="Nombre de joueurs + remplaçants (ex: 5+2 ou 7+3)")
-async def cbl_uniquematch_setup(interaction: discord.Interaction, roster: str = "5+2"):
-    channel_id = interaction.channel_id
-    if channel_id in active_matches:
-        await interaction.response.send_message("❌ Une CrewBattle est déjà en cours dans ce salon.", ephemeral=True)
-        return
-    if channel_id in pending_setups:
-        await interaction.response.send_message("❌ Un match est déjà en cours de configuration dans ce salon.", ephemeral=True)
-        return
-
-    try:
-        parts = roster.strip().split("+")
-        if len(parts) != 2:
-            raise ValueError
-        nb_players, nb_subs = int(parts[0].strip()), int(parts[1].strip())
-        if nb_players < 1 or nb_subs < 0 or nb_players > 8 or nb_subs > 3:
-            raise ValueError
-    except ValueError:
-        await interaction.response.send_message(
-            "❌ Format invalide. Utilisez `N+M` (ex: `5+2`). Maximum : 8 joueurs + 3 remplaçants.",
-            ephemeral=True,
-        )
-        return
-
-    pending_setups[channel_id] = PendingSetup(nb_players=nb_players, nb_subs=nb_subs)
-    save_pending_setups()
-    await interaction.response.send_message(
-        f"Match configuré ({nb_players} joueurs + {nb_subs} remplaçants), en attente des LineUp :\n"
-        "Pour envoyer votre LineUp, faites `/cbl_uniquematch_addteam`"
-    )
-
-
-@app_commands.command(name="cbl_uniquematch_addteam", description="Envoie la LineUp de votre équipe")
-@app_commands.describe(
-    team_name="Nom de l'équipe",
-    leader="Leader de l'équipe",
-    joueur1="Joueur 1 (obligatoire)",
-    joueur2="Joueur 2", joueur3="Joueur 3", joueur4="Joueur 4",
-    joueur5="Joueur 5", joueur6="Joueur 6", joueur7="Joueur 7", joueur8="Joueur 8",
-    remplacant1="Remplaçant 1", remplacant2="Remplaçant 2", remplacant3="Remplaçant 3",
-)
-async def cbl_uniquematch_addteam(
-    interaction: discord.Interaction,
-    team_name: str,
-    leader: discord.Member,
-    joueur1: discord.Member,
-    joueur2: Optional[discord.Member] = None,
-    joueur3: Optional[discord.Member] = None,
-    joueur4: Optional[discord.Member] = None,
-    joueur5: Optional[discord.Member] = None,
-    joueur6: Optional[discord.Member] = None,
-    joueur7: Optional[discord.Member] = None,
-    joueur8: Optional[discord.Member] = None,
-    remplacant1: Optional[discord.Member] = None,
-    remplacant2: Optional[discord.Member] = None,
-    remplacant3: Optional[discord.Member] = None,
-):
-    channel_id = interaction.channel_id
-    setup = pending_setups.get(channel_id)
-    if setup is None:
-        await interaction.response.send_message(
-            "❌ Aucun match en attente dans ce salon. Faites d'abord `/cbl_uniquematch_setup`.", ephemeral=True
-        )
-        return
-    if len(setup.lineups) >= 2:
-        await interaction.response.send_message("❌ Les deux LineUp ont déjà été envoyées.", ephemeral=True)
-        return
-
-    provided = [m for m in (joueur1, joueur2, joueur3, joueur4, joueur5, joueur6, joueur7, joueur8) if m is not None]
-    if len(provided) != setup.nb_players:
-        await interaction.response.send_message(
-            f"❌ Il faut exactement {setup.nb_players} joueur(s) (reçu : {len(provided)}).", ephemeral=True
-        )
-        return
-
-    provided_subs = [m for m in (remplacant1, remplacant2, remplacant3) if m is not None]
-    if len(provided_subs) > setup.nb_subs:
-        await interaction.response.send_message(
-            f"❌ Maximum {setup.nb_subs} remplaçant(s) pour ce match.", ephemeral=True
-        )
-        return
-
-    players = [Player(name=m.display_name, discord_id=m.id) for m in provided]
-    subs    = [Player(name=m.display_name, discord_id=m.id) for m in provided_subs]
-
-    setup.lineups.append(PendingLineup(team_name=team_name, captain_id=leader.id, players=players, subs=subs))
-    save_pending_setups()
-
-    if len(setup.lineups) == 1:
-        await interaction.response.send_message("Une LineUp a été envoyée, en attente de la LineUp adverse !")
-    else:
-        await interaction.response.send_message(
-            "Les LineUp des 2 Equipes ont été envoyées, faites `/cbl_start` pour lancer le match !"
-        )
-
-
-@app_commands.command(name="cbl_start", description="Lance la CrewBattle configurée dans ce salon")
-async def cbl_start(interaction: discord.Interaction):
-    channel_id = interaction.channel_id
-    if channel_id in active_matches:
-        await interaction.response.send_message("❌ Une CrewBattle est déjà en cours sur ce salon.", ephemeral=True)
-        return
-
-    setup = pending_setups.get(channel_id)
-    if not setup or len(setup.lineups) < 2:
-        await interaction.response.send_message(
-            "❌ Les LineUp ne sont pas complètes. Utilisez `/cbl_uniquematch_addteam`.", ephemeral=True
-        )
-        return
-
-    del pending_setups[channel_id]
-    save_pending_setups()
-
-    lu_a, lu_b = setup.lineups[0], setup.lineups[1]
-    guild = interaction.guild
-    cap_a = guild.get_member(lu_a.captain_id)
-    cap_b = guild.get_member(lu_b.captain_id)
-
-    ta = Team(name=lu_a.team_name, captain_id=lu_a.captain_id, players=lu_a.players, subs=lu_a.subs)
-    tb = Team(name=lu_b.team_name, captain_id=lu_b.captain_id, players=lu_b.players, subs=lu_b.subs)
-    match = Match(team_a=ta, team_b=tb, channel_id=channel_id)
-    active_matches[channel_id] = match
-
-    match.log_row = await log_command(
-        interaction.user.display_name,
-        f"cbl_start **{ta.name}** vs **{tb.name}**",
-        "In Progress",
-        f"CrewBattle **{ta.name}** vs **{tb.name}** lancée",
-    )
-
-    cap_a_name = cap_a.display_name if cap_a else f"<@{lu_a.captain_id}>"
-    cap_b_name = cap_b.display_name if cap_b else f"<@{lu_b.captain_id}>"
-    cap_a_mention = cap_a.mention if cap_a else f"<@{lu_a.captain_id}>"
-    cap_b_mention = cap_b.mention if cap_b else f"<@{lu_b.captain_id}>"
-
-    def team_field_value(team: Team) -> str:
-        lines = [f"• {p.name}" for p in team.players]
-        if team.subs:
-            lines.append(f"*Remplaçants : {', '.join(p.name for p in team.subs)}*")
-        return "\n".join(lines)
-
-    embed = discord.Embed(title="⚔️ CrewBattle lancée !", color=discord.Color.blue())
-    embed.add_field(name=f"{ta.name}  (cap. {cap_a_name})", value=team_field_value(ta), inline=True)
-    embed.add_field(name=f"{tb.name}  (cap. {cap_b_name})", value=team_field_value(tb), inline=True)
-    embed.add_field(name="Vies de départ", value=f"`{ta.total_lives}` — `{tb.total_lives}`", inline=False)
-
-    await interaction.response.send_message(embed=embed)
-    try:
-        announcement = await interaction.original_response()
-        await announcement.pin()
-    except Exception:
-        pass
-
-    save_matches()
-
-    view = FirstPickView(match=match)
-    msg = await interaction.channel.send(
-        f"📢 {cap_a_mention} ({ta.name}) et {cap_b_mention} ({tb.name}), choisissez votre premier joueur !",
-        view=view,
-    )
-    view.message = msg
-
-
-@app_commands.command(name="cbl_status", description="Affiche l'état actuel de la CrewBattle")
-async def cbl_status(interaction: discord.Interaction):
-    match = active_matches.get(interaction.channel_id)
-    if not match:
-        await interaction.response.send_message("❌ Aucune CrewBattle en cours.", ephemeral=True)
-        return
-
-    guild = interaction.guild
-    embed = discord.Embed(title="📊 État de la CrewBattle", color=discord.Color.blurple())
-    embed.add_field(
-        name="Score global",
-        value=f"**{match.team_a.name}** `{match.team_a.total_lives}` — `{match.team_b.total_lives}` **{match.team_b.name}**",
-        inline=False,
-    )
-
-    def team_field(team: Team, current: Optional[Player]) -> str:
-        lines = []
-        for p in team.players:
-            if p == current:
-                lines.append(f"▶️ **{p.name}** ({p.lives}♥) ← en jeu")
-            elif p.lives > 0:
-                lines.append(f"⏳ {p.name} ({p.lives}♥)")
-            else:
-                lines.append(f"💀 ~~{p.name}~~")
-        return "\n".join(lines)
-
-    embed.add_field(name=match.team_a.name, value=team_field(match.team_a, match.current_a), inline=True)
-    embed.add_field(name=match.team_b.name, value=team_field(match.team_b, match.current_b), inline=True)
-
-    if match.set_history:
-        lines = build_history_lines(match, guild)
-        history_text = "\n".join(lines)
-        if len(history_text) > 1024:
-            history_text = history_text[-1021:].split("\n", 1)[-1]
-            history_text = "…\n" + history_text
-        embed.add_field(name="Historique", value=history_text, inline=False)
-
-    await interaction.response.send_message(embed=embed, ephemeral=True)
-
-
-@app_commands.command(name="cbl_stop", description="Annule la CrewBattle en cours")
-async def cbl_stop(interaction: discord.Interaction):
-    if interaction.channel_id not in active_matches:
-        await interaction.response.send_message("❌ Aucune CrewBattle en cours.", ephemeral=True)
-        return
-    match = active_matches.pop(interaction.channel_id)
-    save_matches()
-    await update_log(match.log_row, "Canceled",
-                     f"CrewBattle annulée par **{interaction.user.display_name}**")
-    await log_command(interaction.user.display_name, "cbl_stop", "Completed",
-                      f"CrewBattle **{match.team_a.name}** vs **{match.team_b.name}** annulée")
-    await interaction.response.send_message("🛑 CrewBattle annulée.")
-
-
 @app_commands.command(name="cbl_force_score", description="[ADMIN] Saisie manuelle du score du set en cours")
 @app_commands.describe(
     vies_prises_a=f"Vies prises par le joueur A",
@@ -1706,93 +1382,20 @@ class MatchControlView(discord.ui.View):
         self.add_item(status_btn)
 
     async def _start(self, interaction: discord.Interaction):
-        channel_id = interaction.channel_id
-        if channel_id in active_matches:
+        if interaction.channel_id in active_matches:
             await interaction.response.send_message(
                 "❌ Une CrewBattle est déjà en cours sur ce salon.", ephemeral=True
             )
             return
-
-        setup = pending_setups.get(channel_id)
-        if not setup or len(setup.lineups) < 2:
-            await interaction.response.send_message(
-                "❌ Les LineUp ne sont pas complètes. "
-                "Utilisez `/cbl_uniquematch_addteam` pour envoyer les deux LineUp.",
-                ephemeral=True,
-            )
-            return
-
-        del pending_setups[channel_id]
-        save_pending_setups()
-
-        lu_a, lu_b = setup.lineups[0], setup.lineups[1]
-        guild  = interaction.guild
-        cap_a  = guild.get_member(lu_a.captain_id)
-        cap_b  = guild.get_member(lu_b.captain_id)
-
-        ta = Team(name=lu_a.team_name, captain_id=lu_a.captain_id, players=lu_a.players, subs=lu_a.subs)
-        tb = Team(name=lu_b.team_name, captain_id=lu_b.captain_id, players=lu_b.players, subs=lu_b.subs)
-        match = Match(team_a=ta, team_b=tb, channel_id=channel_id)
-        active_matches[channel_id] = match
-
-        match.log_row = await log_command(
-            interaction.user.display_name,
-            f"match_start **{ta.name}** vs **{tb.name}**",
-            "In Progress",
-            f"CrewBattle **{ta.name}** vs **{tb.name}** lancée",
+        await interaction.response.send_message(
+            "❌ Le lancement manuel d'une CrewBattle depuis ce salon n'est plus disponible.",
+            ephemeral=True,
         )
-
-        cap_a_name    = cap_a.display_name    if cap_a else f"<@{lu_a.captain_id}>"
-        cap_a_mention = cap_a.mention         if cap_a else f"<@{lu_a.captain_id}>"
-        cap_b_name    = cap_b.display_name    if cap_b else f"<@{lu_b.captain_id}>"
-        cap_b_mention = cap_b.mention         if cap_b else f"<@{lu_b.captain_id}>"
-
-        def team_field_value(team: Team) -> str:
-            lines = [f"• {p.name}" for p in team.players]
-            if team.subs:
-                lines.append(f"*Remplaçants : {', '.join(p.name for p in team.subs)}*")
-            return "\n".join(lines)
-
-        embed = discord.Embed(title="⚔️ CrewBattle lancée !", color=discord.Color.blue())
-        embed.add_field(name=f"{ta.name}  (cap. {cap_a_name})", value=team_field_value(ta), inline=True)
-        embed.add_field(name=f"{tb.name}  (cap. {cap_b_name})", value=team_field_value(tb), inline=True)
-        embed.add_field(name="Vies de départ", value=f"`{ta.total_lives}` — `{tb.total_lives}`", inline=False)
-
-        await interaction.response.send_message(embed=embed)
-        try:
-            announcement = await interaction.original_response()
-            await announcement.pin()
-        except Exception:
-            pass
-
-        save_matches()
-
-        view = FirstPickView(match=match)
-        msg = await interaction.channel.send(
-            f"📢 {cap_a_mention} ({ta.name}) et {cap_b_mention} ({tb.name}), "
-            f"choisissez votre premier joueur !",
-            view=view,
-        )
-        view.message = msg
 
     async def _status(self, interaction: discord.Interaction):
         match = active_matches.get(interaction.channel_id)
         if not match:
-            # Vérifier si un setup est en attente
-            setup = pending_setups.get(interaction.channel_id)
-            if setup:
-                lines = [f"⏳ Configuration en attente — {setup.nb_players}+{setup.nb_subs}"]
-                for lu in setup.lineups:
-                    lines.append(f"• **{lu.team_name}** : {len(lu.players)} joueur(s)")
-                await interaction.response.send_message(
-                    "\n".join(lines), ephemeral=True
-                )
-            else:
-                await interaction.response.send_message(
-                    "ℹ️ Aucune CrewBattle en cours. "
-                    "Utilisez `/cbl_uniquematch_setup` puis `/cbl_uniquematch_addteam`.",
-                    ephemeral=True,
-                )
+            await interaction.response.send_message("ℹ️ Aucune CrewBattle en cours.", ephemeral=True)
             return
 
         guild = interaction.guild
@@ -1859,17 +1462,10 @@ class CrewBattle(commands.Cog):
         self.bot = bot
 
     async def cog_load(self):
-        global _bot_ref, pending_setups
+        global _bot_ref
         _bot_ref = self.bot
-        pending_setups.update(_load_pending_setups_from_file())
         self.bot.loop.create_task(restore_all_matches(self.bot))
         self.bot.add_view(MatchControlView())
-        self.bot.tree.add_command(cbl_uniquematch_new)
-        self.bot.tree.add_command(cbl_uniquematch_setup)
-        self.bot.tree.add_command(cbl_uniquematch_addteam)
-        self.bot.tree.add_command(cbl_start)
-        self.bot.tree.add_command(cbl_status)
-        self.bot.tree.add_command(cbl_stop)
         self.bot.tree.add_command(cbl_force_score)
 
 

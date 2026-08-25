@@ -1,7 +1,9 @@
 {
   "discord_id": 1498971426995175464,
   "name": "SSL | Knight",
-  "team": "SSL",
-  "stats_thread_id": 1536050665862856729,
-  "stats": {}
+  "team": "MST",
+  "stats": {
+    "main": "Yoshi / marie"
+  },
+  "stats_thread_id": 1541593743390416987
 }

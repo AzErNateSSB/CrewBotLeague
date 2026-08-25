@@ -392,9 +392,7 @@ class StartSeasonView(discord.ui.View):
                         })
                         from cogs.crewbattle import MatchControlView
                         await ch.send(
-                            f"⚔️ **{home}** vs **{away}** — Journée {ji} | **{lg}** — Saison {season['name']}\n"
-                            f"Utilisez `/cbl_uniquematch_setup` puis `/cbl_uniquematch_addteam` (×2), "
-                            f"ensuite lancez le match avec le bouton ci-dessous.",
+                            f"⚔️ **{home}** vs **{away}** — Journée {ji} | **{lg}** — Saison {season['name']}",
                             view=MatchControlView(),
                         )
                         nb_channels += 1

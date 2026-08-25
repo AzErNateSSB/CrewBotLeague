@@ -404,9 +404,7 @@ async def cbl_admin_start_season(interaction: discord.Interaction, saison: str):
                     # Message d'accueil dans le salon
                     from cogs.crewbattle import MatchControlView
                     await ch.send(
-                        f"⚔️ **{home}** vs **{away}** — Journée {ji} | **{lg}** — Saison {saison}\n"
-                        f"Utilisez `/cbl_uniquematch_setup` puis `/cbl_uniquematch_addteam` (×2), "
-                        f"ensuite lancez le match avec le bouton ci-dessous.",
+                        f"⚔️ **{home}** vs **{away}** — Journée {ji} | **{lg}** — Saison {saison}",
                         view=MatchControlView(),
                     )
                     nb_channels += 1
