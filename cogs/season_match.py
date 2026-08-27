@@ -436,18 +436,205 @@ class SeasonReadyView(discord.ui.View):
 
 
 async def _launch_season_match(bot, guild: discord.Guild, thread_id: int):
-    """Les 2 équipes sont prêtes. Le lancement réel du moteur de match (étape 3)
-    n'est pas encore branché ; on se contente de le signaler pour l'instant."""
+    """Les 2 équipes sont prêtes : demande la composition (roster actif) de
+    chaque équipe dans son propre salon tasks. Simplification par rapport au
+    Freeplay : pas de négociation du nombre de joueurs/remplaçants, le nombre
+    de joueurs sélectionnés devient directement l'effectif actif."""
+    from cogs.teams import load_team
+
     data = load_season_match(thread_id)
     if not data:
         return
+
     home_ch, away_ch = await _tasks_channels(guild, data)
-    for ch in (home_ch, away_ch):
-        if ch:
-            try:
-                await ch.send("🚀 Les deux équipes sont prêtes ! (Lancement de la CB — à venir à l'étape 3)")
-            except Exception:
-                pass
+    home_team = load_team(data["home_sigle"])
+    away_team = load_team(data["away_sigle"])
+    if not home_team or not away_team or not home_ch or not away_ch:
+        return
+
+    data["roster_home"] = None
+    data["roster_away"] = None
+    save_season_match(thread_id, data)
+
+    for side, team, ch in (("home", home_team, home_ch), ("away", away_team, away_ch)):
+        options = []
+        for mid in team.get("members", [])[:25]:
+            member = guild.get_member(mid)
+            options.append(discord.SelectOption(
+                label=(member.display_name if member else str(mid))[:100], value=str(mid),
+            ))
+        if not options:
+            continue
+        view = SeasonRosterSelectView(thread_id, side, options)
+        try:
+            msg = await ch.send(
+                f"🎮 **{team['sigle']}** — sélectionnez vos joueurs actifs pour ce match :",
+                view=view,
+            )
+            view.message = msg
+        except Exception:
+            pass
+
+    thread = guild.get_thread(thread_id)
+    if not thread:
+        try:
+            thread = await guild.fetch_channel(thread_id)
+        except Exception:
+            thread = None
+    if thread and thread.name and thread.name[0] == "🔴":
+        try:
+            await thread.edit(name="🟠" + thread.name[1:])
+        except Exception:
+            pass
+
+
+class SeasonRosterSelectView(discord.ui.View):
+    """Sélection (menu déroulant) des joueurs actifs d'une équipe. Réservé au
+    leader. Pas de négociation de nombre/remplaçants comme en Freeplay : le
+    nombre de joueurs sélectionnés devient l'effectif actif."""
+
+    def __init__(self, thread_id: int, side: str, options: list[discord.SelectOption]):
+        super().__init__(timeout=None)
+        self.thread_id = thread_id
+        self.side = side
+        self.message: Optional[discord.Message] = None
+        self._selected: list[str] = []
+
+        select = discord.ui.Select(
+            placeholder="Sélectionne tes joueurs actifs...",
+            min_values=1, max_values=min(len(options), 8),
+            options=options,
+        )
+        select.callback = self._on_select
+        self.add_item(select)
+
+        confirm = discord.ui.Button(label="✅ Valider la composition", style=discord.ButtonStyle.success)
+        confirm.callback = self._confirm
+        self.add_item(confirm)
+
+    def _sigle(self) -> str:
+        data = load_season_match(self.thread_id) or {}
+        return data.get(f"{self.side}_sigle", "")
+
+    async def _on_select(self, interaction: discord.Interaction):
+        if interaction.user.id != _leader_id(self._sigle()):
+            await interaction.response.send_message("❌ Seul le leader peut composer l'équipe.", ephemeral=True)
+            return
+        self._selected = interaction.data["values"]
+        await interaction.response.defer()
+
+    async def _confirm(self, interaction: discord.Interaction):
+        if interaction.user.id != _leader_id(self._sigle()):
+            await interaction.response.send_message("❌ Seul le leader peut composer l'équipe.", ephemeral=True)
+            return
+        if not self._selected:
+            await interaction.response.send_message("❌ Sélectionne au moins un joueur.", ephemeral=True)
+            return
+
+        data = load_season_match(self.thread_id)
+        if not data or data.get(f"roster_{self.side}"):
+            await interaction.response.send_message("❌ Composition déjà envoyée.", ephemeral=True)
+            return
+
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(view=self)
+
+        data[f"roster_{self.side}"] = self._selected
+        save_season_match(self.thread_id, data)
+
+        if data.get("roster_home") and data.get("roster_away"):
+            await _start_match_engine(interaction.client, interaction.guild, self.thread_id)
+
+
+async def _start_match_engine(bot, guild: discord.Guild, thread_id: int):
+    """Construit le Match/Team crewbattle et lance le premier choix de joueur,
+    un côté par salon tasks (voir SeasonFirstPickView)."""
+    from cogs.crewbattle import Team, Match, Player, active_matches, save_matches
+    from cogs.teams import load_team
+    from utils.sheets_log import log_command
+
+    data = load_season_match(thread_id)
+    if not data:
+        return
+
+    home_ch, away_ch = await _tasks_channels(guild, data)
+    home_team_data = load_team(data["home_sigle"])
+    away_team_data = load_team(data["away_sigle"])
+    if not home_team_data or not away_team_data:
+        return
+
+    def build_players(ids: list[str]) -> list["Player"]:
+        players = []
+        for pid_str in ids:
+            pid = int(pid_str)
+            m = guild.get_member(pid)
+            players.append(Player(name=m.display_name if m else str(pid), discord_id=pid))
+        return players
+
+    ta = Team(name=data["home_sigle"], captain_id=home_team_data["leader_id"],
+              players=build_players(data["roster_home"]))
+    tb = Team(name=data["away_sigle"], captain_id=away_team_data["leader_id"],
+              players=build_players(data["roster_away"]))
+
+    match = Match(
+        team_a=ta, team_b=tb, channel_id=thread_id,
+        channel_a_id=home_ch.id if home_ch else None,
+        channel_b_id=away_ch.id if away_ch else None,
+    )
+    active_matches[thread_id] = match
+
+    match.log_row = await log_command(
+        "Saison", f"season_match **{ta.name}** vs **{tb.name}**", "In Progress",
+        f"CB de saison {ta.name} vs {tb.name} (thread {thread_id})",
+    )
+    save_matches()
+
+    view_a = SeasonFirstPickView(match, "A", ta.name)
+    view_b = SeasonFirstPickView(match, "B", tb.name)
+    if home_ch:
+        view_a.message = await home_ch.send("📢 Choisissez votre premier joueur !", view=view_a)
+    if away_ch:
+        view_b.message = await away_ch.send("📢 Choisissez votre premier joueur !", view=view_b)
+
+
+class SeasonFirstPickView(discord.ui.View):
+    """Équivalent de FirstPickView (crewbattle.py), mais pour un salon dédié à
+    une seule équipe (salons tasks séparés en saison)."""
+
+    def __init__(self, match, side: str, team_name: str):
+        super().__init__(timeout=None)
+        self.match = match
+        self.side = side
+        self.message: Optional[discord.Message] = None
+
+        btn = discord.ui.Button(label=f"⚔️ {team_name} — Choisir votre joueur", style=discord.ButtonStyle.primary)
+        btn.callback = self._pick
+        self.add_item(btn)
+
+        # CharacterSelectView (mode="first") s'attend à parent_view.btn_a / .btn_b.
+        if side == "A":
+            self.btn_a, self.btn_b = btn, discord.ui.Button()
+        else:
+            self.btn_b, self.btn_a = btn, discord.ui.Button()
+
+    async def _pick(self, interaction: discord.Interaction):
+        from cogs.crewbattle import is_authorized, PlayerSelectView
+
+        team = self.match.team_a if self.side == "A" else self.match.team_b
+        if not is_authorized(interaction.user.id, team.captain_id):
+            await interaction.response.send_message("❌ Seul le leader peut agir ici.", ephemeral=True)
+            return
+        already = self.match.picked_a if self.side == "A" else self.match.picked_b
+        if already:
+            await interaction.response.send_message("✅ Joueur déjà soumis.", ephemeral=True)
+            return
+
+        view = PlayerSelectView(self.match, self.side, self, team.all_players, mode="first")
+        await interaction.response.send_message(
+            f"**{team.name}** — Quel joueur envoyer ?", view=view, ephemeral=True,
+        )
+        view.message = await interaction.original_response()
 
 # ---------------------------------------------------------------------------
 # Reprise après redémarrage du bot

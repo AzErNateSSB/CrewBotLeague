@@ -218,6 +218,11 @@ class Match:
     team_a: Team
     team_b: Team
     channel_id: int
+    # Si renseignés (matchs de saison) : salon "tasks" dédié à chaque équipe.
+    # Le côté qui agit reçoit le bouton, l'autre reçoit un résumé en lecture
+    # seule. Si absents (Freeplay / match unique), tout passe par channel_id.
+    channel_a_id: Optional[int] = None
+    channel_b_id: Optional[int] = None
     set_number: int = 0
     state: State = State.FIRST_PICK
     current_a: Optional[Player] = None
@@ -264,6 +269,8 @@ def _team_from_dict(d: dict) -> "Team":
 def _match_to_dict(m: "Match") -> dict:
     return {
         "channel_id":   m.channel_id,
+        "channel_a_id": m.channel_a_id,
+        "channel_b_id": m.channel_b_id,
         "set_number":   m.set_number,
         "state":        m.state.name,
         "team_a":       _team_to_dict(m.team_a),
@@ -291,6 +298,8 @@ def _match_from_dict(d: dict) -> "Match":
         team_a      =_team_from_dict(d["team_a"]),
         team_b      =_team_from_dict(d["team_b"]),
         channel_id  =d["channel_id"],
+        channel_a_id=d.get("channel_a_id"),
+        channel_b_id=d.get("channel_b_id"),
         set_number  =d["set_number"],
         state       =State[d["state"]],
         current_a   =_player_from_dict(d["current_a"]) if d.get("current_a") else None,
@@ -325,47 +334,110 @@ def _load_matches_from_file() -> dict[int, "Match"]:
         return {}
 
 async def _restore_match_view(bot: commands.Bot, match: "Match"):
-    """Envoie la bonne vue dans le salon en fonction de l'état sauvegardé."""
+    """Envoie la bonne vue dans le(s) salon(s) en fonction de l'état sauvegardé."""
     channel = bot.get_channel(match.channel_id)
-    if not channel:
+    guild = getattr(channel, "guild", None) or (bot.guilds[0] if bot.guilds else None)
+    if not channel and not _is_dual_channel(match):
         return
-    guild = getattr(channel, "guild", None)
     state = match.state
 
-    await channel.send("🔄 **Match en cours repris après redémarrage.**")
+    if channel:
+        await channel.send("🔄 **Match en cours repris après redémarrage.**")
 
     if state == State.FIRST_PICK:
-        cap_a = guild.get_member(match.team_a.captain_id) if guild else None
-        cap_b = guild.get_member(match.team_b.captain_id) if guild else None
-        view = FirstPickView(match=match)
-        msg = await channel.send(
-            f"📢 {cap_a.mention if cap_a else ''} ({match.team_a.name}) "
-            f"et {cap_b.mention if cap_b else ''} ({match.team_b.name}), choisissez votre premier joueur !",
-            view=view,
-        )
-        view.message = msg
+        if _is_dual_channel(match):
+            from cogs.season_match import SeasonFirstPickView
+            for side, picked in (("A", match.picked_a), ("B", match.picked_b)):
+                if picked:
+                    continue
+                team = match.team_a if side == "A" else match.team_b
+                ch = _side_channel(match, guild, side)
+                if not ch:
+                    continue
+                view = SeasonFirstPickView(match, side, team.name)
+                view.message = await ch.send("📢 Choisissez votre premier joueur !", view=view)
+        else:
+            cap_a = guild.get_member(match.team_a.captain_id) if guild else None
+            cap_b = guild.get_member(match.team_b.captain_id) if guild else None
+            view = FirstPickView(match=match)
+            msg = await channel.send(
+                f"📢 {cap_a.mention if cap_a else ''} ({match.team_a.name}) "
+                f"et {cap_b.mention if cap_b else ''} ({match.team_b.name}), choisissez votre premier joueur !",
+                view=view,
+            )
+            view.message = msg
 
     elif state == State.LOSER_PICK:
         loser_side = match.picker
         loser_team = match.team_a if loser_side == "A" else match.team_b
-        view = LoserPickView(match=match, loser_side=loser_side)
-        msg = await channel.send(f"⚔️ **{loser_team.name}** — choisissez votre prochain joueur !", view=view)
-        view.message = msg
+        loser_ch  = _side_channel(match, guild, loser_side) or channel
+        winner_ch = _other_side_channel(match, guild, loser_side)
+        if loser_ch:
+            view = LoserPickView(match=match, loser_side=loser_side)
+            view.message = await loser_ch.send(f"⚔️ **{loser_team.name}** — choisissez votre prochain joueur !", view=view)
+        if winner_ch:
+            try:
+                await winner_ch.send(f"⏳ En attente du prochain joueur de **{loser_team.name}**...")
+            except Exception:
+                pass
 
     elif state in (State.BAN_FIRST, State.BAN_SECOND, State.STAGE_PICK):
         view = StageBanView(match=match, guild=guild)
-        msg = await channel.send(embed=view._make_embed(), view=view)
-        view.message = msg
+        active_side = view._active_side()
+        active_ch = _side_channel(match, guild, active_side) or channel
+        other_ch  = _other_side_channel(match, guild, active_side)
+        if active_ch:
+            view.message = await active_ch.send(embed=view._make_embed(), view=view)
+        if other_ch:
+            view.summary_message = await other_ch.send(embed=view._make_embed())
 
     elif state == State.WAITING_RESULT:
         ca, cb = match.current_a, match.current_b
-        view = ScoreView(match=match)
-        msg = await channel.send(
-            f"Quel est le résultat du match ?\n"
-            f"**{ca.name}** `[vies prises]` — `[vies prises]` **{cb.name}**",
-            view=view,
-        )
-        view.message = msg
+        if _is_dual_channel(match):
+            channels = [_side_channel(match, guild, "A"), _side_channel(match, guild, "B")]
+        else:
+            channels = [channel]
+        views = []
+        for ch in channels:
+            if not ch:
+                continue
+            view = ScoreView(match=match)
+            view.message = await ch.send(
+                f"Quel est le résultat du match ?\n"
+                f"**{ca.name}** `[vies prises]` — `[vies prises]` **{cb.name}**",
+                view=view,
+            )
+            views.append(view)
+        if len(views) == 2:
+            views[0].sibling_message = views[1].message
+            views[1].sibling_message = views[0].message
+
+# ---------------------------------------------------------------------------
+# Routage salon(s) — matchs à salons distincts par équipe (saison)
+# ---------------------------------------------------------------------------
+
+def _side_channel(match: "Match", guild: Optional[discord.Guild], side: str):
+    """Salon où poster l'action du côté `side` ('A' ou 'B'). Retombe sur
+    channel_id (comportement Freeplay / match unique) si non distincts."""
+    if not guild:
+        return None
+    cid = match.channel_a_id if side == "A" else match.channel_b_id
+    if cid:
+        return guild.get_channel(cid)
+    return guild.get_channel(match.channel_id) or guild.get_thread(match.channel_id)
+
+
+def _other_side_channel(match: "Match", guild: Optional[discord.Guild], side: str):
+    """Salon de l'autre équipe, uniquement si les 2 salons sont distincts
+    (sinon None : pas de résumé séparé à poster, tout est déjà au même endroit)."""
+    if not guild or not (match.channel_a_id and match.channel_b_id):
+        return None
+    other = "B" if side == "A" else "A"
+    return _side_channel(match, guild, other)
+
+
+def _is_dual_channel(match: "Match") -> bool:
+    return bool(match.channel_a_id and match.channel_b_id)
 
 # ---------------------------------------------------------------------------
 # Modals
@@ -709,6 +781,11 @@ class ScoreModal(discord.ui.Modal):
                 await self.score_view.message.edit(view=self.score_view)
             except Exception:
                 pass
+        if self.score_view.sibling_message:
+            try:
+                await self.score_view.sibling_message.edit(view=None)
+            except Exception:
+                pass
 
         channel = interaction.channel
         guild = getattr(channel, "guild", None)
@@ -748,8 +825,21 @@ class ScoreModal(discord.ui.Modal):
 
         await interaction.followup.send(embed=embed)
 
+        dual = _is_dual_channel(match)
+        if dual:
+            acting_side = "A" if channel.id == match.channel_a_id else "B"
+            summary_ch = _other_side_channel(match, guild, acting_side)
+            if summary_ch:
+                try:
+                    await summary_ch.send(embed=embed)
+                except Exception:
+                    pass
+            shared_ch = guild.get_channel(match.channel_id) or guild.get_thread(match.channel_id)
+        else:
+            shared_ch = channel
+
         if match.team_a.is_eliminated or match.team_b.is_eliminated:
-            await end_crewbattle(channel, match)
+            await end_crewbattle(shared_ch or channel, match)
             return
 
         winner_side = "B" if loser_side == "A" else "A"
@@ -760,12 +850,20 @@ class ScoreModal(discord.ui.Modal):
         match.state = State.LOSER_PICK
         save_matches()
 
+        loser_ch  = _side_channel(match, guild, loser_side) or channel
+        winner_ch = _other_side_channel(match, guild, loser_side)
+
         view = LoserPickView(match=match, loser_side=loser_side)
-        msg = await channel.send(
+        msg = await loser_ch.send(
             f"⚔️ **{loser_team.name}** — choisissez votre prochain joueur !",
             view=view,
         )
         view.message = msg
+        if winner_ch:
+            try:
+                await winner_ch.send(f"⏳ En attente du prochain joueur de **{loser_team.name}**...")
+            except Exception:
+                pass
 
 # ---------------------------------------------------------------------------
 # Views
@@ -864,6 +962,9 @@ class StageBanView(discord.ui.View):
         self.guild = guild
         self.selected: list[str] = []
         self.message: Optional[discord.Message] = None
+        # Salon miroir (lecture seule) de l'équipe qui n'est pas active,
+        # uniquement pour les matchs à salons distincts (saison).
+        self.summary_message: Optional[discord.Message] = None
         self._build()
 
     def _build(self):
@@ -901,15 +1002,18 @@ class StageBanView(discord.ui.View):
             return 4
         return 1
 
-    def _active_player_id(self) -> int:
-        """ID Discord du joueur actif pour les bans/picks (fallback sur capitaine si non défini)."""
+    def _active_side(self) -> str:
         state = self.match.state
         if state == State.BAN_FIRST:
-            side = self.match.first_banner
+            return self.match.first_banner
         elif state == State.BAN_SECOND:
-            side = "B" if self.match.first_banner == "A" else "A"
+            return "B" if self.match.first_banner == "A" else "A"
         else:
-            side = self.match.picker
+            return self.match.picker
+
+    def _active_player_id(self) -> int:
+        """ID Discord du joueur actif pour les bans/picks (fallback sur capitaine si non défini)."""
+        side = self._active_side()
         if side == "A":
             player = self.match.current_a
             return player.discord_id if player and player.discord_id else self.match.team_a.captain_id
@@ -918,14 +1022,16 @@ class StageBanView(discord.ui.View):
             return player.discord_id if player and player.discord_id else self.match.team_b.captain_id
 
     def _active_team_name(self) -> str:
-        state = self.match.state
-        if state == State.BAN_FIRST:
-            side = self.match.first_banner
-        elif state == State.BAN_SECOND:
-            side = "B" if self.match.first_banner == "A" else "A"
-        else:
-            side = self.match.picker
+        side = self._active_side()
         return self.match.team_a.name if side == "A" else self.match.team_b.name
+
+    async def _sync_summary(self):
+        """Met à jour le message miroir en lecture seule de l'équipe non active, si présent."""
+        if self.summary_message:
+            try:
+                await self.summary_message.edit(embed=self._make_embed())
+            except Exception:
+                pass
 
     async def on_stage_click(self, interaction: discord.Interaction, stage: str):
         if not is_authorized(interaction.user.id, self._active_player_id()):
@@ -942,6 +1048,7 @@ class StageBanView(discord.ui.View):
 
         self._build()
         await interaction.response.edit_message(embed=self._make_embed(), view=self)
+        await self._sync_summary()
 
     async def _validate(self, interaction: discord.Interaction):
         if not is_authorized(interaction.user.id, self._active_player_id()):
@@ -949,30 +1056,53 @@ class StageBanView(discord.ui.View):
             return
 
         state = self.match.state
+        old_side = self._active_side()
 
         if state == State.BAN_FIRST:
             self.match.banned_stages.extend(self.selected)
             self.selected = []
             self.match.state = State.BAN_SECOND if self.match.set_number == 0 else State.STAGE_PICK
-            self._build()
-            await interaction.response.edit_message(embed=self._make_embed(), view=self)
 
         elif state == State.BAN_SECOND:
             self.match.banned_stages.extend(self.selected)
             self.selected = []
             self.match.state = State.STAGE_PICK
-            self._build()
-            await interaction.response.edit_message(embed=self._make_embed(), view=self)
 
         elif state == State.STAGE_PICK:
             self.match.picked_stage = self.selected[0]
             self.match.state = State.WAITING_RESULT
             self.selected = []
             save_matches()
+            self._build()
             for item in self.children:
                 item.disabled = True
             await interaction.response.edit_message(embed=self._make_embed(), view=self)
+            await self._sync_summary()
             await announce_set(interaction.channel, self.match)
+            return
+
+        new_side = self._active_side()
+        self._build()
+
+        if new_side == old_side or not _is_dual_channel(self.match):
+            # Même équipe qui continue, ou salon unique (Freeplay/match unique) : on édite sur place.
+            await interaction.response.edit_message(embed=self._make_embed(), view=self)
+            await self._sync_summary()
+            return
+
+        # Salons distincts et le tour change de camp : on verrouille l'ancien
+        # message et on republie l'interface active dans le nouveau salon.
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(view=self)
+
+        self._build()
+        active_ch = _side_channel(self.match, self.guild, new_side)
+        other_ch  = _other_side_channel(self.match, self.guild, new_side)
+        if active_ch:
+            self.message = await active_ch.send(embed=self._make_embed(), view=self)
+        if other_ch:
+            self.summary_message = await other_ch.send(embed=self._make_embed())
 
     def _make_embed(self) -> discord.Embed:
         state = self.match.state
@@ -1027,6 +1157,9 @@ class ScoreView(discord.ui.View):
         super().__init__(timeout=None)
         self.match = match
         self.message: Optional[discord.Message] = None
+        # Sur un match à salons distincts, pointe vers le message équivalent
+        # dans l'autre salon, pour le désactiver une fois le score soumis.
+        self.sibling_message: Optional[discord.Message] = None
 
         btn = discord.ui.Button(label="📝 Entrer les scores", style=discord.ButtonStyle.primary)
         btn.callback = self._open_modal
@@ -1074,11 +1207,18 @@ async def start_ban_phase(channel: discord.TextChannel, match: Match):
         description=title,
         color=discord.Color.blue(),
     )
-    await channel.send(embed=embed)
+
+    active_ch = _side_channel(match, guild, match.first_banner) or channel
+    other_ch  = _other_side_channel(match, guild, match.first_banner)
+
+    await active_ch.send(embed=embed)
+    if other_ch:
+        await other_ch.send(embed=embed)
 
     view = StageBanView(match=match, guild=guild)
-    msg = await channel.send(embed=view._make_embed(), view=view)
-    view.message = msg
+    view.message = await active_ch.send(embed=view._make_embed(), view=view)
+    if other_ch:
+        view.summary_message = await other_ch.send(embed=view._make_embed())
 
 
 async def announce_set(channel: discord.TextChannel, match: Match):
@@ -1100,15 +1240,30 @@ async def announce_set(channel: discord.TextChannel, match: Match):
         description=desc,
         color=discord.Color.green(),
     )
-    await channel.send(embed=embed)
 
-    view = ScoreView(match=match)
-    msg = await channel.send(
-        f"Quel est le résultat du match ?\n"
-        f"**{ca.name}** `[vies prises]` — `[vies prises]` **{cb.name}**",
-        view=view,
-    )
-    view.message = msg
+    if _is_dual_channel(match):
+        channels = [_side_channel(match, guild, "A"), _side_channel(match, guild, "B")]
+    else:
+        channels = [channel]
+
+    views = []
+    for ch in channels:
+        if not ch:
+            continue
+        await ch.send(embed=embed)
+        view = ScoreView(match=match)
+        view.message = await ch.send(
+            f"Quel est le résultat du match ?\n"
+            f"**{ca.name}** `[vies prises]` — `[vies prises]` **{cb.name}**",
+            view=view,
+        )
+        views.append(view)
+
+    # Score entrable par les 2 capitaines : si 2 salons, chacun a son propre
+    # bouton mais les 2 pointent vers l'autre pour se désactiver mutuellement.
+    if len(views) == 2:
+        views[0].sibling_message = views[1].message
+        views[1].sibling_message = views[0].message
 
 
 async def end_crewbattle(channel: discord.TextChannel, match: Match):
@@ -1169,12 +1324,6 @@ async def end_crewbattle(channel: discord.TextChannel, match: Match):
 
         delete_official_match(match.channel_id)
 
-        # Supprimer le salon après le match officiel
-        try:
-            await channel.delete(reason="Match officiel terminé")
-        except Exception:
-            pass
-
     # ── Résumé freeplay ──────────────────────────────────────────────────────
     from utils.freeplay_data import load_freeplay_active, save_freeplay_active
     from cogs.teams import load_team as _lt
@@ -1223,6 +1372,17 @@ async def end_crewbattle(channel: discord.TextChannel, match: Match):
     except Exception:
         pass
 
+    if official and isinstance(channel, discord.Thread):
+        # Marque le thread comme terminé et l'archive — c'est l'historique
+        # permanent de la ligue, on ne le supprime pas.
+        try:
+            new_name = channel.name
+            if new_name and new_name[0] in ("🔴", "🟠"):
+                new_name = "🟢" + new_name[1:]
+            await channel.edit(name=new_name, archived=True)
+        except Exception:
+            pass
+
     if freeplay_info:
         # Les salons restent en place : "Terminer la CB" ne fait qu'envoyer le
         # résumé ; seul un admin peut ensuite supprimer les salons.
@@ -1254,6 +1414,9 @@ async def cbl_force_score(interaction: discord.Interaction, vies_prises_a: int, 
         return
 
     match = active_matches.get(interaction.channel_id)
+    if not match:
+        match = next((m for m in active_matches.values()
+                      if interaction.channel_id in (m.channel_a_id, m.channel_b_id)), None)
     if not match:
         await interaction.response.send_message("❌ Aucune CrewBattle en cours.", ephemeral=True)
         return
@@ -1333,12 +1496,26 @@ async def cbl_force_score(interaction: discord.Interaction, vies_prises_a: int, 
     embed.add_field(name="Score global", value=current_score, inline=False)
     embed.add_field(name="Historique", value="\n".join(history_lines), inline=False)
     await interaction.followup.send(embed=embed)
+
+    dual = _is_dual_channel(match)
+    if dual:
+        acting_side = "A" if channel.id == match.channel_a_id else "B"
+        summary_ch = _other_side_channel(match, guild, acting_side)
+        if summary_ch:
+            try:
+                await summary_ch.send(embed=embed)
+            except Exception:
+                pass
+        shared_ch = guild.get_channel(match.channel_id) or guild.get_thread(match.channel_id)
+    else:
+        shared_ch = channel
+
     await log_command(interaction.user.display_name,
                       f"cbl_force_score {vies_prises_a}-{vies_prises_b}", "Completed",
                       f"[FORCE] Set {match.set_number} : **{ca.name}** {vies_prises_a}-{vies_prises_b} **{cb.name}**")
 
     if match.team_a.is_eliminated or match.team_b.is_eliminated:
-        await end_crewbattle(channel, match)
+        await end_crewbattle(shared_ch or channel, match)
         return
 
     winner_side = "B" if loser_side == "A" else "A"
@@ -1348,9 +1525,17 @@ async def cbl_force_score(interaction: discord.Interaction, vies_prises_a: int, 
     match.state = State.LOSER_PICK
     save_matches()
 
+    loser_ch  = _side_channel(match, guild, loser_side) or channel
+    winner_ch = _other_side_channel(match, guild, loser_side)
+
     view = LoserPickView(match=match, loser_side=loser_side)
-    msg = await channel.send(f"⚔️ **{loser_team.name}** — choisissez votre prochain joueur !", view=view)
+    msg = await loser_ch.send(f"⚔️ **{loser_team.name}** — choisissez votre prochain joueur !", view=view)
     view.message = msg
+    if winner_ch:
+        try:
+            await winner_ch.send(f"⏳ En attente du prochain joueur de **{loser_team.name}**...")
+        except Exception:
+            pass
 
 # ---------------------------------------------------------------------------
 # MatchControlView  (boutons ▶️ Lancer / 📊 Statut dans les salons de match)
