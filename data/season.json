@@ -1,0 +1,45 @@
+{
+  "name": "26aut",
+  "status": "registration",
+  "leagues": {
+    "Ligue-1": [
+      "JRJ",
+      "R-B",
+      "SR",
+      "POM",
+      "KD",
+      "ARK"
+    ],
+    "Ligue-2": [
+      "JRJ²",
+      "OXVI",
+      "LT",
+      "ADN"
+    ],
+    "Ligue-3": [
+      "SU",
+      "3QI",
+      "4B",
+      "R-B²"
+    ],
+    "Ligue-4": [
+      "LA",
+      "HoJ",
+      "OXVI²",
+      "MST"
+    ]
+  },
+  "calendar": {
+    "Ligue-1": [],
+    "Ligue-2": [],
+    "Ligue-3": [],
+    "Ligue-4": []
+  },
+  "standings": {
+    "Ligue-1": {},
+    "Ligue-2": {},
+    "Ligue-3": {},
+    "Ligue-4": {}
+  },
+  "barrages": []
+}

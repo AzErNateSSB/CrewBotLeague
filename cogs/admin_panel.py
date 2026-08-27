@@ -9,12 +9,16 @@ from discord.ext import commands
 from discord import app_commands
 import json
 import os
+from datetime import date
 
 from utils.i18n import set_lang
 from utils.sheets_log import log_command
 from utils.teams_lu import rebuild_teams_lu
 from utils.players_stats import rebuild_all_stats, delete_player_stats_post
-from utils.season_data import LEAGUE_NAMES, load_season, save_season, new_season
+from utils.season_data import (
+    LEAGUE_NAMES, LEAGUE_CATEGORY_IDS, LEAGUE_EMOJIS, LEAGUE_SHORT,
+    load_season, save_season, new_season, round_window,
+)
 
 CHANNEL_CONFIG        = 1537096187981594714
 OWNER_ID              = 461601543121010691
@@ -319,12 +323,8 @@ class StartSeasonView(discord.ui.View):
         if unassigned:
             warning = f"\n\n⚠️ Équipes sans ligue : {', '.join(f'**{s}**' for s in unassigned)}"
 
-        # Déléguer au vrai démarrage de saison
-        from cogs.league import cbl_admin_start_season
-        # On passe par le handler existant (cbl_admin_start_season attend une interaction)
-        # Pour éviter de dupliquer la logique, on l'importe et appelle directement
-        # sa logique interne via les fonctions utilitaires
-        from utils.season_data import generate_round_robin, sorted_standings
+        from utils.season_data import generate_round_robin, save_official_match
+        from cogs.crewbattle import STAGES, get_stage_emoji
         import os as _os
 
         guild  = interaction.guild
@@ -357,52 +357,69 @@ class StartSeasonView(discord.ui.View):
             calendar = generate_round_robin(teams)
             season["calendar"][lg] = calendar
 
-            from utils.season_data import LEAGUE_CATEGORY_IDS, save_official_match
-            cat_id   = LEAGUE_CATEGORY_IDS.get(lg)
-            category = guild.get_channel(cat_id) if cat_id else None
+            # Forum de la ligue (créé une fois, réutilisé si déjà présent)
+            forum_id = season["forums"].get(lg)
+            forum = guild.get_channel(forum_id) if forum_id else None
+            if not isinstance(forum, discord.ForumChannel):
+                cat_id   = LEAGUE_CATEGORY_IDS.get(lg)
+                category = guild.get_channel(cat_id) if cat_id else None
+                forum_name = f"〔{LEAGUE_EMOJIS[lg]}〕{lg.lower()}〔{season['name'].lower()}〕"
+                try:
+                    forum = await guild.create_forum(name=forum_name, category=category)
+                    season["forums"][lg] = forum.id
+                except Exception as e:
+                    report.append(f"❌ Forum **{lg}** : {e}")
+                    continue
+
+            stage_line = " ".join(str(get_stage_emoji(s, guild) or f":{s}:") for s in STAGES)
 
             nb_channels = 0
             for ji, journee in enumerate(calendar, 1):
-                for match in journee:
+                for mi, match in enumerate(journee, 1):
                     home, away = match["home"], match["away"]
-                    overwrites = {
-                        guild.default_role: discord.PermissionOverwrite(view_channel=False),
-                        guild.me: discord.PermissionOverwrite(
-                            view_channel=True, send_messages=True,
-                            read_message_history=True, manage_channels=True,
-                        ),
-                    }
-                    for sigle in (home, away):
-                        role = guild.get_role(teams_data.get(sigle, {}).get("role_id", 0))
-                        if role:
-                            overwrites[role] = discord.PermissionOverwrite(
-                                view_channel=True, send_messages=True, read_message_history=True,
-                            )
-                    ch_name = f"j{ji}-{home.lower()}-vs-{away.lower()}"
+                    home_data  = teams_data.get(home, {})
+                    away_data  = teams_data.get(away, {})
+                    role_home  = guild.get_role(home_data.get("role_id", 0))
+                    role_away  = guild.get_role(away_data.get("role_id", 0))
+                    emoji_home = discord.utils.get(guild.emojis, name=home)
+                    emoji_away = discord.utils.get(guild.emojis, name=away)
+
+                    period_start, deadline = round_window(season["start_date"], ji - 1)
+
+                    thread_name = (
+                        f"🔴{LEAGUE_SHORT[lg]}-{season['name'].upper()} · "
+                        f"Match {ji}-{mi} 〔{home} 🆚 {away}〕"
+                    )[:100]
+
+                    content = (
+                        f"# {role_home.mention if role_home else f'**{home}**'} {emoji_home or ''}\n"
+                        f"# {role_away.mention if role_away else f'**{away}**'} {emoji_away or ''}\n\n"
+                        f"**Maps disponibles :** {stage_line}\n\n"
+                        f"🗺️ Bans en **3-4-Pick** pour le premier match, "
+                        f"puis en **3-Pick** à partir du 2e match.\n\n"
+                        f"📅 Date limite pour jouer cette CB : **{deadline.strftime('%d/%m/%Y')}**\n"
+                        f"*(dates sélectionnables du {period_start.strftime('%d/%m')} "
+                        f"au {deadline.strftime('%d/%m')})*"
+                    )
+
                     try:
-                        ch = await guild.create_text_channel(
-                            name=ch_name, category=category, overwrites=overwrites
-                        )
-                        match["channel_id"] = ch.id
-                        save_official_match(ch.id, {
+                        twm    = await forum.create_thread(name=thread_name, content=content)
+                        thread = twm.thread
+                        match["channel_id"] = thread.id
+                        save_official_match(thread.id, {
                             "league": lg, "home": home, "away": away,
                             "journee_idx": ji - 1,
-                            "match_idx":   calendar[ji - 1].index(match),
+                            "match_idx":   mi - 1,
                             "is_barrage":  False,
                         })
-                        from cogs.crewbattle import MatchControlView
-                        await ch.send(
-                            f"⚔️ **{home}** vs **{away}** — Journée {ji} | **{lg}** — Saison {season['name']}",
-                            view=MatchControlView(),
-                        )
                         nb_channels += 1
                     except Exception as e:
-                        report.append(f"❌ Salon `{ch_name}` : {e}")
+                        report.append(f"❌ Thread `{thread_name}` : {e}")
 
             nb_j = len(calendar)
             nb_m = sum(len(j) for j in calendar)
             report.append(
-                f"✅ **{lg}** : {len(teams)} équipes — {nb_j} journées, {nb_m} matchs, {nb_channels} salons"
+                f"✅ **{lg}** : {len(teams)} équipes — {nb_j} journées, {nb_m} matchs, {nb_channels} threads"
             )
 
         season["status"] = "active"
@@ -432,11 +449,26 @@ class SetupSeasonModal(discord.ui.Modal, title="Configurer une saison"):
         min_length=2,
         max_length=20,
     )
+    date_debut = discord.ui.TextInput(
+        label="Date de début (journée 1)",
+        placeholder="JJ/MM/AAAA — ex : 31/08/2026",
+        min_length=8,
+        max_length=10,
+    )
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         guild  = interaction.guild
         name   = self.saison.value.strip()
+
+        try:
+            d, m, y = self.date_debut.value.strip().split("/")
+            start_date = date(int(y), int(m), int(d)).isoformat()
+        except Exception:
+            await interaction.followup.send(
+                "❌ Date invalide. Utilise le format JJ/MM/AAAA (ex : 31/08/2026).", ephemeral=True
+            )
+            return
 
         existing = load_season()
         if existing and existing["status"] == "active":
@@ -466,7 +498,7 @@ class SetupSeasonModal(discord.ui.Modal, title="Configurer une saison"):
         panels["season_panel_channel"] = chan.id
 
         # Créer / réinitialiser la saison dans les données
-        season = new_season(name)
+        season = new_season(name, start_date)
         # Récupérer les ligues déjà assignées depuis les JSONs d'équipes
         for t in _load_all_teams():
             lg = t.get("league")
