@@ -412,6 +412,10 @@ class StartSeasonView(discord.ui.View):
                             "match_idx":   mi - 1,
                             "is_barrage":  False,
                         })
+                        from cogs.season_match import post_date_selection
+                        await post_date_selection(
+                            guild, thread.id, lg, home, away, period_start, deadline
+                        )
                         nb_channels += 1
                     except Exception as e:
                         report.append(f"❌ Thread `{thread_name}` : {e}")
@@ -881,6 +885,9 @@ class AdminPanel(commands.Cog):
             self.bot.add_view(SeasonLeagueView(lg))
         self.bot.add_view(StartSeasonView())
         self.bot.tree.add_command(cbl_setup_config)
+
+        from cogs.season_match import restore_all_season_matches
+        self.bot.loop.create_task(restore_all_season_matches(self.bot))
 
     @commands.Cog.listener()
     async def on_ready(self):
