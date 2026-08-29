@@ -156,6 +156,7 @@ class State(Enum):
     BAN_SECOND     = auto()
     STAGE_PICK     = auto()
     WAITING_RESULT = auto()
+    PENDING_END    = auto()  # score qui termine la CB, en attente de confirmation adverse
     FINISHED       = auto()
 
 
@@ -233,6 +234,8 @@ class Match:
     picked_stage: Optional[str] = None
     first_banner: str = ""
     picker: str = ""
+    # Côté qui a soumis le score en attente de confirmation (State.PENDING_END).
+    pending_end_acting_side: Optional[str] = None
     set_history: list[SetRecord] = field(default_factory=list)
     log_row: int = -1
 
@@ -283,6 +286,7 @@ def _match_to_dict(m: "Match") -> dict:
         "picked_stage": m.picked_stage,
         "first_banner": m.first_banner,
         "picker":       m.picker,
+        "pending_end_acting_side": m.pending_end_acting_side,
         "log_row":     m.log_row,
         "set_history": [
             {"player_a": r.player_a, "char_a": r.char_a,
@@ -310,6 +314,7 @@ def _match_from_dict(d: dict) -> "Match":
         picked_stage=d.get("picked_stage"),
         first_banner=d["first_banner"],
         picker      =d["picker"],
+        pending_end_acting_side=d.get("pending_end_acting_side"),
         set_history =[SetRecord(**r) for r in d["set_history"]],
         log_row     =d.get("log_row", -1),
     )
@@ -411,6 +416,21 @@ async def _restore_match_view(bot: commands.Bot, match: "Match"):
         if len(views) == 2:
             views[0].sibling_message = views[1].message
             views[1].sibling_message = views[0].message
+
+    elif state == State.PENDING_END:
+        acting_side = match.pending_end_acting_side or match.picker
+        confirmer_side = "B" if acting_side == "A" else "A"
+        acting_team = match.team_a if acting_side == "A" else match.team_b
+        ch = _side_channel(match, guild, confirmer_side) or channel
+        if ch:
+            rec = match.set_history[-1] if match.set_history else None
+            score_txt = f"{rec.score_a}-{rec.score_b}" if rec else "?"
+            view = ScoreEndConfirmView(match, acting_side)
+            view.message = await ch.send(
+                f"🏁 **{acting_team.name}** a noté **{score_txt}**, "
+                f"ce qui termine la CrewBattle ! Confirmer ?",
+                view=view,
+            )
 
 # ---------------------------------------------------------------------------
 # Routage salon(s) — matchs à salons distincts par équipe (saison)
@@ -847,39 +867,61 @@ async def _apply_score(match: "Match", guild: Optional[discord.Guild], channel,
     else:
         shared_ch = channel
 
-    undo_ctx = {"kind": None}
+    is_ending = match.team_a.is_eliminated or match.team_b.is_eliminated
 
-    if match.team_a.is_eliminated or match.team_b.is_eliminated:
-        undo_ctx["kind"] = "end"
-        await end_crewbattle(shared_ch or channel, match)
-    else:
-        winner_side = "B" if loser_side == "A" else "A"
-        match.first_banner = winner_side
-        match.picker = loser_side
-
-        loser_team = match.team_a if loser_side == "A" else match.team_b
-        match.state = State.LOSER_PICK
+    if is_ending and dual:
+        # On ne clôture pas tout de suite : l'équipe adverse doit confirmer
+        # avant que le match soit réellement terminé (classement, archivage...).
+        match.state = State.PENDING_END
+        match.pending_end_acting_side = acting_side
         save_matches()
 
-        loser_ch  = _side_channel(match, guild, loser_side) or channel
-        winner_ch = _other_side_channel(match, guild, loser_side)
-
-        view = LoserPickView(match=match, loser_side=loser_side)
-        msg = await loser_ch.send(
-            f"⚔️ **{loser_team.name}** — choisissez votre prochain joueur !",
-            view=view,
-        )
-        view.message = msg
-        info_msg = None
-        if winner_ch:
+        if summary_ch and acting_side:
+            acting_team = match.team_a if acting_side == "A" else match.team_b
+            confirm_view = ScoreEndConfirmView(match, acting_side)
             try:
-                info_msg = await winner_ch.send(f"⏳ En attente du prochain joueur de **{loser_team.name}**...")
+                cmsg = await summary_ch.send(
+                    f"🏁 **{acting_team.name}** a noté **{takes_a}-{takes_b}**, "
+                    f"ce qui termine la CrewBattle ! Confirmer ?",
+                    view=confirm_view,
+                )
+                confirm_view.message = cmsg
             except Exception:
                 pass
-        undo_ctx = {"kind": "loser_pick", "loser_view": view, "info_msg": info_msg}
+        return embed
+
+    if is_ending:
+        # Freeplay / match unique (salon unique) : comportement inchangé.
+        await end_crewbattle(shared_ch or channel, match)
+        return embed
+
+    winner_side = "B" if loser_side == "A" else "A"
+    match.first_banner = winner_side
+    match.picker = loser_side
+
+    loser_team = match.team_a if loser_side == "A" else match.team_b
+    match.state = State.LOSER_PICK
+    save_matches()
+
+    loser_ch  = _side_channel(match, guild, loser_side) or channel
+    winner_ch = _other_side_channel(match, guild, loser_side)
+
+    view = LoserPickView(match=match, loser_side=loser_side)
+    msg = await loser_ch.send(
+        f"⚔️ **{loser_team.name}** — choisissez votre prochain joueur !",
+        view=view,
+    )
+    view.message = msg
+    info_msg = None
+    if winner_ch:
+        try:
+            info_msg = await winner_ch.send(f"⏳ En attente du prochain joueur de **{loser_team.name}**...")
+        except Exception:
+            pass
+    undo_ctx = {"kind": "loser_pick", "loser_view": view, "info_msg": info_msg}
 
     if dual and summary_ch:
-        if allow_dispute and undo_ctx["kind"] is not None:
+        if allow_dispute:
             dispute_view = ScoreDisputeView(match, acting_side, undo_ctx)
             try:
                 dmsg = await summary_ch.send(embed=embed, view=dispute_view)
@@ -1142,6 +1184,79 @@ class ScoreProposalView(discord.ui.View):
         try:
             msg = await interaction.channel.send(
                 f"{interaction.user.mention} — cliquez ci-dessous pour reproposer un score.", view=entry_view,
+            )
+            entry_view.message = msg
+        except Exception:
+            pass
+
+
+class ScoreEndConfirmView(discord.ui.View):
+    """Score qui termine la CrewBattle : l'équipe adverse doit confirmer avant
+    que le match soit réellement clôturé (classement, calendrier, archivage
+    du thread). "Contester" annule le set (pas de classement encore touché,
+    donc rien à défaire côté saison) et rouvre une ressaisie."""
+
+    def __init__(self, match: "Match", acting_side: str):
+        super().__init__(timeout=None)
+        self.match = match
+        self.acting_side = acting_side
+        self.confirmer_side = "B" if acting_side == "A" else "A"
+        self.message: Optional[discord.Message] = None
+
+        confirm = discord.ui.Button(label="✅ Confirmer", style=discord.ButtonStyle.success)
+        confirm.callback = self._confirm
+        self.add_item(confirm)
+
+        contest = discord.ui.Button(label="⚠️ Contester", style=discord.ButtonStyle.danger)
+        contest.callback = self._contest
+        self.add_item(contest)
+
+    def _confirmer_team(self) -> "Team":
+        return self.match.team_a if self.confirmer_side == "A" else self.match.team_b
+
+    async def _confirm(self, interaction: discord.Interaction):
+        team = self._confirmer_team()
+        if not is_authorized(interaction.user.id, team.captain_id):
+            await interaction.response.send_message("❌ Seul le leader peut confirmer.", ephemeral=True)
+            return
+        if self.match.state != State.PENDING_END:
+            await interaction.response.send_message("❌ Cette confirmation n'est plus active.", ephemeral=True)
+            return
+
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(view=self)
+
+        guild = interaction.guild
+        shared_ch = (guild.get_channel(self.match.channel_id) or guild.get_thread(self.match.channel_id)
+                     if guild else None)
+        await end_crewbattle(shared_ch or interaction.channel, self.match)
+
+    async def _contest(self, interaction: discord.Interaction):
+        team = self._confirmer_team()
+        if not is_authorized(interaction.user.id, team.captain_id):
+            await interaction.response.send_message("❌ Seul le leader peut contester.", ephemeral=True)
+            return
+        if self.match.state != State.PENDING_END:
+            await interaction.response.send_message("❌ Cette confirmation n'est plus active.", ephemeral=True)
+            return
+
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(view=self)
+
+        self.match.pending_end_acting_side = None
+        rec = _undo_last_set(self.match)
+        if not rec:
+            await interaction.followup.send("❌ Rien à annuler.", ephemeral=True)
+            return
+
+        await interaction.followup.send("🔄 Score annulé. Merci de ressaisir le résultat de ce set.", ephemeral=True)
+
+        entry_view = DisputeScoreEntryView(self.match, self.confirmer_side)
+        try:
+            msg = await interaction.channel.send(
+                f"{interaction.user.mention} — cliquez ci-dessous pour ressaisir le score.", view=entry_view,
             )
             entry_view.message = msg
         except Exception:

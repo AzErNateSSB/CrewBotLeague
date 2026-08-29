@@ -3,10 +3,10 @@
   "name": "1",
   "team": null,
   "stats": {
-    "cb_joues": 3,
-    "stocks_pris": 3,
+    "cb_joues": 6,
+    "stocks_pris": 6,
     "stocks_par_adversaire": {
-      "2": 3
+      "2": 6
     }
   }
 }
