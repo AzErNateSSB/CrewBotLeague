@@ -749,30 +749,10 @@ class ScoreModal(discord.ui.Modal):
             )
             return
 
-        loser_side = "A" if new_a == 0 else "B"
-
         # On acquitte tout de suite : les appels réseau qui suivent (édition de
         # messages, rafraîchissement des stats) peuvent prendre plus longtemps
         # que la fenêtre de 3s d'une réponse d'interaction initiale.
         await interaction.response.defer()
-
-        match.set_history.append(SetRecord(
-            player_a=ca.name, char_a=ca.character,
-            player_b=cb.name, char_b=cb.character,
-            score_a=takes_a, score_b=takes_b,
-            stage=match.picked_stage,
-            lives_a_after=new_a,
-            lives_b_after=new_b,
-        ))
-
-        ca.lives = new_a
-        cb.lives = new_b
-        match.set_number += 1
-        match.banned_stages = []
-        match.picked_stage = None
-
-        from utils.players_stats import record_set_result
-        record_set_result(ca.discord_id, cb.discord_id, takes_a, takes_b)
 
         for item in self.score_view.children:
             item.disabled = True
@@ -790,58 +770,89 @@ class ScoreModal(discord.ui.Modal):
         channel = interaction.channel
         guild = getattr(channel, "guild", None)
 
-        if guild and _bot_ref:
-            from utils.players_stats import refresh_after_set
-            await refresh_after_set(_bot_ref, guild.id, ca.discord_id, cb.discord_id)
-
-        # Résumé public du set terminé
-        winner_name = cb.name if loser_side == "A" else ca.name
-        rec = match.set_history[-1]
-        stage_str = stage_display(rec.stage, guild)
-
-        history_lines = build_history_lines(match, guild)
-        current_score = (
-            f"**{match.team_a.name}** `{match.team_a.total_lives}`"
-            f" — `{match.team_b.total_lives}` **{match.team_b.name}**"
-        )
-
-        embed = discord.Embed(
-            title=f"Set {match.set_number} terminé — {winner_name} gagne !",
-            color=discord.Color.orange(),
-        )
-        embed.add_field(
-            name="Résultat",
-            value=(
-                f"**{rec.player_a}** {char_display(rec.char_a)} **{rec.score_a}**-**{rec.score_b}**"
-                f" {char_display(rec.char_b)} **{rec.player_b}**\n{stage_str}"
-            ),
-            inline=False,
-        )
-        embed.add_field(name="Score global", value=current_score, inline=False)
-        _hist = "\n".join(history_lines)
-        if len(_hist) > 1024:
-            _hist = "…\n" + _hist[-1021:].split("\n", 1)[-1]
-        embed.add_field(name="Historique", value=_hist, inline=False)
-
+        embed = await _apply_score(match, guild, channel, takes_a, takes_b)
         await interaction.followup.send(embed=embed)
 
-        dual = _is_dual_channel(match)
-        if dual:
+
+async def _apply_score(match: "Match", guild: Optional[discord.Guild], channel,
+                        takes_a: int, takes_b: int,
+                        acting_side: Optional[str] = None, allow_dispute: bool = True) -> discord.Embed:
+    """Applique un score déjà validé : met à jour vies/historique/stats, poste
+    le résumé et la suite (choix du joueur suivant, ou fin de match). Pour un
+    match de saison (salons distincts), mirrore le résumé dans le salon de
+    l'autre équipe avec un bouton de contestation (sauf allow_dispute=False,
+    utilisé quand ce score vient déjà de résoudre une contestation).
+    `channel` sert de salon de repli pour Freeplay/match unique (salon unique).
+    Retourne l'embed de résumé (à poster par l'appelant dans le salon actif)."""
+    ca, cb = match.current_a, match.current_b
+    new_a = ca.lives - takes_b
+    new_b = cb.lives - takes_a
+    loser_side = "A" if new_a == 0 else "B"
+
+    match.set_history.append(SetRecord(
+        player_a=ca.name, char_a=ca.character,
+        player_b=cb.name, char_b=cb.character,
+        score_a=takes_a, score_b=takes_b,
+        stage=match.picked_stage,
+        lives_a_after=new_a,
+        lives_b_after=new_b,
+    ))
+    ca.lives = new_a
+    cb.lives = new_b
+    match.set_number += 1
+    match.banned_stages = []
+    match.picked_stage = None
+
+    from utils.players_stats import record_set_result
+    record_set_result(ca.discord_id, cb.discord_id, takes_a, takes_b)
+
+    if guild and _bot_ref:
+        from utils.players_stats import refresh_after_set
+        await refresh_after_set(_bot_ref, guild.id, ca.discord_id, cb.discord_id)
+
+    winner_name = cb.name if loser_side == "A" else ca.name
+    rec = match.set_history[-1]
+    stage_str = stage_display(rec.stage, guild)
+    history_lines = build_history_lines(match, guild)
+    current_score = (
+        f"**{match.team_a.name}** `{match.team_a.total_lives}`"
+        f" — `{match.team_b.total_lives}` **{match.team_b.name}**"
+    )
+
+    embed = discord.Embed(
+        title=f"Set {match.set_number} terminé — {winner_name} gagne !",
+        color=discord.Color.orange(),
+    )
+    embed.add_field(
+        name="Résultat",
+        value=(
+            f"**{rec.player_a}** {char_display(rec.char_a)} **{rec.score_a}**-**{rec.score_b}**"
+            f" {char_display(rec.char_b)} **{rec.player_b}**\n{stage_str}"
+        ),
+        inline=False,
+    )
+    embed.add_field(name="Score global", value=current_score, inline=False)
+    _hist = "\n".join(history_lines)
+    if len(_hist) > 1024:
+        _hist = "…\n" + _hist[-1021:].split("\n", 1)[-1]
+    embed.add_field(name="Historique", value=_hist, inline=False)
+
+    dual = _is_dual_channel(match)
+    summary_ch = None
+    if dual:
+        if acting_side is None:
             acting_side = "A" if channel.id == match.channel_a_id else "B"
-            summary_ch = _other_side_channel(match, guild, acting_side)
-            if summary_ch:
-                try:
-                    await summary_ch.send(embed=embed)
-                except Exception:
-                    pass
-            shared_ch = guild.get_channel(match.channel_id) or guild.get_thread(match.channel_id)
-        else:
-            shared_ch = channel
+        summary_ch = _other_side_channel(match, guild, acting_side)
+        shared_ch = guild.get_channel(match.channel_id) or guild.get_thread(match.channel_id)
+    else:
+        shared_ch = channel
 
-        if match.team_a.is_eliminated or match.team_b.is_eliminated:
-            await end_crewbattle(shared_ch or channel, match)
-            return
+    undo_ctx = {"kind": None}
 
+    if match.team_a.is_eliminated or match.team_b.is_eliminated:
+        undo_ctx["kind"] = "end"
+        await end_crewbattle(shared_ch or channel, match)
+    else:
         winner_side = "B" if loser_side == "A" else "A"
         match.first_banner = winner_side
         match.picker = loser_side
@@ -859,11 +870,282 @@ class ScoreModal(discord.ui.Modal):
             view=view,
         )
         view.message = msg
+        info_msg = None
         if winner_ch:
             try:
-                await winner_ch.send(f"⏳ En attente du prochain joueur de **{loser_team.name}**...")
+                info_msg = await winner_ch.send(f"⏳ En attente du prochain joueur de **{loser_team.name}**...")
             except Exception:
                 pass
+        undo_ctx = {"kind": "loser_pick", "loser_view": view, "info_msg": info_msg}
+
+    if dual and summary_ch:
+        if allow_dispute and undo_ctx["kind"] is not None:
+            dispute_view = ScoreDisputeView(match, acting_side, undo_ctx)
+            try:
+                dmsg = await summary_ch.send(embed=embed, view=dispute_view)
+                dispute_view.message = dmsg
+            except Exception:
+                pass
+        else:
+            try:
+                await summary_ch.send(embed=embed)
+            except Exception:
+                pass
+
+    return embed
+
+
+def _undo_last_set(match: "Match") -> Optional["SetRecord"]:
+    """Retire le dernier set de l'historique et restaure les vies d'avant.
+    Retourne le SetRecord annulé, ou None si l'historique est vide."""
+    if not match.set_history:
+        return None
+    rec = match.set_history.pop()
+    ca, cb = match.current_a, match.current_b
+    ca.lives = rec.lives_a_after + rec.score_b
+    cb.lives = rec.lives_b_after + rec.score_a
+    match.set_number -= 1
+    match.state = State.WAITING_RESULT
+    match.picked_stage = rec.stage
+    save_matches()
+    return rec
+
+
+class ScoreDisputeView(discord.ui.View):
+    """Posté (matchs de saison uniquement) dans le salon de l'équipe qui N'A
+    PAS entré le score. Son leader peut contester si le résultat est faux."""
+
+    def __init__(self, match: "Match", acting_side: str, undo_ctx: dict):
+        super().__init__(timeout=None)
+        self.match = match
+        self.acting_side = acting_side
+        self.disputer_side = "B" if acting_side == "A" else "A"
+        self.undo_ctx = undo_ctx
+        self.message: Optional[discord.Message] = None
+
+        btn = discord.ui.Button(label="⚠️ Contester ?", style=discord.ButtonStyle.danger)
+        btn.callback = self._dispute
+        self.add_item(btn)
+
+    def _disputer_team(self) -> "Team":
+        return self.match.team_a if self.disputer_side == "A" else self.match.team_b
+
+    async def _dispute(self, interaction: discord.Interaction):
+        team = self._disputer_team()
+        if not is_authorized(interaction.user.id, team.captain_id):
+            await interaction.response.send_message("❌ Seul le leader peut contester.", ephemeral=True)
+            return
+
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(view=self)
+
+        if self.match.channel_id not in active_matches:
+            await interaction.followup.send(
+                "❌ Ce set a mis fin à la CrewBattle (classement déjà mis à jour) — "
+                "impossible de l'annuler automatiquement. Contacte un admin pour corriger.",
+                ephemeral=True,
+            )
+            return
+
+        ctx = self.undo_ctx
+        if ctx.get("kind") == "loser_pick":
+            loser_view = ctx.get("loser_view")
+            if loser_view:
+                for item in loser_view.children:
+                    item.disabled = True
+                if loser_view.message:
+                    try:
+                        await loser_view.message.edit(view=loser_view)
+                    except Exception:
+                        pass
+            info_msg = ctx.get("info_msg")
+            if info_msg:
+                try:
+                    await info_msg.edit(content="🚫 Score contesté — en attente d'un nouveau score.")
+                except Exception:
+                    pass
+
+        rec = _undo_last_set(self.match)
+        if not rec:
+            await interaction.followup.send("❌ Rien à annuler.", ephemeral=True)
+            return
+
+        await interaction.followup.send("🔄 Score annulé. Merci de ressaisir le résultat de ce set.", ephemeral=True)
+
+        entry_view = DisputeScoreEntryView(self.match, self.disputer_side)
+        try:
+            msg = await interaction.channel.send(
+                f"{interaction.user.mention} — cliquez ci-dessous pour ressaisir le score.", view=entry_view,
+            )
+            entry_view.message = msg
+        except Exception:
+            pass
+
+
+class DisputeScoreEntryView(discord.ui.View):
+    """Bouton intermédiaire (un modal ne peut pas être ouvert directement
+    depuis le clic qui vient de désactiver un autre message)."""
+
+    def __init__(self, match: "Match", side: str):
+        super().__init__(timeout=None)
+        self.match = match
+        self.side = side
+        self.message: Optional[discord.Message] = None
+
+        btn = discord.ui.Button(label="✏️ Ressaisir le score", style=discord.ButtonStyle.primary)
+        btn.callback = self._open
+        self.add_item(btn)
+
+    async def _open(self, interaction: discord.Interaction):
+        team = self.match.team_a if self.side == "A" else self.match.team_b
+        if not is_authorized(interaction.user.id, team.captain_id):
+            await interaction.response.send_message("❌ Ce n'est pas à ton équipe de ressaisir.", ephemeral=True)
+            return
+        if self.match.state != State.WAITING_RESULT:
+            await interaction.response.send_message("❌ Cette contestation n'est plus active.", ephemeral=True)
+            return
+        await interaction.response.send_modal(DisputeScoreModal(self.match, self.side, self))
+
+
+class DisputeScoreModal(discord.ui.Modal, title="Nouveau résultat proposé"):
+    def __init__(self, match: "Match", side: str, entry_view: "DisputeScoreEntryView"):
+        super().__init__()
+        self.match = match
+        self.side = side
+        self.entry_view = entry_view
+
+        ca, cb = match.current_a, match.current_b
+        self.score_a_input = discord.ui.TextInput(
+            label=f"Vies prises par {ca.name}"[:45], placeholder=range_str(cb.lives), min_length=1, max_length=1,
+        )
+        self.score_b_input = discord.ui.TextInput(
+            label=f"Vies prises par {cb.name}"[:45], placeholder=range_str(ca.lives), min_length=1, max_length=1,
+        )
+        self.add_item(self.score_a_input)
+        self.add_item(self.score_b_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        match = self.match
+        if match.state != State.WAITING_RESULT:
+            await interaction.response.send_message("⚠️ Cette contestation n'est plus active.", ephemeral=True)
+            return
+
+        try:
+            takes_a = int(self.score_a_input.value.strip())
+            takes_b = int(self.score_b_input.value.strip())
+        except ValueError:
+            await interaction.response.send_message("❌ Valeurs invalides (entiers attendus).", ephemeral=True)
+            return
+
+        ca, cb = match.current_a, match.current_b
+        if takes_a < 0 or takes_b < 0:
+            await interaction.response.send_message("❌ Les valeurs ne peuvent pas être négatives.", ephemeral=True)
+            return
+        if takes_a > cb.lives or takes_b > ca.lives:
+            await interaction.response.send_message(
+                f"❌ Impossible : {ca.name} a {ca.lives}♥, {cb.name} a {cb.lives}♥.", ephemeral=True
+            )
+            return
+        new_a = ca.lives - takes_b
+        new_b = cb.lives - takes_a
+        if new_a == 0 and new_b == 0:
+            await interaction.response.send_message(
+                "❌ Les deux joueurs ne peuvent pas être éliminés simultanément.", ephemeral=True
+            )
+            return
+        if new_a != 0 and new_b != 0:
+            await interaction.response.send_message(
+                "❌ Le set doit se terminer par l'élimination d'un joueur.", ephemeral=True
+            )
+            return
+
+        for item in self.entry_view.children:
+            item.disabled = True
+        if self.entry_view.message:
+            try:
+                await self.entry_view.message.edit(view=self.entry_view)
+            except Exception:
+                pass
+
+        await interaction.response.send_message(
+            f"📨 Proposition envoyée : **{takes_a}-{takes_b}**.", ephemeral=True
+        )
+
+        other_side = "B" if self.side == "A" else "A"
+        other_ch = _side_channel(match, interaction.guild, other_side)
+        if not other_ch:
+            return
+
+        propose_view = ScoreProposalView(match, self.side, takes_a, takes_b)
+        msg = await other_ch.send(f"Score contesté : **{takes_a}-{takes_b}**.", view=propose_view)
+        propose_view.message = msg
+
+
+class ScoreProposalView(discord.ui.View):
+    """'Score contesté : X-X' — l'équipe qui reçoit peut accepter (le score
+    s'applique et la CB continue) ou contester à son tour (nouvelle ressaisie)."""
+
+    def __init__(self, match: "Match", proposer_side: str, takes_a: int, takes_b: int):
+        super().__init__(timeout=None)
+        self.match = match
+        self.proposer_side = proposer_side
+        self.responder_side = "B" if proposer_side == "A" else "A"
+        self.takes_a = takes_a
+        self.takes_b = takes_b
+        self.message: Optional[discord.Message] = None
+
+        accept = discord.ui.Button(label="✅ Accepter", style=discord.ButtonStyle.success)
+        accept.callback = self._accept
+        self.add_item(accept)
+
+        contest = discord.ui.Button(label="⚠️ Contester", style=discord.ButtonStyle.danger)
+        contest.callback = self._contest
+        self.add_item(contest)
+
+    def _responder_team(self) -> "Team":
+        return self.match.team_a if self.responder_side == "A" else self.match.team_b
+
+    async def _accept(self, interaction: discord.Interaction):
+        team = self._responder_team()
+        if not is_authorized(interaction.user.id, team.captain_id):
+            await interaction.response.send_message("❌ Seul le leader peut accepter.", ephemeral=True)
+            return
+        if self.match.state != State.WAITING_RESULT:
+            await interaction.response.send_message("❌ Cette contestation n'est plus active.", ephemeral=True)
+            return
+
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(view=self)
+
+        embed = await _apply_score(
+            self.match, interaction.guild, interaction.channel,
+            self.takes_a, self.takes_b, acting_side=self.proposer_side, allow_dispute=False,
+        )
+        await interaction.followup.send(embed=embed)
+
+    async def _contest(self, interaction: discord.Interaction):
+        team = self._responder_team()
+        if not is_authorized(interaction.user.id, team.captain_id):
+            await interaction.response.send_message("❌ Seul le leader peut contester.", ephemeral=True)
+            return
+        if self.match.state != State.WAITING_RESULT:
+            await interaction.response.send_message("❌ Cette contestation n'est plus active.", ephemeral=True)
+            return
+
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(view=self)
+
+        entry_view = DisputeScoreEntryView(self.match, self.responder_side)
+        try:
+            msg = await interaction.channel.send(
+                f"{interaction.user.mention} — cliquez ci-dessous pour reproposer un score.", view=entry_view,
+            )
+            entry_view.message = msg
+        except Exception:
+            pass
 
 # ---------------------------------------------------------------------------
 # Views

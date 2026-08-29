@@ -77,9 +77,12 @@ async def post_date_selection(guild: discord.Guild, thread_id: int, league: str,
         "period_start": period_start.isoformat(), "deadline": deadline.isoformat(),
         "avail_home": None, "avail_away": None,
         "confirmed_date": None,
+        "roster_home": None, "roster_subs_home": None,
+        "roster_away": None, "roster_subs_away": None,
         "ready_home": False, "ready_away": False,
         "avail_msg_home_id": None, "avail_msg_away_id": None,
         "propose_msg_id": None, "propose_by": None, "propose_date": None,
+        "roster_msg_home_id": None, "roster_msg_away_id": None,
         "ready_msg_home_id": None, "ready_msg_away_id": None,
     })
 
@@ -361,7 +364,13 @@ class SeasonNoCommonView(discord.ui.View):
 # Confirmation de la date + "Prêt"
 # ---------------------------------------------------------------------------
 
+NB_ACTIVE   = 5
+NB_SUBS_MAX = 2
+
+
 async def _confirm_date(bot, guild: discord.Guild, thread_id: int, chosen_date: str):
+    from cogs.teams import load_team
+
     data = load_season_match(thread_id)
     if not data or data.get("confirmed_date"):
         return
@@ -369,21 +378,44 @@ async def _confirm_date(bot, guild: discord.Guild, thread_id: int, chosen_date: 
     save_season_match(thread_id, data)
 
     home_ch, away_ch = await _tasks_channels(guild, data)
+    home_team = load_team(data["home_sigle"])
+    away_team = load_team(data["away_sigle"])
     d_str = _fmt_date(date.fromisoformat(chosen_date))
 
-    for side, ch in (("home", home_ch), ("away", away_ch)):
-        if not ch:
+    for side, ch, team in (("home", home_ch, home_team), ("away", away_ch, away_team)):
+        if not ch or not team:
             continue
-        view = SeasonReadyView(thread_id, side)
+
+        members = team.get("members", [])
+        if len(members) < NB_ACTIVE:
+            try:
+                await ch.send(
+                    f"❌ **{team['sigle']}** n'a que {len(members)} membre(s) enregistré(s), "
+                    f"il en faut au moins {NB_ACTIVE} pour former une équipe. Contacte un admin."
+                )
+            except Exception:
+                pass
+            continue
+
+        options = []
+        for mid in members[:25]:
+            member = guild.get_member(mid)
+            options.append(discord.SelectOption(
+                label=(member.display_name if member else str(mid))[:100], value=str(mid),
+            ))
+
+        view = SeasonRosterSelectView(thread_id, side, options)
         try:
             msg = await ch.send(
-                f"✅ La date a été confirmée au **{d_str}** ! Veuillez appuyer sur \"Prêt\" !",
+                f"✅ La date a été confirmée au **{d_str}** !\n"
+                f"Composez votre équipe : **{NB_ACTIVE} titulaires** (obligatoire) "
+                f"+ jusqu'à **{NB_SUBS_MAX} remplaçant(s)** (optionnel) :",
                 view=view,
             )
             view.message = msg
             d2 = load_season_match(thread_id)
             if d2:
-                d2[f"ready_msg_{side}_id"] = msg.id
+                d2[f"roster_msg_{side}_id"] = msg.id
                 save_season_match(thread_id, d2)
         except Exception:
             pass
@@ -432,103 +464,76 @@ class SeasonReadyView(discord.ui.View):
         await interaction.response.edit_message(view=self)
 
         if data.get("ready_home") and data.get("ready_away"):
-            await _launch_season_match(interaction.client, interaction.guild, self.thread_id)
-
-
-async def _launch_season_match(bot, guild: discord.Guild, thread_id: int):
-    """Les 2 équipes sont prêtes : demande la composition (roster actif) de
-    chaque équipe dans son propre salon tasks. Simplification par rapport au
-    Freeplay : pas de négociation du nombre de joueurs/remplaçants, le nombre
-    de joueurs sélectionnés devient directement l'effectif actif."""
-    from cogs.teams import load_team
-
-    data = load_season_match(thread_id)
-    if not data:
-        return
-
-    home_ch, away_ch = await _tasks_channels(guild, data)
-    home_team = load_team(data["home_sigle"])
-    away_team = load_team(data["away_sigle"])
-    if not home_team or not away_team or not home_ch or not away_ch:
-        return
-
-    data["roster_home"] = None
-    data["roster_away"] = None
-    save_season_match(thread_id, data)
-
-    for side, team, ch in (("home", home_team, home_ch), ("away", away_team, away_ch)):
-        options = []
-        for mid in team.get("members", [])[:25]:
-            member = guild.get_member(mid)
-            options.append(discord.SelectOption(
-                label=(member.display_name if member else str(mid))[:100], value=str(mid),
-            ))
-        if not options:
-            continue
-        view = SeasonRosterSelectView(thread_id, side, options)
-        try:
-            msg = await ch.send(
-                f"🎮 **{team['sigle']}** — sélectionnez vos joueurs actifs pour ce match :",
-                view=view,
-            )
-            view.message = msg
-        except Exception:
-            pass
-
-    thread = guild.get_thread(thread_id)
-    if not thread:
-        try:
-            thread = await guild.fetch_channel(thread_id)
-        except Exception:
-            thread = None
-    if thread and thread.name and thread.name[0] == "🔴":
-        try:
-            await thread.edit(name="🟠" + thread.name[1:])
-        except Exception:
-            pass
+            await _start_match_engine(interaction.client, interaction.guild, self.thread_id)
 
 
 class SeasonRosterSelectView(discord.ui.View):
-    """Sélection (menu déroulant) des joueurs actifs d'une équipe. Réservé au
-    leader. Pas de négociation de nombre/remplaçants comme en Freeplay : le
-    nombre de joueurs sélectionnés devient l'effectif actif."""
+    """Composition d'équipe : {NB_ACTIVE} titulaires (obligatoire) + jusqu'à
+    {NB_SUBS_MAX} remplaçants (optionnel). Réservé au leader. Une fois validée,
+    révèle le bouton "Prêt" dans le même salon."""
 
     def __init__(self, thread_id: int, side: str, options: list[discord.SelectOption]):
         super().__init__(timeout=None)
         self.thread_id = thread_id
         self.side = side
         self.message: Optional[discord.Message] = None
-        self._selected: list[str] = []
+        self.active_ids: list[str] = []
+        self.sub_ids: list[str] = []
 
-        select = discord.ui.Select(
-            placeholder="Sélectionne tes joueurs actifs...",
-            min_values=1, max_values=min(len(options), 8),
+        self.active_select = discord.ui.Select(
+            placeholder=f"Joueurs actifs ({NB_ACTIVE})",
+            min_values=NB_ACTIVE, max_values=min(NB_ACTIVE, len(options)),
             options=options,
         )
-        select.callback = self._on_select
-        self.add_item(select)
+        self.active_select.callback = self._on_active
+        self.add_item(self.active_select)
 
-        confirm = discord.ui.Button(label="✅ Valider la composition", style=discord.ButtonStyle.success)
-        confirm.callback = self._confirm
-        self.add_item(confirm)
+        self.subs_select = discord.ui.Select(
+            placeholder=f"Remplaçants (0 à {NB_SUBS_MAX})",
+            min_values=0, max_values=min(NB_SUBS_MAX, len(options)),
+            options=options,
+        )
+        self.subs_select.callback = self._on_subs
+        self.add_item(self.subs_select)
+
+        self.confirm_btn = discord.ui.Button(
+            label="✅ Valider la composition", style=discord.ButtonStyle.success, disabled=True,
+        )
+        self.confirm_btn.callback = self._confirm
+        self.add_item(self.confirm_btn)
 
     def _sigle(self) -> str:
         data = load_season_match(self.thread_id) or {}
         return data.get(f"{self.side}_sigle", "")
 
-    async def _on_select(self, interaction: discord.Interaction):
+    def _update_confirm_state(self):
+        active_ok = len(self.active_ids) == NB_ACTIVE
+        overlap = bool(set(self.active_ids) & set(self.sub_ids))
+        self.confirm_btn.disabled = not (active_ok and not overlap)
+        self.confirm_btn.label = (
+            "⚠️ Un joueur ne peut pas être titulaire et remplaçant" if overlap
+            else "✅ Valider la composition"
+        )
+
+    async def _on_active(self, interaction: discord.Interaction):
         if interaction.user.id != _leader_id(self._sigle()):
             await interaction.response.send_message("❌ Seul le leader peut composer l'équipe.", ephemeral=True)
             return
-        self._selected = interaction.data["values"]
-        await interaction.response.defer()
+        self.active_ids = interaction.data["values"]
+        self._update_confirm_state()
+        await interaction.response.edit_message(view=self)
+
+    async def _on_subs(self, interaction: discord.Interaction):
+        if interaction.user.id != _leader_id(self._sigle()):
+            await interaction.response.send_message("❌ Seul le leader peut composer l'équipe.", ephemeral=True)
+            return
+        self.sub_ids = interaction.data["values"]
+        self._update_confirm_state()
+        await interaction.response.edit_message(view=self)
 
     async def _confirm(self, interaction: discord.Interaction):
         if interaction.user.id != _leader_id(self._sigle()):
             await interaction.response.send_message("❌ Seul le leader peut composer l'équipe.", ephemeral=True)
-            return
-        if not self._selected:
-            await interaction.response.send_message("❌ Sélectionne au moins un joueur.", ephemeral=True)
             return
 
         data = load_season_match(self.thread_id)
@@ -540,11 +545,23 @@ class SeasonRosterSelectView(discord.ui.View):
             item.disabled = True
         await interaction.response.edit_message(view=self)
 
-        data[f"roster_{self.side}"] = self._selected
+        data[f"roster_{self.side}"] = self.active_ids
+        data[f"roster_subs_{self.side}"] = self.sub_ids
         save_season_match(self.thread_id, data)
 
-        if data.get("roster_home") and data.get("roster_away"):
-            await _start_match_engine(interaction.client, interaction.guild, self.thread_id)
+        ready_view = SeasonReadyView(self.thread_id, self.side)
+        try:
+            msg = await interaction.channel.send(
+                "✅ Composition enregistrée ! Cliquez sur \"Prêt\" quand votre équipe est prête à commencer.",
+                view=ready_view,
+            )
+            ready_view.message = msg
+            data2 = load_season_match(self.thread_id)
+            if data2:
+                data2[f"ready_msg_{self.side}_id"] = msg.id
+                save_season_match(self.thread_id, data2)
+        except Exception:
+            pass
 
 
 async def _start_match_engine(bot, guild: discord.Guild, thread_id: int):
@@ -573,9 +590,9 @@ async def _start_match_engine(bot, guild: discord.Guild, thread_id: int):
         return players
 
     ta = Team(name=data["home_sigle"], captain_id=home_team_data["leader_id"],
-              players=build_players(data["roster_home"]))
+              players=build_players(data["roster_home"]), subs=build_players(data.get("roster_subs_home") or []))
     tb = Team(name=data["away_sigle"], captain_id=away_team_data["leader_id"],
-              players=build_players(data["roster_away"]))
+              players=build_players(data["roster_away"]), subs=build_players(data.get("roster_subs_away") or []))
 
     match = Match(
         team_a=ta, team_b=tb, channel_id=thread_id,
@@ -596,6 +613,18 @@ async def _start_match_engine(bot, guild: discord.Guild, thread_id: int):
         view_a.message = await home_ch.send("📢 Choisissez votre premier joueur !", view=view_a)
     if away_ch:
         view_b.message = await away_ch.send("📢 Choisissez votre premier joueur !", view=view_b)
+
+    thread = guild.get_thread(thread_id)
+    if not thread:
+        try:
+            thread = await guild.fetch_channel(thread_id)
+        except Exception:
+            thread = None
+    if thread and thread.name and thread.name[0] == "🔴":
+        try:
+            await thread.edit(name="🟠" + thread.name[1:])
+        except Exception:
+            pass
 
 
 class SeasonFirstPickView(discord.ui.View):
@@ -641,13 +670,18 @@ class SeasonFirstPickView(discord.ui.View):
 # ---------------------------------------------------------------------------
 
 async def restore_all_season_matches(bot: commands.Bot) -> int:
-    """Ré-enregistre les boutons persistants encore actifs (aucun appel réseau).
+    """Ré-enregistre les boutons persistants encore actifs (aucun appel réseau,
+    hormis résoudre les membres pour reconstruire le menu de composition).
     Limite connue : les messages de proposition/négociation intermédiaires
     (dates multiples en commun, ou aucune date en commun) ne sont pas
-    ré-enregistrés individuellement — seuls le sélecteur de disponibilités,
-    la dernière proposition en attente d'acceptation, et le bouton Prêt le sont."""
+    ré-enregistrés individuellement."""
     if not os.path.exists(SEASON_MATCHES_DIR):
         return 0
+    await bot.wait_until_ready()
+    guild = bot.guilds[0] if bot.guilds else None
+
+    from cogs.teams import load_team
+
     count = 0
     for fn in os.listdir(SEASON_MATCHES_DIR):
         if not fn.endswith(".json"):
@@ -668,12 +702,32 @@ async def restore_all_season_matches(bot: commands.Bot) -> int:
             if propose_msg_id and propose_date:
                 bot.add_view(SeasonDateAcceptView(thread_id, propose_date), message_id=propose_msg_id)
                 count += 1
-        else:
-            for side in ("home", "away"):
-                if data.get(f"ready_{side}"):
-                    continue
-                msg_id = data.get(f"ready_msg_{side}_id")
-                if msg_id:
-                    bot.add_view(SeasonReadyView(thread_id, side), message_id=msg_id)
-                    count += 1
+            continue
+
+        for side in ("home", "away"):
+            if data.get(f"roster_{side}"):
+                continue
+            msg_id = data.get(f"roster_msg_{side}_id")
+            if not msg_id or not guild:
+                continue
+            sigle = data.get(f"{side}_sigle", "")
+            team = load_team(sigle)
+            if not team:
+                continue
+            options = []
+            for mid in team.get("members", [])[:25]:
+                member = guild.get_member(mid)
+                options.append(discord.SelectOption(
+                    label=(member.display_name if member else str(mid))[:100], value=str(mid),
+                ))
+            bot.add_view(SeasonRosterSelectView(thread_id, side, options), message_id=msg_id)
+            count += 1
+
+        for side in ("home", "away"):
+            if not data.get(f"roster_{side}") or data.get(f"ready_{side}"):
+                continue
+            msg_id = data.get(f"ready_msg_{side}_id")
+            if msg_id:
+                bot.add_view(SeasonReadyView(thread_id, side), message_id=msg_id)
+                count += 1
     return count

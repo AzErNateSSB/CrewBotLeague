@@ -1,0 +1,12 @@
+{
+  "discord_id": 1,
+  "name": "1",
+  "team": null,
+  "stats": {
+    "cb_joues": 3,
+    "stocks_pris": 3,
+    "stocks_par_adversaire": {
+      "2": 3
+    }
+  }
+}
