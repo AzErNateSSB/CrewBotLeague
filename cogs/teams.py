@@ -463,6 +463,8 @@ class JoinRequestView(discord.ui.View):
                              f"**{self.applicant.display_name}** a rejoint **{current}** entre-temps")
             return
 
+        await interaction.response.defer()
+
         team = load_team(self.team["sigle"])
         if self.applicant.id not in team["members"]:
             team["members"].append(self.applicant.id)
@@ -484,7 +486,7 @@ class JoinRequestView(discord.ui.View):
         await refresh_team_lu(interaction.client, interaction.guild_id, team)
         await create_player_stats_post(interaction.client, interaction.guild_id, team, self.applicant)
         await self._resolve(button)
-        await interaction.response.send_message(
+        await interaction.followup.send(
             t(self.gid, "join_accepted", player=self.applicant.display_name, team=team["sigle"])
         )
         try:
@@ -951,9 +953,19 @@ async def restore_all_join_requests(bot: commands.Bot) -> int:
     demandes restaurées/migrées.
     """
     await bot.wait_until_ready()
-    if not bot.guilds:
+    from bot import GUILD_ID
+    guild = bot.get_guild(GUILD_ID)
+    if not guild:
         return 0
-    guild = bot.guilds[0]
+
+    async def _resolve_channel(channel_id: int):
+        channel = guild.get_channel(channel_id)
+        if channel:
+            return channel
+        try:
+            return await guild.fetch_channel(channel_id)
+        except discord.HTTPException:
+            return None
 
     requests = _load_join_requests()
     count = 0
@@ -966,11 +978,11 @@ async def restore_all_join_requests(bot: commands.Bot) -> int:
                 continue
 
             target_channel_id = team["channels"].get("tasks") or team["channels"]["general"]
-            target_channel = guild.get_channel(target_channel_id)
+            target_channel = await _resolve_channel(target_channel_id)
             if not target_channel:
                 continue
 
-            old_channel = guild.get_channel(data["channel_id"])
+            old_channel = await _resolve_channel(data["channel_id"])
             if old_channel:
                 try:
                     old_msg = await old_channel.fetch_message(int(msg_id_str))

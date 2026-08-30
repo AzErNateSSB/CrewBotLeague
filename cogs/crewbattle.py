@@ -341,7 +341,11 @@ def _load_matches_from_file() -> dict[int, "Match"]:
 async def _restore_match_view(bot: commands.Bot, match: "Match"):
     """Envoie la bonne vue dans le(s) salon(s) en fonction de l'état sauvegardé."""
     channel = bot.get_channel(match.channel_id)
-    guild = getattr(channel, "guild", None) or (bot.guilds[0] if bot.guilds else None)
+    if getattr(channel, "guild", None):
+        guild = channel.guild
+    else:
+        from bot import GUILD_ID
+        guild = bot.get_guild(GUILD_ID)
     if not channel and not _is_dual_channel(match):
         return
     state = match.state
