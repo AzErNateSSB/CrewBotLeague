@@ -119,23 +119,103 @@ def make_team_stats_embed(sigle: str, members_stats: list[dict]) -> discord.Embe
 # Modal "Définir un Main"
 # ---------------------------------------------------------------------------
 
-class SetMainModal(discord.ui.Modal, title="Définir ton main"):
-    personnage = discord.ui.TextInput(
-        label="Personnage",
-        placeholder="Ex: Kirby, Link, Sora, BanjoKazooie...",
-        max_length=60,
-    )
+class MainSelectView(discord.ui.View):
+    """Sélection du main par pages de boutons avec emotes (même style que la sélection
+    de personnage en CrewBattle)."""
 
-    def __init__(self, player_id: int, thread: discord.Thread):
-        super().__init__()
-        self.player_id = player_id
-        self.thread    = thread
+    def __init__(self, player_id: int, thread: discord.Thread, bot):
+        super().__init__(timeout=180)
+        self.player_id     = player_id
+        self.thread        = thread
+        self.bot           = bot
+        self.page           = 0
+        self.selected_char: str | None = None
+        self._build()
 
-    async def on_submit(self, interaction: discord.Interaction):
-        raw        = self.personnage.value.strip()
-        normalized = raw.lower().replace(" ", "").replace("-", "")
-        emoji_str  = CHAR_EMOJIS.get(normalized)
-        main_value = emoji_str if emoji_str else raw
+    def _get_emoji(self, name: str):
+        from cogs.crewbattle import EMOJI_SERVER_ID
+        guild = self.bot.get_guild(EMOJI_SERVER_ID)
+        return discord.utils.get(guild.emojis, name=name) if guild else None
+
+    def _build(self):
+        from cogs.crewbattle import CHARACTER_PAGES
+        self.clear_items()
+        _page_name, chars = CHARACTER_PAGES[self.page]
+
+        for i, char in enumerate(chars):
+            emoji = self._get_emoji(char)
+            btn = discord.ui.Button(
+                label="​" if emoji else char,
+                emoji=emoji or None,
+                style=discord.ButtonStyle.success if char == self.selected_char else discord.ButtonStyle.secondary,
+                row=i // 5,
+            )
+            btn.callback = self._make_char_cb(char)
+            self.add_item(btn)
+
+        nb_pages = len(CHARACTER_PAGES)
+        page_name, _ = CHARACTER_PAGES[self.page]
+
+        prev_btn = discord.ui.Button(label="◀", style=discord.ButtonStyle.secondary,
+                                     disabled=self.page == 0, row=4)
+        prev_btn.callback = self._prev
+        self.add_item(prev_btn)
+
+        info_btn = discord.ui.Button(
+            label=f"{page_name}  ({self.page + 1}/{nb_pages})",
+            style=discord.ButtonStyle.secondary, disabled=True, row=4,
+        )
+        self.add_item(info_btn)
+
+        next_btn = discord.ui.Button(label="▶", style=discord.ButtonStyle.secondary,
+                                     disabled=self.page == nb_pages - 1, row=4)
+        next_btn.callback = self._next
+        self.add_item(next_btn)
+
+        confirm_btn = discord.ui.Button(
+            label="✅ Confirmer", style=discord.ButtonStyle.primary,
+            disabled=self.selected_char is None, row=4,
+        )
+        confirm_btn.callback = self._confirm
+        self.add_item(confirm_btn)
+
+    def _make_char_cb(self, char: str):
+        async def cb(interaction: discord.Interaction):
+            from cogs.crewbattle import is_authorized
+            if not is_authorized(interaction.user.id, self.player_id):
+                await interaction.response.send_message("❌ Ce n'est pas à toi de choisir.", ephemeral=True)
+                return
+            self.selected_char = char
+            self._build()
+            await interaction.response.edit_message(view=self)
+        return cb
+
+    async def _prev(self, interaction: discord.Interaction):
+        from cogs.crewbattle import is_authorized
+        if not is_authorized(interaction.user.id, self.player_id):
+            await interaction.response.send_message("❌ Ce n'est pas à toi de choisir.", ephemeral=True)
+            return
+        self.page -= 1
+        self._build()
+        await interaction.response.edit_message(view=self)
+
+    async def _next(self, interaction: discord.Interaction):
+        from cogs.crewbattle import is_authorized
+        if not is_authorized(interaction.user.id, self.player_id):
+            await interaction.response.send_message("❌ Ce n'est pas à toi de choisir.", ephemeral=True)
+            return
+        self.page += 1
+        self._build()
+        await interaction.response.edit_message(view=self)
+
+    async def _confirm(self, interaction: discord.Interaction):
+        from cogs.crewbattle import is_authorized
+        if not is_authorized(interaction.user.id, self.player_id):
+            await interaction.response.send_message("❌ Ce n'est pas à toi de choisir.", ephemeral=True)
+            return
+
+        emoji = self._get_emoji(self.selected_char)
+        main_value = str(emoji) if emoji else self.selected_char
 
         player = _load_player(self.player_id)
         if not player:
@@ -148,8 +228,9 @@ class SetMainModal(discord.ui.Modal, title="Définir ton main"):
 
         await _refresh_player_thread_embed(self.thread, player)
 
-        char_display = emoji_str if emoji_str else f"`{raw}`"
-        await interaction.response.send_message(f"✅ Main défini : {char_display}", ephemeral=True)
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(content=f"✅ Main défini : {main_value}", view=self)
 
 
 async def _refresh_player_thread_embed(thread: discord.Thread, player: dict):
@@ -448,7 +529,10 @@ class _MainBtn(discord.ui.Button):
             await interaction.response.send_message("❌ Ce bouton ne fonctionne qu'dans un post.", ephemeral=True)
             return
         view: PlayerStatsView = self.view
-        await interaction.response.send_modal(SetMainModal(view.player_id, thread))
+        select_view = MainSelectView(view.player_id, thread, interaction.client)
+        await interaction.response.send_message(
+            "🎮 Choisis ton main :", view=select_view, ephemeral=True
+        )
 
 
 class _StatsBtn(discord.ui.Button):

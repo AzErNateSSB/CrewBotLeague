@@ -2,6 +2,8 @@
   "discord_id": 1167095894093594666,
   "name": "Stram",
   "team": "D2S",
-  "stats": {},
+  "stats": {
+    "main": "Little Mac"
+  },
   "stats_thread_id": 1543312772320731239
 }
