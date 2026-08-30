@@ -61,6 +61,12 @@ def _leader_id(side_sigle: str) -> Optional[int]:
     team = load_team(side_sigle)
     return team["leader_id"] if team else None
 
+
+def _is_authorized(user_id: int, side_sigle: str) -> bool:
+    """Vrai si user_id est le leader de side_sigle, ou l'admin."""
+    from cogs.crewbattle import is_authorized
+    return is_authorized(user_id, _leader_id(side_sigle))
+
 # ---------------------------------------------------------------------------
 # Point d'entrée : appelé à la création du thread de match (cf admin_panel.py)
 # ---------------------------------------------------------------------------
@@ -147,7 +153,7 @@ class SeasonDateSelectView(discord.ui.View):
         self.add_item(confirm)
 
     async def _on_select(self, interaction: discord.Interaction):
-        if interaction.user.id != _leader_id(self._sigle()):
+        if not _is_authorized(interaction.user.id, self._sigle()):
             await interaction.response.send_message(
                 "❌ Seul le leader peut renseigner les disponibilités.", ephemeral=True
             )
@@ -160,7 +166,7 @@ class SeasonDateSelectView(discord.ui.View):
         return data.get(f"{self.side}_sigle", "")
 
     async def _confirm(self, interaction: discord.Interaction):
-        if interaction.user.id != _leader_id(self._sigle()):
+        if not _is_authorized(interaction.user.id, self._sigle()):
             await interaction.response.send_message(
                 "❌ Seul le leader peut valider les disponibilités.", ephemeral=True
             )
@@ -263,7 +269,7 @@ class SeasonDateProposeView(discord.ui.View):
 
     def _make_cb(self, chosen_date: str):
         async def cb(interaction: discord.Interaction):
-            if interaction.user.id != _leader_id(self._sigle()):
+            if not _is_authorized(interaction.user.id, self._sigle()):
                 await interaction.response.send_message("❌ Seul le leader peut proposer une date.", ephemeral=True)
                 return
 
@@ -317,7 +323,7 @@ class SeasonDateAcceptView(discord.ui.View):
         proposer_side = data.get("propose_by")
         accepter_side = "away" if proposer_side == "home" else "home"
         accepter_sigle = data.get(f"{accepter_side}_sigle", "")
-        if interaction.user.id != _leader_id(accepter_sigle):
+        if not _is_authorized(interaction.user.id, accepter_sigle):
             await interaction.response.send_message(
                 "❌ Seul le leader de l'équipe qui reçoit la proposition peut l'accepter.", ephemeral=True
             )
@@ -350,7 +356,7 @@ class SeasonNoCommonView(discord.ui.View):
 
     def _make_cb(self, chosen_date: str):
         async def cb(interaction: discord.Interaction):
-            if interaction.user.id != _leader_id(self._sigle()):
+            if not _is_authorized(interaction.user.id, self._sigle()):
                 await interaction.response.send_message("❌ Seul le leader peut sélectionner une date.", ephemeral=True)
                 return
             data = load_season_match(self.thread_id)
@@ -444,7 +450,7 @@ class SeasonReadyView(discord.ui.View):
         return data.get(f"{self.side}_sigle", "")
 
     async def _ready(self, interaction: discord.Interaction):
-        if interaction.user.id != _leader_id(self._sigle()):
+        if not _is_authorized(interaction.user.id, self._sigle()):
             await interaction.response.send_message(
                 "❌ Seul le leader peut confirmer que l'équipe est prête.", ephemeral=True
             )
@@ -516,7 +522,7 @@ class SeasonRosterSelectView(discord.ui.View):
         )
 
     async def _on_active(self, interaction: discord.Interaction):
-        if interaction.user.id != _leader_id(self._sigle()):
+        if not _is_authorized(interaction.user.id, self._sigle()):
             await interaction.response.send_message("❌ Seul le leader peut composer l'équipe.", ephemeral=True)
             return
         self.active_ids = interaction.data["values"]
@@ -524,7 +530,7 @@ class SeasonRosterSelectView(discord.ui.View):
         await interaction.response.edit_message(view=self)
 
     async def _on_subs(self, interaction: discord.Interaction):
-        if interaction.user.id != _leader_id(self._sigle()):
+        if not _is_authorized(interaction.user.id, self._sigle()):
             await interaction.response.send_message("❌ Seul le leader peut composer l'équipe.", ephemeral=True)
             return
         self.sub_ids = interaction.data["values"]
@@ -532,7 +538,7 @@ class SeasonRosterSelectView(discord.ui.View):
         await interaction.response.edit_message(view=self)
 
     async def _confirm(self, interaction: discord.Interaction):
-        if interaction.user.id != _leader_id(self._sigle()):
+        if not _is_authorized(interaction.user.id, self._sigle()):
             await interaction.response.send_message("❌ Seul le leader peut composer l'équipe.", ephemeral=True)
             return
 

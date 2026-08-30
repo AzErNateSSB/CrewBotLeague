@@ -234,8 +234,9 @@ class TeamStatsView(discord.ui.View):
         self.add_item(rename)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        from cogs.crewbattle import is_authorized
         team = _load_team(self.sigle)
-        if not team or interaction.user.id != team["leader_id"]:
+        if not team or not is_authorized(interaction.user.id, team["leader_id"]):
             await interaction.response.send_message("❌ Réservé au leader de l'équipe.", ephemeral=True)
             return False
         return True
@@ -356,8 +357,9 @@ class TeamMemberView(discord.ui.View):
             self.add_item(_MoveTeamBtn(sigle, member_id, twin_sigle))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        from cogs.crewbattle import is_authorized
         team = _load_team(self.sigle)
-        if not team or interaction.user.id != team["leader_id"]:
+        if not team or not is_authorized(interaction.user.id, team["leader_id"]):
             await interaction.response.send_message("❌ Réservé au leader de l'équipe.", ephemeral=True)
             return False
         return True
@@ -579,7 +581,8 @@ class _LeaveConfirmView(discord.ui.View):
 
     @discord.ui.button(label="✅ Oui, quitter", style=discord.ButtonStyle.danger)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.player_id:
+        from cogs.crewbattle import is_authorized
+        if not is_authorized(interaction.user.id, self.player_id):
             await interaction.response.send_message("❌ Action non autorisée.", ephemeral=True)
             return
         for item in self.children:
@@ -589,7 +592,8 @@ class _LeaveConfirmView(discord.ui.View):
 
     @discord.ui.button(label="Annuler", style=discord.ButtonStyle.secondary)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.player_id:
+        from cogs.crewbattle import is_authorized
+        if not is_authorized(interaction.user.id, self.player_id):
             await interaction.response.send_message("❌ Action non autorisée.", ephemeral=True)
             return
         for item in self.children:
@@ -640,7 +644,8 @@ class _SuccessorPickView(discord.ui.View):
         self.add_item(select)
 
     async def _on_select(self, interaction: discord.Interaction):
-        if interaction.user.id != self.player_id:
+        from cogs.crewbattle import is_authorized
+        if not is_authorized(interaction.user.id, self.player_id):
             await interaction.response.send_message("❌ Action non autorisée.", ephemeral=True)
             return
         new_leader_id = int(interaction.data["values"][0])
@@ -668,7 +673,8 @@ class _TransferOnlyView(discord.ui.View):
         self.add_item(select)
 
     async def _on_select(self, interaction: discord.Interaction):
-        if interaction.user.id != self.old_leader_id:
+        from cogs.crewbattle import is_authorized
+        if not is_authorized(interaction.user.id, self.old_leader_id):
             await interaction.response.send_message("❌ Action non autorisée.", ephemeral=True)
             return
         new_leader_id = int(interaction.data["values"][0])
@@ -743,7 +749,8 @@ class PlayerStatsView(discord.ui.View):
         self.add_item(_TransferLeadershipBtn(player_id))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id != self.player_id:
+        from cogs.crewbattle import is_authorized
+        if not is_authorized(interaction.user.id, self.player_id):
             await interaction.response.send_message(
                 "❌ Ces boutons ne sont pas pour toi.", ephemeral=True
             )

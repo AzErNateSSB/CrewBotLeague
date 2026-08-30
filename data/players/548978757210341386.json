@@ -2,6 +2,8 @@
   "discord_id": 548978757210341386,
   "name": "(SPC) LeStratègeNul",
   "team": "MST",
-  "stats": {},
+  "stats": {
+    "main": "King K Rool"
+  },
   "stats_thread_id": 1539689309118926889
 }

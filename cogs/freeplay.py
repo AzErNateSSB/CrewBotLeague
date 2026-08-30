@@ -391,8 +391,10 @@ class TeamConfirmView(discord.ui.View):
             await interaction.response.edit_message(content="⌛ Cette demande n'est plus valide.", view=self)
             return
 
+        from cogs.crewbattle import is_authorized
+
         team = load_team(data["team_sigle"])
-        if not team or interaction.user.id != team["leader_id"]:
+        if not team or not is_authorized(interaction.user.id, team["leader_id"]):
             await interaction.response.send_message(
                 "❌ Seul le leader de l'équipe peut confirmer.", ephemeral=True
             )
@@ -412,8 +414,10 @@ class TeamConfirmView(discord.ui.View):
 
     async def _refuse(self, interaction: discord.Interaction):
         data = _load_team_confirm(self.msg_id)
+        from cogs.crewbattle import is_authorized
+
         team = load_team(data["team_sigle"]) if data else None
-        if not team or interaction.user.id != team["leader_id"]:
+        if not team or not is_authorized(interaction.user.id, team["leader_id"]):
             await interaction.response.send_message(
                 "❌ Seul le leader de l'équipe peut refuser.", ephemeral=True
             )
@@ -757,7 +761,8 @@ class PlayerCountView(discord.ui.View):
             await interaction.response.send_message("❌ Session expirée.", ephemeral=True)
             return
         side_obj = setup.side_a if self.side == "a" else setup.side_b
-        if interaction.user.id != side_obj.captain_id:
+        from cogs.crewbattle import is_authorized
+        if not is_authorized(interaction.user.id, side_obj.captain_id):
             await interaction.response.send_message(
                 "❌ Seul le leader peut répondre.", ephemeral=True
             )
@@ -831,7 +836,8 @@ class SubsView(discord.ui.View):
                 await interaction.response.send_message("❌ Session expirée.", ephemeral=True)
                 return
             side_obj = setup.side_a if self.side == "a" else setup.side_b
-            if interaction.user.id != side_obj.captain_id:
+            from cogs.crewbattle import is_authorized
+            if not is_authorized(interaction.user.id, side_obj.captain_id):
                 await interaction.response.send_message(
                     "❌ Seul le leader peut répondre.", ephemeral=True
                 )
@@ -1031,7 +1037,8 @@ class RosterView(discord.ui.View):
             await interaction.response.send_message("❌ Session expirée.", ephemeral=True)
             return
         side_obj = setup.side_a if self.side == "a" else setup.side_b
-        if interaction.user.id != side_obj.captain_id:
+        from cogs.crewbattle import is_authorized
+        if not is_authorized(interaction.user.id, side_obj.captain_id):
             await interaction.response.send_message(
                 "❌ Seul le leader peut entrer l'équipe.", ephemeral=True
             )
@@ -1124,7 +1131,8 @@ class CancelConfirmView(discord.ui.View):
 
     @discord.ui.button(label="✅ Oui, annuler la CB", style=discord.ButtonStyle.danger)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.confirm_id:
+        from cogs.crewbattle import is_authorized
+        if not is_authorized(interaction.user.id, self.confirm_id):
             await interaction.response.send_message(
                 "❌ Seul l'autre leader peut confirmer l'annulation.", ephemeral=True
             )
@@ -1149,7 +1157,8 @@ class CancelConfirmView(discord.ui.View):
 
     @discord.ui.button(label="❌ Non, je ne veux pas annuler la CB", style=discord.ButtonStyle.secondary)
     async def deny(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id not in (self.requester_id, self.confirm_id):
+        from cogs.crewbattle import is_authorized
+        if not is_authorized(interaction.user.id, self.requester_id, self.confirm_id):
             await interaction.response.send_message("❌ Action non autorisée.", ephemeral=True)
             return
         for item in self.children:

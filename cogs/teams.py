@@ -448,7 +448,8 @@ class JoinRequestView(discord.ui.View):
 
     @discord.ui.button(label="✅ Accepter", style=discord.ButtonStyle.success)
     async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.team["leader_id"]:
+        from cogs.crewbattle import is_authorized
+        if not is_authorized(interaction.user.id, self.team["leader_id"]):
             await interaction.response.send_message("❌ Seul le leader peut valider.", ephemeral=True)
             return
 
@@ -499,7 +500,8 @@ class JoinRequestView(discord.ui.View):
 
     @discord.ui.button(label="❌ Refuser", style=discord.ButtonStyle.danger)
     async def refuse(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.team["leader_id"]:
+        from cogs.crewbattle import is_authorized
+        if not is_authorized(interaction.user.id, self.team["leader_id"]):
             await interaction.response.send_message("❌ Seul le leader peut refuser.", ephemeral=True)
             return
 
@@ -757,8 +759,9 @@ async def cbl_remove_player(interaction: discord.Interaction, joueur: discord.Me
 
     team = load_team(team_sigle)
 
-    # Vérifier que l'auteur est le leader de cette équipe
-    if interaction.user.id != team["leader_id"]:
+    # Vérifier que l'auteur est le leader de cette équipe (ou l'admin)
+    from cogs.crewbattle import is_authorized
+    if not is_authorized(interaction.user.id, team["leader_id"]):
         await interaction.followup.send(
             "❌ Tu n'es pas le leader de l'équipe de ce joueur.", ephemeral=True
         )
