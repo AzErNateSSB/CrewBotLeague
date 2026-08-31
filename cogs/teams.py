@@ -927,7 +927,7 @@ async def cbl_rebuild_stats(interaction: discord.Interaction):
 
 @app_commands.command(
     name="cbl_refresh_buttons",
-    description="[ADMIN] Vérifie et corrige les boutons manquants/obsolètes sur les posts players-stats (sans rien recréer)",
+    description="[ADMIN] Corrige les boutons manquants/obsolètes des posts players-stats",
 )
 async def cbl_refresh_buttons(interaction: discord.Interaction):
     if not interaction.user.guild_permissions.administrator:
@@ -970,7 +970,7 @@ async def restore_all_join_requests(bot: commands.Bot) -> int:
     demandes restaurées/migrées.
     """
     await bot.wait_until_ready()
-    from bot import GUILD_ID
+    from utils.config import GUILD_ID
     guild = bot.get_guild(GUILD_ID)
     if not guild:
         return 0

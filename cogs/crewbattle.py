@@ -344,7 +344,7 @@ async def _restore_match_view(bot: commands.Bot, match: "Match"):
     if getattr(channel, "guild", None):
         guild = channel.guild
     else:
-        from bot import GUILD_ID
+        from utils.config import GUILD_ID
         guild = bot.get_guild(GUILD_ID)
     if not channel and not _is_dual_channel(match):
         return

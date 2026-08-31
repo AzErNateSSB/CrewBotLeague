@@ -11,6 +11,7 @@ de quitter l'équipe, absents de la version GitHub.
 import discord
 import os
 import json
+import asyncio
 
 PLAYERS_DIR = os.path.join("data", "players")
 TEAMS_DIR   = os.path.join("data", "teams")
@@ -123,14 +124,22 @@ class MainSelectView(discord.ui.View):
     """Sélection du main par pages de boutons avec emotes (même style que la sélection
     de personnage en CrewBattle)."""
 
-    def __init__(self, player_id: int, thread: discord.Thread, bot):
+    def __init__(self, player_id: int, thread: discord.Thread, bot, extra_allowed_id: int | None = None):
         super().__init__(timeout=180)
-        self.player_id     = player_id
-        self.thread        = thread
-        self.bot           = bot
-        self.page           = 0
+        self.player_id        = player_id
+        self.thread           = thread
+        self.bot               = bot
+        self.extra_allowed_id  = extra_allowed_id
+        self.page               = 0
         self.selected_char: str | None = None
         self._build()
+
+    def _is_allowed(self, user_id: int) -> bool:
+        from cogs.crewbattle import is_authorized
+        allowed_ids = [self.player_id]
+        if self.extra_allowed_id:
+            allowed_ids.append(self.extra_allowed_id)
+        return is_authorized(user_id, *allowed_ids)
 
     def _get_emoji(self, name: str):
         from cogs.crewbattle import EMOJI_SERVER_ID
@@ -181,8 +190,7 @@ class MainSelectView(discord.ui.View):
 
     def _make_char_cb(self, char: str):
         async def cb(interaction: discord.Interaction):
-            from cogs.crewbattle import is_authorized
-            if not is_authorized(interaction.user.id, self.player_id):
+            if not self._is_allowed(interaction.user.id):
                 await interaction.response.send_message("❌ Ce n'est pas à toi de choisir.", ephemeral=True)
                 return
             self.selected_char = char
@@ -191,8 +199,7 @@ class MainSelectView(discord.ui.View):
         return cb
 
     async def _prev(self, interaction: discord.Interaction):
-        from cogs.crewbattle import is_authorized
-        if not is_authorized(interaction.user.id, self.player_id):
+        if not self._is_allowed(interaction.user.id):
             await interaction.response.send_message("❌ Ce n'est pas à toi de choisir.", ephemeral=True)
             return
         self.page -= 1
@@ -200,8 +207,7 @@ class MainSelectView(discord.ui.View):
         await interaction.response.edit_message(view=self)
 
     async def _next(self, interaction: discord.Interaction):
-        from cogs.crewbattle import is_authorized
-        if not is_authorized(interaction.user.id, self.player_id):
+        if not self._is_allowed(interaction.user.id):
             await interaction.response.send_message("❌ Ce n'est pas à toi de choisir.", ephemeral=True)
             return
         self.page += 1
@@ -209,8 +215,7 @@ class MainSelectView(discord.ui.View):
         await interaction.response.edit_message(view=self)
 
     async def _confirm(self, interaction: discord.Interaction):
-        from cogs.crewbattle import is_authorized
-        if not is_authorized(interaction.user.id, self.player_id):
+        if not self._is_allowed(interaction.user.id):
             await interaction.response.send_message("❌ Ce n'est pas à toi de choisir.", ephemeral=True)
             return
 
@@ -527,12 +532,24 @@ class _MainBtn(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction):
+        if interaction.response.is_done():
+            # Événement d'interaction dupliqué (rare côté Discord) : déjà traité.
+            return
         thread = interaction.channel
         if not isinstance(thread, discord.Thread):
             await interaction.response.send_message("❌ Ce bouton ne fonctionne qu'dans un post.", ephemeral=True)
             return
         view: PlayerStatsView = self.view
-        select_view = MainSelectView(view.player_id, thread, interaction.client)
+
+        from cogs.teams import find_team_of_player, load_team
+        leader_id = None
+        team_sigle = find_team_of_player(view.player_id)
+        if team_sigle:
+            team = load_team(team_sigle)
+            if team:
+                leader_id = team.get("leader_id")
+
+        select_view = MainSelectView(view.player_id, thread, interaction.client, extra_allowed_id=leader_id)
         await interaction.response.send_message(
             "🎮 Choisis ton main :", view=select_view, ephemeral=True
         )
@@ -840,17 +857,44 @@ class PlayerStatsView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         from cogs.crewbattle import is_authorized
-        if not is_authorized(interaction.user.id, self.player_id):
+
+        allowed_ids = [self.player_id]
+        custom_id = interaction.data.get("custom_id", "") if interaction.data else ""
+        if custom_id.startswith("ps_main:"):
+            # "Définir un Main" est aussi ouvert au leader de l'équipe du joueur.
+            from cogs.teams import find_team_of_player, load_team
+            team_sigle = find_team_of_player(self.player_id)
+            if team_sigle:
+                team = load_team(team_sigle)
+                if team and team.get("leader_id"):
+                    allowed_ids.append(team["leader_id"])
+
+        if not is_authorized(interaction.user.id, *allowed_ids):
+            print(f"[WARN] PlayerStatsView refus : user={interaction.user.id} "
+                  f"self.player_id={self.player_id} allowed={allowed_ids} custom_id={custom_id!r}")
             await interaction.response.send_message(
-                "❌ Ces boutons ne sont pas pour toi.", ephemeral=True
+                "❌ Ces boutons ne sont pas pour toi. [BUILD-CHECK-v2]", ephemeral=True
             )
             return False
         return True
 
     async def on_error(self, interaction: discord.Interaction, error: Exception, item):
+        # Événement d'interaction dupliqué côté Discord (rare) : la première
+        # invocation a déjà répondu, celle-ci arrive en trop — bénin, on l'ignore.
+        benign = (
+            isinstance(error, discord.NotFound) and getattr(error, "code", None) == 10062
+        ) or (
+            isinstance(error, discord.HTTPException) and getattr(error, "code", None) == 40060
+        )
+        if benign:
+            return
+
         print(f"[PlayerStatsView] Erreur bouton : {error}")
-        if not interaction.response.is_done():
-            await interaction.response.send_message("❌ Une erreur est survenue.", ephemeral=True)
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ Une erreur est survenue.", ephemeral=True)
+        except discord.HTTPException:
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -1135,7 +1179,7 @@ async def refresh_all_buttons(bot: discord.Client, guild_id: int) -> str:
                     ids.add(cid)
         return ids
 
-    rows_checked = rows_fixed = 0
+    rows_checked = rows_fixed = rows_orphaned = 0
     players_checked = players_fixed = 0
 
     # ── Lignes membres des posts d'équipe ──────────────────────────────────
@@ -1149,7 +1193,11 @@ async def refresh_all_buttons(bot: discord.Client, guild_id: int) -> str:
             team_thread = await _get_thread(guild, team.get("stats_thread_id"))
             if not team_thread:
                 continue
-            for mid_str, msg_id in team.get("stats_member_msg_ids", {}).items():
+
+            msg_ids = team.setdefault("stats_member_msg_ids", {})
+            team_changed = False
+
+            for mid_str, msg_id in list(msg_ids.items()):
                 mid    = int(mid_str)
                 player = _load_player(mid)
                 if not player:
@@ -1163,8 +1211,52 @@ async def refresh_all_buttons(bot: discord.Client, guild_id: int) -> str:
                     if _current_ids(msg) != expected:
                         await msg.edit(embed=make_member_mini_embed(player, is_leader), view=member_view)
                         rows_fixed += 1
+                        await asyncio.sleep(0.5)
                 except Exception:
                     pass
+
+            # Lignes présentes sur Discord mais absentes de stats_member_msg_ids
+            # (membre "perdu" par une course sur le fichier JSON lors d'un ajout
+            # concurrent — cf. le cas Psiffrin/Gysmo).
+            known_msg_ids = set(msg_ids.values())
+            try:
+                async for msg in team_thread.history(limit=300):
+                    if msg.id in known_msg_ids or msg.author != guild.me:
+                        continue
+                    found_mid = None
+                    for row in msg.components:
+                        for child in getattr(row, "children", []):
+                            cid = getattr(child, "custom_id", "") or ""
+                            if cid.startswith(f"ts_remove:{sigle}:"):
+                                found_mid = int(cid.split(":")[-1])
+                                break
+                        if found_mid:
+                            break
+                    if found_mid is None:
+                        continue
+
+                    rows_orphaned += 1
+                    if found_mid not in team.get("members", []):
+                        team.setdefault("members", []).append(found_mid)
+                        team_changed = True
+                    msg_ids[str(found_mid)] = msg.id
+                    team_changed = True
+
+                    player = _load_player(found_mid)
+                    if player:
+                        is_leader   = (found_mid == team.get("leader_id"))
+                        member_view = TeamMemberView(sigle, found_mid)
+                        try:
+                            await msg.edit(embed=make_member_mini_embed(player, is_leader), view=member_view)
+                            rows_fixed += 1
+                            await asyncio.sleep(0.5)
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+            if team_changed:
+                _save_team(team)
 
     # ── Posts individuels des joueurs ──────────────────────────────────────
     if os.path.exists(PLAYERS_DIR):
@@ -1196,12 +1288,14 @@ async def refresh_all_buttons(bot: discord.Client, guild_id: int) -> str:
                             )
                             await msg.edit(embed=embed, view=view)
                             players_fixed += 1
+                            await asyncio.sleep(0.5)
                         break
             except Exception:
                 pass
 
     return (f"Posts joueurs : **{players_fixed}** corrigé(s) sur {players_checked} vérifié(s).\n"
-            f"Lignes membres (posts d'équipe) : **{rows_fixed}** corrigée(s) sur {rows_checked} vérifiée(s).")
+            f"Lignes membres (posts d'équipe) : **{rows_fixed}** corrigée(s) sur {rows_checked} vérifiée(s)"
+            f" (dont **{rows_orphaned}** retrouvée(s) orpheline(s) et reliée(s) aux données de l'équipe).")
 
 
 def register_all_views(bot: discord.Client) -> int:

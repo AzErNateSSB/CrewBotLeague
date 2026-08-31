@@ -684,7 +684,7 @@ async def restore_all_season_matches(bot: commands.Bot) -> int:
     if not os.path.exists(SEASON_MATCHES_DIR):
         return 0
     await bot.wait_until_ready()
-    from bot import GUILD_ID
+    from utils.config import GUILD_ID
     guild = bot.get_guild(GUILD_ID)
 
     from cogs.teams import load_team
