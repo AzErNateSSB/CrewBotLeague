@@ -4,7 +4,8 @@
   "team": "LT",
   "stats_thread_id": 1536050289852031048,
   "stats": {
-    "cb_joues": 2,
-    "stocks_pris": 4
+    "cb_joues": 0,
+    "stocks_pris": 0,
+    "stocks_par_adversaire": {}
   }
 }

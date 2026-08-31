@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import json
 import os
+from datetime import date
 
 from cogs.teams import (
     load_player, save_player, load_team,
@@ -18,6 +19,10 @@ from utils.players_stats import create_team_stats_post, create_player_stats_post
 
 PANELS_FILE        = os.path.join("data", "panels.json")
 CHANNEL_CREATETEAM = 1532064361324089525
+
+# Fenêtre d'ouverture des inscriptions pour le 1er tour de la saison.
+JOIN_WINDOW_START = date(2026, 8, 31)
+JOIN_WINDOW_END   = date(2026, 9, 13)
 CHANNEL_JOINTEAM   = 1532064572167553174
 
 # ---------------------------------------------------------------------------
@@ -372,6 +377,11 @@ class JoinTeamView(discord.ui.View):
     @discord.ui.button(label="🎮 Rejoindre une équipe", style=discord.ButtonStyle.primary,
                        custom_id="panel_join_team")
     async def join(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not (JOIN_WINDOW_START <= date.today() <= JOIN_WINDOW_END):
+            await interaction.response.send_message(
+                "❌ La saison a démarré, attendez la réouverture à la mi-saison.", ephemeral=True
+            )
+            return
         await interaction.response.send_modal(JoinTeamModal())
 
 # ---------------------------------------------------------------------------

@@ -3,8 +3,9 @@
   "name": "LT|ARK|Turbo",
   "team": "LT",
   "stats": {
-    "cb_joues": 5,
-    "stocks_pris": 14
+    "cb_joues": 0,
+    "stocks_pris": 0,
+    "stocks_par_adversaire": {}
   },
   "stats_thread_id": 1538254612073549957
 }

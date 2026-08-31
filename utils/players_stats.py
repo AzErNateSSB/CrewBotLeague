@@ -1051,6 +1051,7 @@ async def refresh_team_stats_post(
                 embed=make_member_mini_embed(player, is_leader),
                 view=TeamMemberView(sigle, mid),
             )
+            await asyncio.sleep(0.3)
         except Exception:
             pass
 
@@ -1296,6 +1297,64 @@ async def refresh_all_buttons(bot: discord.Client, guild_id: int) -> str:
     return (f"Posts joueurs : **{players_fixed}** corrigé(s) sur {players_checked} vérifié(s).\n"
             f"Lignes membres (posts d'équipe) : **{rows_fixed}** corrigée(s) sur {rows_checked} vérifiée(s)"
             f" (dont **{rows_orphaned}** retrouvée(s) orpheline(s) et reliée(s) aux données de l'équipe).")
+
+
+async def reset_all_stats(bot: discord.Client, guild_id: int) -> str:
+    """[ADMIN] Remet à zéro cb_joues/stocks_pris/stocks_par_adversaire pour tous
+    les joueurs, et rafraîchit tous les posts (joueurs + équipes) en conséquence.
+    Ne touche ni au main, ni à l'appartenance à une équipe."""
+    guild = bot.get_guild(guild_id)
+    if not guild:
+        return "❌ Serveur introuvable."
+
+    players_reset = 0
+    if os.path.exists(PLAYERS_DIR):
+        for filename in os.listdir(PLAYERS_DIR):
+            if not filename.endswith(".json"):
+                continue
+            with open(os.path.join(PLAYERS_DIR, filename), encoding="utf-8") as f:
+                player = json.load(f)
+            stats = player.setdefault("stats", {})
+            if stats.get("cb_joues") or stats.get("stocks_pris") or stats.get("stocks_par_adversaire"):
+                stats["cb_joues"] = 0
+                stats["stocks_pris"] = 0
+                stats["stocks_par_adversaire"] = {}
+                _save_player(player)
+                players_reset += 1
+
+    players_refreshed = 0
+    if os.path.exists(PLAYERS_DIR):
+        for filename in os.listdir(PLAYERS_DIR):
+            if not filename.endswith(".json"):
+                continue
+            with open(os.path.join(PLAYERS_DIR, filename), encoding="utf-8") as f:
+                player = json.load(f)
+            thread_id = player.get("stats_thread_id")
+            if not thread_id:
+                continue
+            thread = await _get_thread(guild, thread_id)
+            if not thread:
+                continue
+            await _refresh_player_thread_embed(thread, player)
+            players_refreshed += 1
+            await asyncio.sleep(0.3)
+
+    teams_refreshed = 0
+    if os.path.exists(TEAMS_DIR):
+        for filename in os.listdir(TEAMS_DIR):
+            if not filename.endswith(".json"):
+                continue
+            with open(os.path.join(TEAMS_DIR, filename), encoding="utf-8") as f:
+                team = json.load(f)
+            sigle = team.get("sigle", "")
+            if not sigle or not team.get("stats_thread_id"):
+                continue
+            await refresh_team_stats_post(bot, guild_id, sigle)
+            teams_refreshed += 1
+            await asyncio.sleep(0.3)
+
+    return (f"**{players_reset}** joueur(s) remis à zéro.\n"
+            f"**{players_refreshed}** post(s) joueur rafraîchi(s), **{teams_refreshed}** post(s) d'équipe rafraîchi(s).")
 
 
 def register_all_views(bot: discord.Client) -> int:

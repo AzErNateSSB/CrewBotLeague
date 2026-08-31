@@ -4,7 +4,8 @@
   "team": "RC",
   "stats_thread_id": 1536050623320039538,
   "stats": {
-    "cb_joues": 1,
-    "stocks_pris": 0
+    "cb_joues": 0,
+    "stocks_pris": 0,
+    "stocks_par_adversaire": {}
   }
 }

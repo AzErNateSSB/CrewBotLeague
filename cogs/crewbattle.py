@@ -827,12 +827,13 @@ async def _apply_score(match: "Match", guild: Optional[discord.Guild], channel,
     match.banned_stages = []
     match.picked_stage = None
 
-    from utils.players_stats import record_set_result
-    record_set_result(ca.discord_id, cb.discord_id, takes_a, takes_b)
+    if load_official_match(match.channel_id):
+        from utils.players_stats import record_set_result
+        record_set_result(ca.discord_id, cb.discord_id, takes_a, takes_b)
 
-    if guild and _bot_ref:
-        from utils.players_stats import refresh_after_set
-        await refresh_after_set(_bot_ref, guild.id, ca.discord_id, cb.discord_id)
+        if guild and _bot_ref:
+            from utils.players_stats import refresh_after_set
+            await refresh_after_set(_bot_ref, guild.id, ca.discord_id, cb.discord_id)
 
     winner_name = cb.name if loser_side == "A" else ca.name
     rec = match.set_history[-1]
@@ -1867,15 +1868,16 @@ async def cbl_force_score(interaction: discord.Interaction, vies_prises_a: int, 
     match.banned_stages = []
     match.picked_stage = None
 
-    from utils.players_stats import record_set_result
-    record_set_result(ca.discord_id, cb.discord_id, vies_prises_a, vies_prises_b)
-
     channel = interaction.channel
     guild = getattr(channel, "guild", None)
 
-    if guild and _bot_ref:
-        from utils.players_stats import refresh_after_set
-        await refresh_after_set(_bot_ref, guild.id, ca.discord_id, cb.discord_id)
+    if load_official_match(match.channel_id):
+        from utils.players_stats import record_set_result
+        record_set_result(ca.discord_id, cb.discord_id, vies_prises_a, vies_prises_b)
+
+        if guild and _bot_ref:
+            from utils.players_stats import refresh_after_set
+            await refresh_after_set(_bot_ref, guild.id, ca.discord_id, cb.discord_id)
 
     winner_name = cb.name if loser_side == "A" else ca.name
     rec = match.set_history[-1]

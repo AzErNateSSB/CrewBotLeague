@@ -1,6 +1,13 @@
 {
   "name": "26aut",
   "status": "registration",
+  "start_date": "2026-08-31",
+  "forums": {
+    "Ligue-1": null,
+    "Ligue-2": null,
+    "Ligue-3": null,
+    "Ligue-4": null
+  },
   "leagues": {
     "Ligue-1": [
       "JRJ",

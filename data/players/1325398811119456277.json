@@ -3,9 +3,10 @@
   "name": "Lyh",
   "team": "HoJ",
   "stats": {
-    "cb_joues": 1,
+    "cb_joues": 0,
     "stocks_pris": 0,
-    "main": "<:54_Palutena:1438572599566139412>"
+    "main": "<:54_Palutena:1438572599566139412>",
+    "stocks_par_adversaire": {}
   },
   "stats_thread_id": 1536050239545286779
 }
