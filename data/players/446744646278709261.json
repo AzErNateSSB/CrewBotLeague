@@ -2,6 +2,8 @@
   "discord_id": 446744646278709261,
   "name": "KÐ | inori",
   "team": "KD",
-  "stats": {},
+  "stats": {
+    "main": "palutena"
+  },
   "stats_thread_id": 1541865277493477448
 }

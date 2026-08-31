@@ -2,6 +2,8 @@
   "discord_id": 693783810067791933,
   "name": "Zaccaouette",
   "team": "KD",
-  "stats": {},
+  "stats": {
+    "main": "<:20_Falco:1438444473976881253>"
+  },
   "stats_thread_id": 1541834831929806881
 }

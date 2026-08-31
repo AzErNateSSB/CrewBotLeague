@@ -234,7 +234,9 @@ class MainSelectView(discord.ui.View):
 
 
 async def _refresh_player_thread_embed(thread: discord.Thread, player: dict):
-    """Met à jour l'embed du 1er message (posté par le bot) dans le post d'un joueur."""
+    """Met à jour l'embed + les boutons du 1er message (posté par le bot) dans le post
+    d'un joueur (réattache une vue fraîche à chaque appel pour éviter que des posts
+    anciens gardent un jeu de boutons obsolète)."""
     stats = player.get("stats", {})
     embed = make_player_embed(
         player.get("name", "?"),
@@ -242,10 +244,11 @@ async def _refresh_player_thread_embed(thread: discord.Thread, player: dict):
         stats.get("cb_joues", 0),
         stats.get("stocks_pris", 0),
     )
+    view = PlayerStatsView(player["discord_id"])
     try:
         async for msg in thread.history(limit=5, oldest_first=True):
             if msg.author == thread.guild.me and msg.embeds:
-                await msg.edit(embed=embed)
+                await msg.edit(embed=embed, view=view)
                 return
     except Exception:
         pass
@@ -1000,7 +1003,10 @@ async def refresh_team_stats_post(
         is_leader = (mid == team["leader_id"])
         try:
             existing_msg = await thread.fetch_message(msg_ids[mid_str])
-            await existing_msg.edit(embed=make_member_mini_embed(player, is_leader))
+            await existing_msg.edit(
+                embed=make_member_mini_embed(player, is_leader),
+                view=TeamMemberView(sigle, mid),
+            )
         except Exception:
             pass
 
@@ -1108,6 +1114,94 @@ async def rebuild_all_stats(bot: discord.Client, guild_id: int) -> str:
         report.append(f"✅ **{sigle}** — {count} joueur(s) + post équipe")
 
     return "\n".join(report) if report else "Aucune équipe trouvée."
+
+
+async def refresh_all_buttons(bot: discord.Client, guild_id: int) -> str:
+    """[ADMIN] Passe en revue tous les posts joueurs et toutes les lignes membres des
+    posts d'équipe, et réattache une vue à jour (embed + boutons) — sans rien
+    supprimer ni recréer — sur ceux dont les boutons sont manquants ou obsolètes
+    (ex: bouton ajouté au code après la création du post, équipe jumelle créée
+    après coup). Retourne un rapport texte."""
+    guild = bot.get_guild(guild_id)
+    if not guild:
+        return "❌ Serveur introuvable."
+
+    def _current_ids(msg: discord.Message) -> set[str]:
+        ids = set()
+        for row in msg.components:
+            for child in getattr(row, "children", []):
+                cid = getattr(child, "custom_id", None)
+                if cid:
+                    ids.add(cid)
+        return ids
+
+    rows_checked = rows_fixed = 0
+    players_checked = players_fixed = 0
+
+    # ── Lignes membres des posts d'équipe ──────────────────────────────────
+    if os.path.exists(TEAMS_DIR):
+        for filename in os.listdir(TEAMS_DIR):
+            if not filename.endswith(".json"):
+                continue
+            with open(os.path.join(TEAMS_DIR, filename), encoding="utf-8") as f:
+                team = json.load(f)
+            sigle = team.get("sigle", "")
+            team_thread = await _get_thread(guild, team.get("stats_thread_id"))
+            if not team_thread:
+                continue
+            for mid_str, msg_id in team.get("stats_member_msg_ids", {}).items():
+                mid    = int(mid_str)
+                player = _load_player(mid)
+                if not player:
+                    continue
+                rows_checked += 1
+                is_leader   = (mid == team.get("leader_id"))
+                member_view = TeamMemberView(sigle, mid)
+                expected    = {it.custom_id for it in member_view.children}
+                try:
+                    msg = await team_thread.fetch_message(msg_id)
+                    if _current_ids(msg) != expected:
+                        await msg.edit(embed=make_member_mini_embed(player, is_leader), view=member_view)
+                        rows_fixed += 1
+                except Exception:
+                    pass
+
+    # ── Posts individuels des joueurs ──────────────────────────────────────
+    if os.path.exists(PLAYERS_DIR):
+        for filename in os.listdir(PLAYERS_DIR):
+            if not filename.endswith(".json"):
+                continue
+            with open(os.path.join(PLAYERS_DIR, filename), encoding="utf-8") as f:
+                player = json.load(f)
+            thread_id = player.get("stats_thread_id")
+            if not thread_id:
+                continue
+            player_thread = await _get_thread(guild, thread_id)
+            if not player_thread:
+                continue
+            players_checked += 1
+            mid      = player["discord_id"]
+            view     = PlayerStatsView(mid)
+            expected = {it.custom_id for it in view.children}
+            try:
+                async for msg in player_thread.history(limit=5, oldest_first=True):
+                    if msg.author == guild.me and msg.embeds:
+                        if _current_ids(msg) != expected:
+                            stats = player.get("stats", {})
+                            embed = make_player_embed(
+                                player.get("name", "?"),
+                                stats.get("main"),
+                                stats.get("cb_joues", 0),
+                                stats.get("stocks_pris", 0),
+                            )
+                            await msg.edit(embed=embed, view=view)
+                            players_fixed += 1
+                        break
+            except Exception:
+                pass
+
+    return (f"Posts joueurs : **{players_fixed}** corrigé(s) sur {players_checked} vérifié(s).\n"
+            f"Lignes membres (posts d'équipe) : **{rows_fixed}** corrigée(s) sur {rows_checked} vérifiée(s).")
 
 
 def register_all_views(bot: discord.Client) -> int:

@@ -926,6 +926,23 @@ async def cbl_rebuild_stats(interaction: discord.Interaction):
 
 
 @app_commands.command(
+    name="cbl_refresh_buttons",
+    description="[ADMIN] Vérifie et corrige les boutons manquants/obsolètes sur les posts players-stats (sans rien recréer)",
+)
+async def cbl_refresh_buttons(interaction: discord.Interaction):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("❌ Réservé aux administrateurs.", ephemeral=True)
+        return
+
+    await interaction.response.defer(ephemeral=True)
+    from utils.players_stats import refresh_all_buttons
+    report = await refresh_all_buttons(interaction.client, interaction.guild_id)
+    await interaction.followup.send(f"✅ Vérification terminée :\n{report}", ephemeral=True)
+    await log_command(interaction.user.display_name, "cbl_refresh_buttons", "Completed",
+                      f"Boutons players-stats vérifiés par **{interaction.user.display_name}**")
+
+
+@app_commands.command(
     name="cbl_refresh_teams_lu",
     description="[ADMIN] Reconstruit le salon teams-lu (un embed par équipe existante)",
 )
@@ -1024,6 +1041,7 @@ class Teams(commands.Cog):
         self.bot.tree.add_command(cbl_adm_rename_team)
         self.bot.tree.add_command(cbl_refresh_teams_lu)
         self.bot.tree.add_command(cbl_rebuild_stats)
+        self.bot.tree.add_command(cbl_refresh_buttons)
         self.bot.loop.create_task(restore_all_join_requests(self.bot))
 
 
