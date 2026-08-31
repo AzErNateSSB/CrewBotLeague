@@ -1,12 +1,12 @@
 {
   "name": "26aut",
-  "status": "registration",
+  "status": "active",
   "start_date": "2026-08-31",
   "forums": {
-    "Ligue-1": null,
-    "Ligue-2": null,
-    "Ligue-3": null,
-    "Ligue-4": null
+    "Ligue-1": 1543944107288961114,
+    "Ligue-2": 1543944123915042878,
+    "Ligue-3": 1543944138993438871,
+    "Ligue-4": 1543944150716522546
   },
   "leagues": {
     "Ligue-1": [
@@ -41,16 +41,519 @@
     ]
   },
   "calendar": {
-    "Ligue-1": [],
-    "Ligue-2": [],
-    "Ligue-3": [],
-    "Ligue-4": []
+    "Ligue-1": [
+      [
+        {
+          "home": "JRJ",
+          "away": "ARK",
+          "result": null,
+          "channel_id": 1543944108932993044
+        },
+        {
+          "home": "R-B",
+          "away": "KD",
+          "result": null,
+          "channel_id": 1543944115132043276
+        },
+        {
+          "home": "SR",
+          "away": "POM",
+          "result": null,
+          "channel_id": 1543944119955497103
+        }
+      ],
+      [
+        {
+          "home": "JRJ",
+          "away": "KD",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "ARK",
+          "away": "POM",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "R-B",
+          "away": "SR",
+          "result": null,
+          "channel_id": null
+        }
+      ],
+      [
+        {
+          "home": "JRJ",
+          "away": "POM",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "KD",
+          "away": "SR",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "ARK",
+          "away": "R-B",
+          "result": null,
+          "channel_id": null
+        }
+      ],
+      [
+        {
+          "home": "JRJ",
+          "away": "SR",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "POM",
+          "away": "R-B",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "KD",
+          "away": "ARK",
+          "result": null,
+          "channel_id": null
+        }
+      ],
+      [
+        {
+          "home": "JRJ",
+          "away": "R-B",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "SR",
+          "away": "ARK",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "POM",
+          "away": "KD",
+          "result": null,
+          "channel_id": null
+        }
+      ]
+    ],
+    "Ligue-2": [
+      [
+        {
+          "home": "JRJ²",
+          "away": "RC",
+          "result": null,
+          "channel_id": 1543944124825084035
+        },
+        {
+          "home": "OXVI",
+          "away": "D2S",
+          "result": null,
+          "channel_id": 1543944128390238278
+        },
+        {
+          "home": "LT",
+          "away": "OX",
+          "result": null,
+          "channel_id": 1543944133306228779
+        }
+      ],
+      [
+        {
+          "home": "JRJ²",
+          "away": "D2S",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "RC",
+          "away": "OX",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "OXVI",
+          "away": "LT",
+          "result": null,
+          "channel_id": null
+        }
+      ],
+      [
+        {
+          "home": "JRJ²",
+          "away": "OX",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "D2S",
+          "away": "LT",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "RC",
+          "away": "OXVI",
+          "result": null,
+          "channel_id": null
+        }
+      ],
+      [
+        {
+          "home": "JRJ²",
+          "away": "LT",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "OX",
+          "away": "OXVI",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "D2S",
+          "away": "RC",
+          "result": null,
+          "channel_id": null
+        }
+      ],
+      [
+        {
+          "home": "JRJ²",
+          "away": "OXVI",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "LT",
+          "away": "RC",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "OX",
+          "away": "D2S",
+          "result": null,
+          "channel_id": null
+        }
+      ]
+    ],
+    "Ligue-3": [
+      [
+        {
+          "home": "3QI",
+          "away": "ADN",
+          "result": null,
+          "channel_id": 1543944140159586394
+        },
+        {
+          "home": "4B",
+          "away": "R-B²",
+          "result": null,
+          "channel_id": 1543944145494868008
+        }
+      ],
+      [
+        {
+          "home": "SU",
+          "away": "ADN",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "3QI",
+          "away": "4B",
+          "result": null,
+          "channel_id": null
+        }
+      ],
+      [
+        {
+          "home": "SU",
+          "away": "R-B²",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "ADN",
+          "away": "4B",
+          "result": null,
+          "channel_id": null
+        }
+      ],
+      [
+        {
+          "home": "SU",
+          "away": "4B",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "R-B²",
+          "away": "3QI",
+          "result": null,
+          "channel_id": null
+        }
+      ],
+      [
+        {
+          "home": "SU",
+          "away": "3QI",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "R-B²",
+          "away": "ADN",
+          "result": null,
+          "channel_id": null
+        }
+      ]
+    ],
+    "Ligue-4": [
+      [
+        {
+          "home": "HoJ",
+          "away": "SSL",
+          "result": null,
+          "channel_id": 1543944151807172689
+        },
+        {
+          "home": "OXVI²",
+          "away": "MST",
+          "result": null,
+          "channel_id": 1543944155632242739
+        }
+      ],
+      [
+        {
+          "home": "LA",
+          "away": "SSL",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "HoJ",
+          "away": "OXVI²",
+          "result": null,
+          "channel_id": null
+        }
+      ],
+      [
+        {
+          "home": "LA",
+          "away": "MST",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "SSL",
+          "away": "OXVI²",
+          "result": null,
+          "channel_id": null
+        }
+      ],
+      [
+        {
+          "home": "LA",
+          "away": "OXVI²",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "MST",
+          "away": "HoJ",
+          "result": null,
+          "channel_id": null
+        }
+      ],
+      [
+        {
+          "home": "LA",
+          "away": "HoJ",
+          "result": null,
+          "channel_id": null
+        },
+        {
+          "home": "MST",
+          "away": "SSL",
+          "result": null,
+          "channel_id": null
+        }
+      ]
+    ]
   },
   "standings": {
-    "Ligue-1": {},
-    "Ligue-2": {},
-    "Ligue-3": {},
-    "Ligue-4": {}
+    "Ligue-1": {
+      "JRJ": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      },
+      "R-B": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      },
+      "SR": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      },
+      "POM": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      },
+      "KD": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      },
+      "ARK": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      }
+    },
+    "Ligue-2": {
+      "JRJ²": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      },
+      "OXVI": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      },
+      "LT": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      },
+      "OX": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      },
+      "D2S": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      },
+      "RC": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      }
+    },
+    "Ligue-3": {
+      "SU": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      },
+      "3QI": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      },
+      "4B": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      },
+      "R-B²": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      },
+      "ADN": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      }
+    },
+    "Ligue-4": {
+      "LA": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      },
+      "HoJ": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      },
+      "OXVI²": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      },
+      "MST": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      },
+      "SSL": {
+        "pts": 0,
+        "wins": 0,
+        "losses": 0,
+        "lives_scored": 0,
+        "lives_conceded": 0
+      }
+    }
   },
-  "barrages": []
+  "barrages": [],
+  "current_journee": 1
 }
