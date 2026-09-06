@@ -144,11 +144,15 @@ class SeasonDateSelectView(discord.ui.View):
             placeholder="Sélectionne tes disponibilités...",
             min_values=1, max_values=len(options),
             options=options,
+            custom_id=f"season_avail_select_{thread_id}_{side}",
         )
         select.callback = self._on_select
         self.add_item(select)
 
-        confirm = discord.ui.Button(label="✅ Valider mes disponibilités", style=discord.ButtonStyle.success)
+        confirm = discord.ui.Button(
+            label="✅ Valider mes disponibilités", style=discord.ButtonStyle.success,
+            custom_id=f"season_avail_confirm_{thread_id}_{side}",
+        )
         confirm.callback = self._confirm
         self.add_item(confirm)
 
@@ -310,7 +314,10 @@ class SeasonDateAcceptView(discord.ui.View):
         self.proposed_date = proposed_date
         self.message: Optional[discord.Message] = None
 
-        btn = discord.ui.Button(label="✅ Accepter", style=discord.ButtonStyle.success)
+        btn = discord.ui.Button(
+            label="✅ Accepter", style=discord.ButtonStyle.success,
+            custom_id=f"season_accept_{thread_id}_{proposed_date}",
+        )
         btn.callback = self._accept
         self.add_item(btn)
 
@@ -441,6 +448,7 @@ class SeasonReadyView(discord.ui.View):
             label="✅ Prêt !" if already_ready else "✅ Prêt",
             style=discord.ButtonStyle.success,
             disabled=already_ready,
+            custom_id=f"season_ready_{thread_id}_{side}",
         )
         btn.callback = self._ready
         self.add_item(btn)
@@ -490,6 +498,7 @@ class SeasonRosterSelectView(discord.ui.View):
             placeholder=f"Joueurs actifs ({NB_ACTIVE})",
             min_values=NB_ACTIVE, max_values=min(NB_ACTIVE, len(options)),
             options=options,
+            custom_id=f"season_roster_active_{thread_id}_{side}",
         )
         self.active_select.callback = self._on_active
         self.add_item(self.active_select)
@@ -498,12 +507,14 @@ class SeasonRosterSelectView(discord.ui.View):
             placeholder=f"Remplaçants (0 à {NB_SUBS_MAX})",
             min_values=0, max_values=min(NB_SUBS_MAX, len(options)),
             options=options,
+            custom_id=f"season_roster_subs_{thread_id}_{side}",
         )
         self.subs_select.callback = self._on_subs
         self.add_item(self.subs_select)
 
         self.confirm_btn = discord.ui.Button(
             label="✅ Valider la composition", style=discord.ButtonStyle.success, disabled=True,
+            custom_id=f"season_roster_confirm_{thread_id}_{side}",
         )
         self.confirm_btn.callback = self._confirm
         self.add_item(self.confirm_btn)

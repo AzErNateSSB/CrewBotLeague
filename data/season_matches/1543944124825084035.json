@@ -6,7 +6,10 @@
   "period_start": "2026-08-31",
   "deadline": "2026-09-20",
   "avail_home": null,
-  "avail_away": null,
+  "avail_away": [
+    "2026-09-06",
+    "2026-09-05"
+  ],
   "confirmed_date": null,
   "roster_home": null,
   "roster_subs_home": null,

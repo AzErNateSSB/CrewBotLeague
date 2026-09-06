@@ -1,5 +1,9 @@
 {
   "discord_id": 292287594539253760,
   "name": "AxFeed",
-  "team": null
+  "team": "ARK",
+  "stats": {
+    "main": "<:52_MiiSwordfighter:1438572489847476245>"
+  },
+  "stats_thread_id": 1543962351659913400
 }

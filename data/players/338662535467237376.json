@@ -2,6 +2,8 @@
   "discord_id": 338662535467237376,
   "name": "HL7",
   "team": "OX",
-  "stats": {},
+  "stats": {
+    "main": "<:31_Snake:1438445261373575198>"
+  },
   "stats_thread_id": 1542914764966076478
 }
