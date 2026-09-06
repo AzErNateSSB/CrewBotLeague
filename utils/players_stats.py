@@ -1,11 +1,17 @@
 """
 Système de stats joueurs dans les forums players-stats.
 Un post (thread) par joueur + un post d'équipe par équipe.
+
+Basé sur la version développée en parallèle sur GitHub pendant l'indisponibilité
+du PC local ; complété avec le suivi réel des stats (cb_joues/stocks_pris,
+incrémentés après chaque set de CrewBattle) et le transfert de leadership avant
+de quitter l'équipe, absents de la version GitHub.
 """
 
 import discord
 import os
 import json
+import asyncio
 
 PLAYERS_DIR = os.path.join("data", "players")
 TEAMS_DIR   = os.path.join("data", "teams")
@@ -55,6 +61,37 @@ def _save_team(data: dict):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
+async def _get_thread(guild: discord.Guild, thread_id: int | None) -> "discord.Thread | None":
+    """Résout un thread par ID (y compris hors cache). None si absent/introuvable/supprimé."""
+    if not thread_id or not guild:
+        return None
+    thread = guild.get_thread(thread_id)
+    if thread:
+        return thread
+    try:
+        return await guild.fetch_channel(thread_id)
+    except Exception:
+        return None
+
+
+async def team_stats_post_exists(bot: discord.Client, guild_id: int, sigle: str) -> bool:
+    """Vérifie sur Discord (pas juste dans le JSON) que le post de stats de l'équipe existe encore."""
+    team = _load_team(sigle)
+    if not team:
+        return False
+    guild = bot.get_guild(guild_id)
+    return await _get_thread(guild, team.get("stats_thread_id")) is not None
+
+
+async def player_stats_post_exists(bot: discord.Client, guild_id: int, player_id: int) -> bool:
+    """Vérifie sur Discord (pas juste dans le JSON) que le post de stats du joueur existe encore."""
+    player = _load_player(player_id)
+    if not player:
+        return False
+    guild = bot.get_guild(guild_id)
+    return await _get_thread(guild, player.get("stats_thread_id")) is not None
+
+
 # ---------------------------------------------------------------------------
 # Embeds
 # ---------------------------------------------------------------------------
@@ -83,23 +120,107 @@ def make_team_stats_embed(sigle: str, members_stats: list[dict]) -> discord.Embe
 # Modal "Définir un Main"
 # ---------------------------------------------------------------------------
 
-class SetMainModal(discord.ui.Modal, title="Définir ton main"):
-    personnage = discord.ui.TextInput(
-        label="Personnage",
-        placeholder="Ex: Kirby, Link, Sora, BanjoKazooie...",
-        max_length=60,
-    )
+class MainSelectView(discord.ui.View):
+    """Sélection du main par pages de boutons avec emotes (même style que la sélection
+    de personnage en CrewBattle)."""
 
-    def __init__(self, player_id: int, thread: discord.Thread):
-        super().__init__()
-        self.player_id = player_id
-        self.thread    = thread
+    def __init__(self, player_id: int, thread: discord.Thread, bot, extra_allowed_id: int | None = None):
+        super().__init__(timeout=180)
+        self.player_id        = player_id
+        self.thread           = thread
+        self.bot               = bot
+        self.extra_allowed_id  = extra_allowed_id
+        self.page               = 0
+        self.selected_char: str | None = None
+        self._build()
 
-    async def on_submit(self, interaction: discord.Interaction):
-        raw        = self.personnage.value.strip()
-        normalized = raw.lower().replace(" ", "").replace("-", "")
-        emoji_str  = CHAR_EMOJIS.get(normalized)
-        main_value = emoji_str if emoji_str else raw
+    def _is_allowed(self, user_id: int) -> bool:
+        from cogs.crewbattle import is_authorized
+        allowed_ids = [self.player_id]
+        if self.extra_allowed_id:
+            allowed_ids.append(self.extra_allowed_id)
+        return is_authorized(user_id, *allowed_ids)
+
+    def _get_emoji(self, name: str):
+        from cogs.crewbattle import EMOJI_SERVER_ID
+        guild = self.bot.get_guild(EMOJI_SERVER_ID)
+        return discord.utils.get(guild.emojis, name=name) if guild else None
+
+    def _build(self):
+        from cogs.crewbattle import CHARACTER_PAGES
+        self.clear_items()
+        _page_name, chars = CHARACTER_PAGES[self.page]
+
+        for i, char in enumerate(chars):
+            emoji = self._get_emoji(char)
+            btn = discord.ui.Button(
+                label="​" if emoji else char,
+                emoji=emoji or None,
+                style=discord.ButtonStyle.success if char == self.selected_char else discord.ButtonStyle.secondary,
+                row=i // 5,
+            )
+            btn.callback = self._make_char_cb(char)
+            self.add_item(btn)
+
+        nb_pages = len(CHARACTER_PAGES)
+        page_name, _ = CHARACTER_PAGES[self.page]
+
+        prev_btn = discord.ui.Button(label="◀", style=discord.ButtonStyle.secondary,
+                                     disabled=self.page == 0, row=4)
+        prev_btn.callback = self._prev
+        self.add_item(prev_btn)
+
+        info_btn = discord.ui.Button(
+            label=f"{page_name}  ({self.page + 1}/{nb_pages})",
+            style=discord.ButtonStyle.secondary, disabled=True, row=4,
+        )
+        self.add_item(info_btn)
+
+        next_btn = discord.ui.Button(label="▶", style=discord.ButtonStyle.secondary,
+                                     disabled=self.page == nb_pages - 1, row=4)
+        next_btn.callback = self._next
+        self.add_item(next_btn)
+
+        confirm_btn = discord.ui.Button(
+            label="✅ Confirmer", style=discord.ButtonStyle.primary,
+            disabled=self.selected_char is None, row=4,
+        )
+        confirm_btn.callback = self._confirm
+        self.add_item(confirm_btn)
+
+    def _make_char_cb(self, char: str):
+        async def cb(interaction: discord.Interaction):
+            if not self._is_allowed(interaction.user.id):
+                await interaction.response.send_message("❌ Ce n'est pas à toi de choisir.", ephemeral=True)
+                return
+            self.selected_char = char
+            self._build()
+            await interaction.response.edit_message(view=self)
+        return cb
+
+    async def _prev(self, interaction: discord.Interaction):
+        if not self._is_allowed(interaction.user.id):
+            await interaction.response.send_message("❌ Ce n'est pas à toi de choisir.", ephemeral=True)
+            return
+        self.page -= 1
+        self._build()
+        await interaction.response.edit_message(view=self)
+
+    async def _next(self, interaction: discord.Interaction):
+        if not self._is_allowed(interaction.user.id):
+            await interaction.response.send_message("❌ Ce n'est pas à toi de choisir.", ephemeral=True)
+            return
+        self.page += 1
+        self._build()
+        await interaction.response.edit_message(view=self)
+
+    async def _confirm(self, interaction: discord.Interaction):
+        if not self._is_allowed(interaction.user.id):
+            await interaction.response.send_message("❌ Ce n'est pas à toi de choisir.", ephemeral=True)
+            return
+
+        emoji = self._get_emoji(self.selected_char)
+        main_value = str(emoji) if emoji else self.selected_char
 
         player = _load_player(self.player_id)
         if not player:
@@ -110,23 +231,32 @@ class SetMainModal(discord.ui.Modal, title="Définir ton main"):
         player["stats"]["main"] = main_value
         _save_player(player)
 
-        # Met à jour l'embed dans le thread
-        async for msg in self.thread.history(limit=5, oldest_first=True):
-            if msg.author == interaction.guild.me and msg.embeds:
-                old   = msg.embeds[0]
-                name  = old.title.removeprefix("📊 ") if old.title else player.get("name", "?")
-                stats = player.get("stats", {})
-                embed = make_player_embed(
-                    name,
-                    main_value,
-                    stats.get("cb_joues", 0),
-                    stats.get("stocks_pris", 0),
-                )
-                await msg.edit(embed=embed)
-                break
+        await _refresh_player_thread_embed(self.thread, player)
 
-        char_display = emoji_str if emoji_str else f"`{raw}`"
-        await interaction.response.send_message(f"✅ Main défini : {char_display}", ephemeral=True)
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(content=f"✅ Main défini : {main_value}", view=self)
+
+
+async def _refresh_player_thread_embed(thread: discord.Thread, player: dict):
+    """Met à jour l'embed + les boutons du 1er message (posté par le bot) dans le post
+    d'un joueur (réattache une vue fraîche à chaque appel pour éviter que des posts
+    anciens gardent un jeu de boutons obsolète)."""
+    stats = player.get("stats", {})
+    embed = make_player_embed(
+        player.get("name", "?"),
+        stats.get("main"),
+        stats.get("cb_joues", 0),
+        stats.get("stocks_pris", 0),
+    )
+    view = PlayerStatsView(player["discord_id"])
+    try:
+        async for msg in thread.history(limit=5, oldest_first=True):
+            if msg.author == thread.guild.me and msg.embeds:
+                await msg.edit(embed=embed, view=view)
+                return
+    except Exception:
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -193,8 +323,9 @@ class TeamStatsView(discord.ui.View):
         self.add_item(rename)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        from cogs.crewbattle import is_authorized
         team = _load_team(self.sigle)
-        if not team or interaction.user.id != team["leader_id"]:
+        if not team or not is_authorized(interaction.user.id, team["leader_id"]):
             await interaction.response.send_message("❌ Réservé au leader de l'équipe.", ephemeral=True)
             return False
         return True
@@ -226,8 +357,76 @@ class TeamStatsView(discord.ui.View):
         await interaction.response.send_modal(_TeamRenameModal(self.sigle))
 
 
+def _twin_sigle(sigle: str) -> str:
+    """Sigle de l'équipe jumelle (A <-> B) — n'implique pas qu'elle existe."""
+    return sigle[:-1] if sigle.endswith("²") else f"{sigle}²"
+
+
+class _MoveTeamBtn(discord.ui.Button):
+    """Déplace un membre vers l'équipe jumelle (A -> B ou B -> A)."""
+
+    def __init__(self, sigle: str, member_id: int, target_sigle: str):
+        super().__init__(
+            label=f"🔀 Déplacer vers {target_sigle}",
+            style=discord.ButtonStyle.secondary,
+            custom_id=f"ts_move:{sigle}:{member_id}",
+        )
+        self.sigle        = sigle
+        self.member_id    = member_id
+        self.target_sigle = target_sigle
+
+    async def callback(self, interaction: discord.Interaction):
+        team = _load_team(self.sigle)
+        if not team:
+            await interaction.response.send_message("❌ Équipe introuvable.", ephemeral=True)
+            return
+        if self.member_id == team["leader_id"]:
+            await interaction.response.send_message(
+                "❌ Tu ne peux pas déplacer le leader. Transfère d'abord le leadership.", ephemeral=True
+            )
+            return
+
+        target_team = _load_team(self.target_sigle)
+        if not target_team:
+            await interaction.response.send_message(
+                f"❌ Équipe **{self.target_sigle}** introuvable.", ephemeral=True
+            )
+            return
+        if self.member_id in target_team.get("members", []):
+            await interaction.response.send_message(
+                f"ℹ️ Ce joueur est déjà dans **{self.target_sigle}**.", ephemeral=True
+            )
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        if self.member_id in team.get("members", []):
+            team["members"].remove(self.member_id)
+        _save_team(team)
+
+        target_team.setdefault("members", []).append(self.member_id)
+        _save_team(target_team)
+
+        player = _load_player(self.member_id)
+        name = player.get("name", str(self.member_id)) if player else str(self.member_id)
+        if player:
+            player["team"] = self.target_sigle
+            _save_player(player)
+
+        from utils.teams_lu import refresh_team_lu
+        await refresh_team_lu(interaction.client, interaction.guild_id, team)
+        await refresh_team_lu(interaction.client, interaction.guild_id, target_team)
+        await refresh_team_stats_post(interaction.client, interaction.guild_id, self.sigle)
+        await refresh_team_stats_post(interaction.client, interaction.guild_id, self.target_sigle)
+
+        await interaction.followup.send(
+            f"✅ **{name}** déplacé de **{self.sigle}** vers **{self.target_sigle}**.", ephemeral=True
+        )
+
+
 class TeamMemberView(discord.ui.View):
-    """Bouton 'Retirer de l'équipe' par membre dans le post de stats d'équipe."""
+    """Bouton 'Retirer de l'équipe' (+ 'Déplacer vers A/B' si l'équipe jumelle
+    existe) par membre dans le post de stats d'équipe."""
 
     def __init__(self, sigle: str, member_id: int):
         super().__init__(timeout=None)
@@ -242,9 +441,14 @@ class TeamMemberView(discord.ui.View):
         btn.callback = self._remove
         self.add_item(btn)
 
+        twin_sigle = _twin_sigle(sigle)
+        if _load_team(twin_sigle):
+            self.add_item(_MoveTeamBtn(sigle, member_id, twin_sigle))
+
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        from cogs.crewbattle import is_authorized
         team = _load_team(self.sigle)
-        if not team or interaction.user.id != team["leader_id"]:
+        if not team or not is_authorized(interaction.user.id, team["leader_id"]):
             await interaction.response.send_message("❌ Réservé au leader de l'équipe.", ephemeral=True)
             return False
         return True
@@ -328,12 +532,27 @@ class _MainBtn(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction):
+        if interaction.response.is_done():
+            # Événement d'interaction dupliqué (rare côté Discord) : déjà traité.
+            return
         thread = interaction.channel
         if not isinstance(thread, discord.Thread):
             await interaction.response.send_message("❌ Ce bouton ne fonctionne qu'dans un post.", ephemeral=True)
             return
         view: PlayerStatsView = self.view
-        await interaction.response.send_modal(SetMainModal(view.player_id, thread))
+
+        from cogs.teams import find_team_of_player, load_team
+        leader_id = None
+        team_sigle = find_team_of_player(view.player_id)
+        if team_sigle:
+            team = load_team(team_sigle)
+            if team:
+                leader_id = team.get("leader_id")
+
+        select_view = MainSelectView(view.player_id, thread, interaction.client, extra_allowed_id=leader_id)
+        await interaction.response.send_message(
+            "🎮 Choisis ton main :", view=select_view, ephemeral=True
+        )
 
 
 class _StatsBtn(discord.ui.Button):
@@ -360,6 +579,21 @@ class _StatsBtn(discord.ui.Button):
         embed.add_field(name="CB jouées",   value=str(stats.get("cb_joues", 0)),       inline=True)
         embed.add_field(name="Stocks pris", value=str(stats.get("stocks_pris", 0)),    inline=True)
         embed.add_field(name="Équipe",      value=player.get("team") or "*Aucune*",    inline=True)
+
+        by_opp = stats.get("stocks_par_adversaire", {})
+        if by_opp:
+            ranked = sorted(by_opp.items(), key=lambda kv: kv[1], reverse=True)[:10]
+            lines = []
+            for opp_id_str, count in ranked:
+                opp_id = int(opp_id_str)
+                opp = _load_player(opp_id)
+                opp_name = opp.get("name") if opp else None
+                if not opp_name:
+                    m = interaction.guild.get_member(opp_id) if interaction.guild else None
+                    opp_name = m.display_name if m else str(opp_id)
+                lines.append(f"• **{opp_name}** — {count}")
+            embed.add_field(name="Stocks pris par adversaire", value="\n".join(lines), inline=False)
+
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
@@ -373,11 +607,7 @@ class _LeaveBtn(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        from cogs.teams import (
-            find_team_of_player, load_team, save_team,
-            load_player as lp, save_player as sp,
-        )
-        from utils.teams_lu import refresh_team_lu
+        from cogs.teams import find_team_of_player, load_team
 
         view: PlayerStatsView = self.view
 
@@ -387,35 +617,229 @@ class _LeaveBtn(discord.ui.Button):
             return
 
         team = load_team(team_sigle)
+
         if team["leader_id"] == view.player_id:
+            others = [m for m in team.get("members", []) if m != view.player_id]
+            if not others:
+                await interaction.response.send_message(
+                    "❌ Tu es seul dans l'équipe. Utilise le bouton **🔥 Dissoudre l'équipe** "
+                    "dans le post de stats d'équipe à la place.",
+                    ephemeral=True,
+                )
+                return
+            candidates = []
+            for mid in others:
+                m = interaction.guild.get_member(mid)
+                candidates.append((mid, m.display_name if m else str(mid)))
+            select_view = _SuccessorPickView(team_sigle, view.player_id, candidates)
             await interaction.response.send_message(
-                "❌ Tu es le leader — transfère d'abord le leadership.", ephemeral=True
+                "👑 Tu es le leader. Choisis qui reprend le leadership avant de partir :",
+                view=select_view, ephemeral=True,
             )
             return
 
-        await interaction.response.defer(ephemeral=True)
+        select_view = _LeaveConfirmView(team_sigle, view.player_id)
+        await interaction.response.send_message(
+            f"⚠️ Confirmes-tu vouloir quitter **{team_sigle}** ?", view=select_view, ephemeral=True,
+        )
 
-        if view.player_id in team["members"]:
-            team["members"].remove(view.player_id)
+
+async def _leave_team(interaction: discord.Interaction, player_id: int, team_sigle: str):
+    from cogs.teams import load_team, save_team, load_player as lp, save_player as sp
+    from utils.teams_lu import refresh_team_lu
+
+    team = load_team(team_sigle)
+    if team and player_id in team.get("members", []):
+        team["members"].remove(player_id)
         save_team(team)
 
-        player = lp(view.player_id)
-        if player:
-            player["team"] = None
-            sp(player)
+    player = lp(player_id)
+    if player:
+        player["team"] = None
+        sp(player)
 
-        role = interaction.guild.get_role(team["role_id"])
-        if role:
-            try:
-                await interaction.user.remove_roles(role)
-            except discord.Forbidden:
-                pass
+    guild  = interaction.guild
+    member = guild.get_member(player_id)
+    role   = guild.get_role(team["role_id"]) if team else None
+    if role and member:
+        try:
+            await member.remove_roles(role)
+        except discord.Forbidden:
+            pass
 
+    if team:
         await refresh_team_lu(interaction.client, interaction.guild_id, team)
-        await interaction.followup.send(f"✅ Tu as quitté l'équipe **{team_sigle}**.", ephemeral=True)
 
-        await delete_player_stats_post(interaction.client, interaction.guild_id, view.player_id)
+    await delete_player_stats_post(interaction.client, interaction.guild_id, player_id)
+    if team:
         await refresh_team_stats_post(interaction.client, interaction.guild_id, team_sigle)
+
+    await interaction.followup.send(f"👋 Tu as quitté **{team_sigle}**.", ephemeral=True)
+
+
+class _LeaveConfirmView(discord.ui.View):
+    def __init__(self, team_sigle: str, player_id: int):
+        super().__init__(timeout=60)
+        self.team_sigle = team_sigle
+        self.player_id  = player_id
+
+    @discord.ui.button(label="✅ Oui, quitter", style=discord.ButtonStyle.danger)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        from cogs.crewbattle import is_authorized
+        if not is_authorized(interaction.user.id, self.player_id):
+            await interaction.response.send_message("❌ Action non autorisée.", ephemeral=True)
+            return
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(view=self)
+        await _leave_team(interaction, self.player_id, self.team_sigle)
+
+    @discord.ui.button(label="Annuler", style=discord.ButtonStyle.secondary)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        from cogs.crewbattle import is_authorized
+        if not is_authorized(interaction.user.id, self.player_id):
+            await interaction.response.send_message("❌ Action non autorisée.", ephemeral=True)
+            return
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(content="Annulé.", view=self)
+
+
+async def _transfer_leadership(interaction: discord.Interaction, team_sigle: str,
+                                new_leader_id: int, old_leader_id: int):
+    """Change le leader d'une équipe et notifie dans le salon tasks. Ne fait rien d'autre
+    (le nouvel ex-leader reste membre de l'équipe — c'est à l'appelant de décider s'il part)."""
+    from cogs.teams import load_team, save_team
+    from utils.teams_lu import refresh_team_lu
+
+    team = load_team(team_sigle)
+    team["leader_id"] = new_leader_id
+    save_team(team)
+    await refresh_team_lu(interaction.client, interaction.guild_id, team)
+
+    guild       = interaction.guild
+    new_leader  = guild.get_member(new_leader_id)
+    old_leader  = guild.get_member(old_leader_id)
+    tasks_ch_id = team["channels"].get("tasks")
+    tasks_ch    = guild.get_channel(tasks_ch_id) if tasks_ch_id else None
+    if tasks_ch:
+        try:
+            await tasks_ch.send(
+                f"👑 **{new_leader.display_name if new_leader else new_leader_id}** est le nouveau leader de "
+                f"**{team_sigle}** (succède à **{old_leader.display_name if old_leader else old_leader_id}**)."
+            )
+        except Exception:
+            pass
+
+    await refresh_team_stats_post(interaction.client, interaction.guild_id, team_sigle)
+
+
+class _SuccessorPickView(discord.ui.View):
+    def __init__(self, team_sigle: str, player_id: int, candidates: list[tuple[int, str]]):
+        super().__init__(timeout=120)
+        self.team_sigle = team_sigle
+        self.player_id  = player_id
+
+        select = discord.ui.Select(
+            placeholder="Choisis le prochain leader...",
+            options=[discord.SelectOption(label=name, value=str(mid)) for mid, name in candidates[:25]],
+        )
+        select.callback = self._on_select
+        self.add_item(select)
+
+    async def _on_select(self, interaction: discord.Interaction):
+        from cogs.crewbattle import is_authorized
+        if not is_authorized(interaction.user.id, self.player_id):
+            await interaction.response.send_message("❌ Action non autorisée.", ephemeral=True)
+            return
+        new_leader_id = int(interaction.data["values"][0])
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(view=self)
+
+        await _transfer_leadership(interaction, self.team_sigle, new_leader_id, self.player_id)
+        await _leave_team(interaction, self.player_id, self.team_sigle)
+
+
+class _TransferConfirmView(discord.ui.View):
+    """Confirmation avant de faire de view.player_id le nouveau leader (bouton dédié dans le post joueur)."""
+
+    def __init__(self, team_sigle: str, old_leader_id: int, new_leader_id: int):
+        super().__init__(timeout=120)
+        self.team_sigle    = team_sigle
+        self.old_leader_id = old_leader_id
+        self.new_leader_id = new_leader_id
+
+    @discord.ui.button(label="✅ Confirmer", style=discord.ButtonStyle.success)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        from cogs.crewbattle import is_authorized
+        if not is_authorized(interaction.user.id, self.old_leader_id):
+            await interaction.response.send_message("❌ Action non autorisée.", ephemeral=True)
+            return
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(view=self)
+
+        await _transfer_leadership(interaction, self.team_sigle, self.new_leader_id, self.old_leader_id)
+
+        new_leader = interaction.guild.get_member(self.new_leader_id)
+        await interaction.followup.send(
+            f"✅ Leadership transféré à **{new_leader.display_name if new_leader else self.new_leader_id}**.",
+            ephemeral=True,
+        )
+
+    @discord.ui.button(label="Annuler", style=discord.ButtonStyle.secondary)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        from cogs.crewbattle import is_authorized
+        if not is_authorized(interaction.user.id, self.old_leader_id):
+            await interaction.response.send_message("❌ Action non autorisée.", ephemeral=True)
+            return
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(content="Annulé.", view=self)
+
+
+class _TransferLeadershipBtn(discord.ui.Button):
+    def __init__(self, player_id: int):
+        super().__init__(
+            label="🔄 Transférer le leadership",
+            style=discord.ButtonStyle.primary,
+            custom_id=f"ps_transfer:{player_id}",
+            row=1,
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        from cogs.teams import find_team_of_player, load_team
+
+        view: PlayerStatsView = self.view
+        team_sigle = find_team_of_player(view.player_id)
+        if not team_sigle:
+            await interaction.response.send_message("❌ Ce joueur n'est dans aucune équipe.", ephemeral=True)
+            return
+
+        team = load_team(team_sigle)
+        old_leader_id = team["leader_id"]
+        if old_leader_id == view.player_id:
+            await interaction.response.send_message(
+                "❌ Ce joueur est déjà le leader de l'équipe.", ephemeral=True
+            )
+            return
+
+        from cogs.crewbattle import is_authorized
+        if not is_authorized(interaction.user.id, old_leader_id):
+            await interaction.response.send_message(
+                "❌ Seul le leader de l'équipe peut transférer le leadership.", ephemeral=True
+            )
+            return
+
+        target = interaction.guild.get_member(view.player_id)
+        target_name = target.display_name if target else str(view.player_id)
+
+        await interaction.response.send_message(
+            f"⚠️ Confirmer le transfert du leadership de **{team_sigle}** à **{target_name}** ?",
+            view=_TransferConfirmView(team_sigle, old_leader_id, view.player_id),
+            ephemeral=True,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -429,19 +853,48 @@ class PlayerStatsView(discord.ui.View):
         self.add_item(_MainBtn(player_id))
         self.add_item(_StatsBtn(player_id))
         self.add_item(_LeaveBtn(player_id))
+        self.add_item(_TransferLeadershipBtn(player_id))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id != self.player_id:
+        from cogs.crewbattle import is_authorized
+
+        allowed_ids = [self.player_id]
+        custom_id = interaction.data.get("custom_id", "") if interaction.data else ""
+        if custom_id.startswith("ps_main:"):
+            # "Définir un Main" est aussi ouvert au leader de l'équipe du joueur.
+            from cogs.teams import find_team_of_player, load_team
+            team_sigle = find_team_of_player(self.player_id)
+            if team_sigle:
+                team = load_team(team_sigle)
+                if team and team.get("leader_id"):
+                    allowed_ids.append(team["leader_id"])
+
+        if not is_authorized(interaction.user.id, *allowed_ids):
+            print(f"[WARN] PlayerStatsView refus : user={interaction.user.id} "
+                  f"self.player_id={self.player_id} allowed={allowed_ids} custom_id={custom_id!r}")
             await interaction.response.send_message(
-                "❌ Ces boutons ne sont pas pour toi.", ephemeral=True
+                "❌ Ces boutons ne sont pas pour toi. [BUILD-CHECK-v2]", ephemeral=True
             )
             return False
         return True
 
     async def on_error(self, interaction: discord.Interaction, error: Exception, item):
+        # Événement d'interaction dupliqué côté Discord (rare) : la première
+        # invocation a déjà répondu, celle-ci arrive en trop — bénin, on l'ignore.
+        benign = (
+            isinstance(error, discord.NotFound) and getattr(error, "code", None) == 10062
+        ) or (
+            isinstance(error, discord.HTTPException) and getattr(error, "code", None) == 40060
+        )
+        if benign:
+            return
+
         print(f"[PlayerStatsView] Erreur bouton : {error}")
-        if not interaction.response.is_done():
-            await interaction.response.send_message("❌ Une erreur est survenue.", ephemeral=True)
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ Une erreur est survenue.", ephemeral=True)
+        except discord.HTTPException:
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -530,23 +983,17 @@ async def refresh_team_stats_post(
     bot: discord.Client,
     guild_id: int,
     sigle: str,
+    changed_member_ids: set[int] | None = None,
 ) -> None:
     """Met à jour l'embed d'équipe et synchronise les messages membres."""
     team = _load_team(sigle)
     if not team:
         return
 
-    thread_id = team.get("stats_thread_id")
-    if not thread_id:
-        return
-
     guild  = bot.get_guild(guild_id)
-    thread = guild.get_thread(thread_id)
+    thread = await _get_thread(guild, team.get("stats_thread_id"))
     if not thread:
-        try:
-            thread = await guild.fetch_channel(thread_id)
-        except Exception:
-            return
+        return
 
     # ── 1. Rafraîchir l'embed d'équipe (1er message du bot) ──────────────────
     members_data = _get_members_stats(team)
@@ -589,7 +1036,10 @@ async def refresh_team_stats_post(
             pass
 
     # Mettre à jour les embeds des membres existants (main ou stats changé)
-    for mid_str in current_members & stored_members:
+    to_update = current_members & stored_members
+    if changed_member_ids is not None:
+        to_update &= {str(mid) for mid in changed_member_ids}
+    for mid_str in to_update:
         mid    = int(mid_str)
         player = _load_player(mid)
         if not player:
@@ -597,7 +1047,11 @@ async def refresh_team_stats_post(
         is_leader = (mid == team["leader_id"])
         try:
             existing_msg = await thread.fetch_message(msg_ids[mid_str])
-            await existing_msg.edit(embed=make_member_mini_embed(player, is_leader))
+            await existing_msg.edit(
+                embed=make_member_mini_embed(player, is_leader),
+                view=TeamMemberView(sigle, mid),
+            )
+            await asyncio.sleep(0.3)
         except Exception:
             pass
 
@@ -615,20 +1069,13 @@ async def delete_player_stats_post(
     if not player:
         return
 
-    thread_id = player.get("stats_thread_id")
-    if thread_id:
-        guild  = bot.get_guild(guild_id)
-        thread = guild.get_thread(thread_id)
-        if not thread:
-            try:
-                thread = await guild.fetch_channel(thread_id)
-            except Exception:
-                thread = None
-        if thread:
-            try:
-                await thread.delete()
-            except Exception:
-                pass
+    guild  = bot.get_guild(guild_id)
+    thread = await _get_thread(guild, player.get("stats_thread_id"))
+    if thread:
+        try:
+            await thread.delete()
+        except Exception:
+            pass
 
     player.pop("stats_thread_id", None)
     _save_player(player)
@@ -714,6 +1161,202 @@ async def rebuild_all_stats(bot: discord.Client, guild_id: int) -> str:
     return "\n".join(report) if report else "Aucune équipe trouvée."
 
 
+async def refresh_all_buttons(bot: discord.Client, guild_id: int) -> str:
+    """[ADMIN] Passe en revue tous les posts joueurs et toutes les lignes membres des
+    posts d'équipe, et réattache une vue à jour (embed + boutons) — sans rien
+    supprimer ni recréer — sur ceux dont les boutons sont manquants ou obsolètes
+    (ex: bouton ajouté au code après la création du post, équipe jumelle créée
+    après coup). Retourne un rapport texte."""
+    guild = bot.get_guild(guild_id)
+    if not guild:
+        return "❌ Serveur introuvable."
+
+    def _current_ids(msg: discord.Message) -> set[str]:
+        ids = set()
+        for row in msg.components:
+            for child in getattr(row, "children", []):
+                cid = getattr(child, "custom_id", None)
+                if cid:
+                    ids.add(cid)
+        return ids
+
+    rows_checked = rows_fixed = rows_orphaned = 0
+    players_checked = players_fixed = 0
+
+    # ── Lignes membres des posts d'équipe ──────────────────────────────────
+    if os.path.exists(TEAMS_DIR):
+        for filename in os.listdir(TEAMS_DIR):
+            if not filename.endswith(".json"):
+                continue
+            with open(os.path.join(TEAMS_DIR, filename), encoding="utf-8") as f:
+                team = json.load(f)
+            sigle = team.get("sigle", "")
+            team_thread = await _get_thread(guild, team.get("stats_thread_id"))
+            if not team_thread:
+                continue
+
+            msg_ids = team.setdefault("stats_member_msg_ids", {})
+            team_changed = False
+
+            for mid_str, msg_id in list(msg_ids.items()):
+                mid    = int(mid_str)
+                player = _load_player(mid)
+                if not player:
+                    continue
+                rows_checked += 1
+                is_leader   = (mid == team.get("leader_id"))
+                member_view = TeamMemberView(sigle, mid)
+                expected    = {it.custom_id for it in member_view.children}
+                try:
+                    msg = await team_thread.fetch_message(msg_id)
+                    if _current_ids(msg) != expected:
+                        await msg.edit(embed=make_member_mini_embed(player, is_leader), view=member_view)
+                        rows_fixed += 1
+                        await asyncio.sleep(0.5)
+                except Exception:
+                    pass
+
+            # Lignes présentes sur Discord mais absentes de stats_member_msg_ids
+            # (membre "perdu" par une course sur le fichier JSON lors d'un ajout
+            # concurrent — cf. le cas Psiffrin/Gysmo).
+            known_msg_ids = set(msg_ids.values())
+            try:
+                async for msg in team_thread.history(limit=300):
+                    if msg.id in known_msg_ids or msg.author != guild.me:
+                        continue
+                    found_mid = None
+                    for row in msg.components:
+                        for child in getattr(row, "children", []):
+                            cid = getattr(child, "custom_id", "") or ""
+                            if cid.startswith(f"ts_remove:{sigle}:"):
+                                found_mid = int(cid.split(":")[-1])
+                                break
+                        if found_mid:
+                            break
+                    if found_mid is None:
+                        continue
+
+                    rows_orphaned += 1
+                    if found_mid not in team.get("members", []):
+                        team.setdefault("members", []).append(found_mid)
+                        team_changed = True
+                    msg_ids[str(found_mid)] = msg.id
+                    team_changed = True
+
+                    player = _load_player(found_mid)
+                    if player:
+                        is_leader   = (found_mid == team.get("leader_id"))
+                        member_view = TeamMemberView(sigle, found_mid)
+                        try:
+                            await msg.edit(embed=make_member_mini_embed(player, is_leader), view=member_view)
+                            rows_fixed += 1
+                            await asyncio.sleep(0.5)
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+            if team_changed:
+                _save_team(team)
+
+    # ── Posts individuels des joueurs ──────────────────────────────────────
+    if os.path.exists(PLAYERS_DIR):
+        for filename in os.listdir(PLAYERS_DIR):
+            if not filename.endswith(".json"):
+                continue
+            with open(os.path.join(PLAYERS_DIR, filename), encoding="utf-8") as f:
+                player = json.load(f)
+            thread_id = player.get("stats_thread_id")
+            if not thread_id:
+                continue
+            player_thread = await _get_thread(guild, thread_id)
+            if not player_thread:
+                continue
+            players_checked += 1
+            mid      = player["discord_id"]
+            view     = PlayerStatsView(mid)
+            expected = {it.custom_id for it in view.children}
+            try:
+                async for msg in player_thread.history(limit=5, oldest_first=True):
+                    if msg.author == guild.me and msg.embeds:
+                        if _current_ids(msg) != expected:
+                            stats = player.get("stats", {})
+                            embed = make_player_embed(
+                                player.get("name", "?"),
+                                stats.get("main"),
+                                stats.get("cb_joues", 0),
+                                stats.get("stocks_pris", 0),
+                            )
+                            await msg.edit(embed=embed, view=view)
+                            players_fixed += 1
+                            await asyncio.sleep(0.5)
+                        break
+            except Exception:
+                pass
+
+    return (f"Posts joueurs : **{players_fixed}** corrigé(s) sur {players_checked} vérifié(s).\n"
+            f"Lignes membres (posts d'équipe) : **{rows_fixed}** corrigée(s) sur {rows_checked} vérifiée(s)"
+            f" (dont **{rows_orphaned}** retrouvée(s) orpheline(s) et reliée(s) aux données de l'équipe).")
+
+
+async def reset_all_stats(bot: discord.Client, guild_id: int) -> str:
+    """[ADMIN] Remet à zéro cb_joues/stocks_pris/stocks_par_adversaire pour tous
+    les joueurs, et rafraîchit tous les posts (joueurs + équipes) en conséquence.
+    Ne touche ni au main, ni à l'appartenance à une équipe."""
+    guild = bot.get_guild(guild_id)
+    if not guild:
+        return "❌ Serveur introuvable."
+
+    players_reset = 0
+    if os.path.exists(PLAYERS_DIR):
+        for filename in os.listdir(PLAYERS_DIR):
+            if not filename.endswith(".json"):
+                continue
+            with open(os.path.join(PLAYERS_DIR, filename), encoding="utf-8") as f:
+                player = json.load(f)
+            stats = player.setdefault("stats", {})
+            if stats.get("cb_joues") or stats.get("stocks_pris") or stats.get("stocks_par_adversaire"):
+                stats["cb_joues"] = 0
+                stats["stocks_pris"] = 0
+                stats["stocks_par_adversaire"] = {}
+                _save_player(player)
+                players_reset += 1
+
+    players_refreshed = 0
+    if os.path.exists(PLAYERS_DIR):
+        for filename in os.listdir(PLAYERS_DIR):
+            if not filename.endswith(".json"):
+                continue
+            with open(os.path.join(PLAYERS_DIR, filename), encoding="utf-8") as f:
+                player = json.load(f)
+            thread_id = player.get("stats_thread_id")
+            if not thread_id:
+                continue
+            thread = await _get_thread(guild, thread_id)
+            if not thread:
+                continue
+            await _refresh_player_thread_embed(thread, player)
+            players_refreshed += 1
+            await asyncio.sleep(0.3)
+
+    teams_refreshed = 0
+    if os.path.exists(TEAMS_DIR):
+        for filename in os.listdir(TEAMS_DIR):
+            if not filename.endswith(".json"):
+                continue
+            with open(os.path.join(TEAMS_DIR, filename), encoding="utf-8") as f:
+                team = json.load(f)
+            sigle = team.get("sigle", "")
+            if not sigle or not team.get("stats_thread_id"):
+                continue
+            await refresh_team_stats_post(bot, guild_id, sigle)
+            teams_refreshed += 1
+            await asyncio.sleep(0.3)
+
+    return (f"**{players_reset}** joueur(s) remis à zéro.\n"
+            f"**{players_refreshed}** post(s) joueur rafraîchi(s), **{teams_refreshed}** post(s) d'équipe rafraîchi(s).")
+
+
 def register_all_views(bot: discord.Client) -> int:
     """Enregistre toutes les views persistantes (PlayerStats, TeamStats, TeamMember)."""
     count = 0
@@ -746,6 +1389,60 @@ def register_all_views(bot: discord.Client) -> int:
                 count += 1
 
     return count
+
+
+# ---------------------------------------------------------------------------
+# Suivi des stats (appelé depuis crewbattle.py après chaque set) — absent de
+# la version GitHub, portée depuis la session locale.
+# ---------------------------------------------------------------------------
+
+def _update_one_stat(discord_id: int, stocks_taken: int, opponent_id: int):
+    if not discord_id:
+        return
+    player = _load_player(discord_id) or {"discord_id": discord_id, "name": str(discord_id), "team": None}
+    stats = player.setdefault("stats", {})
+    stats["cb_joues"]    = stats.get("cb_joues", 0) + 1
+    stats["stocks_pris"] = stats.get("stocks_pris", 0) + stocks_taken
+    if stocks_taken > 0 and opponent_id:
+        by_opp = stats.setdefault("stocks_par_adversaire", {})
+        key = str(opponent_id)
+        by_opp[key] = by_opp.get(key, 0) + stocks_taken
+    _save_player(player)
+
+
+def record_set_result(discord_id_a: int, discord_id_b: int, takes_a: int, takes_b: int):
+    """Incrémente cb_joues (+1), stocks_pris (+stocks pris ce set) et le détail
+    par adversaire (stocks_par_adversaire) pour les deux joueurs."""
+    _update_one_stat(discord_id_a, takes_a, discord_id_b)
+    _update_one_stat(discord_id_b, takes_b, discord_id_a)
+
+
+async def refresh_after_set(bot: discord.Client, guild_id: int, discord_id_a: int, discord_id_b: int):
+    """Rafraîchit les posts (joueur + équipe) des deux participants après un set."""
+    guild = bot.get_guild(guild_id)
+    if not guild:
+        return
+    for discord_id in (discord_id_a, discord_id_b):
+        if not discord_id:
+            continue
+        player = _load_player(discord_id)
+        if not player:
+            continue
+
+        thread_id = player.get("stats_thread_id")
+        if thread_id:
+            thread = guild.get_thread(thread_id)
+            if not thread:
+                try:
+                    thread = await guild.fetch_channel(thread_id)
+                except Exception:
+                    thread = None
+            if thread:
+                await _refresh_player_thread_embed(thread, player)
+
+        team_sigle = player.get("team")
+        if team_sigle:
+            await refresh_team_stats_post(bot, guild_id, team_sigle, changed_member_ids={discord_id})
 
 
 # ---------------------------------------------------------------------------

@@ -1,7 +1,13 @@
+import sys
+sys.dont_write_bytecode = True  # évite tout risque de bytecode caché obsolète entre 2 lancements
+
+import socket
 import discord
 from discord.ext import commands
 import os
 from dotenv import load_dotenv
+
+from utils.config import GUILD_ID
 
 load_dotenv()
 
@@ -11,7 +17,20 @@ intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 
-GUILD_ID = 1472927998301835356
+def _acquire_singleton_lock():
+    """Empêche 2 processus du bot de tourner en même temps avec le même token
+    (Discord diffuse les interactions à TOUTES les connexions actives d'un même
+    token — un ancien processus non tué pouvait alors "gagner la course" et
+    répondre avec du vieux code, invisible dans le terminal actuel).
+    N'est appelé que depuis le point d'entrée réel (bas de fichier), jamais lors
+    d'un simple `from bot import GUILD_ID` fait par un cog."""
+    lock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        lock.bind(("127.0.0.1", 47651))
+    except OSError:
+        print("❌ Une autre instance de CrewBotLeague tourne déjà (verrou mono-instance port 47651). Arrêt.")
+        sys.exit(1)
+    return lock
 
 @bot.event
 async def on_ready():
@@ -22,7 +41,7 @@ async def on_ready():
     if guild_obj:
         build_char_emojis(guild_obj)
         n = register_all_views(bot)
-        print(f"{n} PlayerStatsView(s) enregistrée(s)")
+        print(f"{n} PlayerStatsView(s)/TeamStatsView(s) enregistrée(s)")
 
     try:
         guild = discord.Object(id=GUILD_ID)
@@ -54,6 +73,7 @@ async def load_cogs():
 
 
 async def main():
+    discord.utils.setup_logging()
     async with bot:
         await load_cogs()
         await bot.start(os.getenv("DISCORD_TOKEN"))
@@ -61,6 +81,7 @@ async def main():
 
 if __name__ == "__main__":
     import asyncio
+    _singleton_lock = _acquire_singleton_lock()
     try:
         asyncio.run(main())
     except KeyboardInterrupt:

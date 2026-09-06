@@ -2,6 +2,8 @@
   "discord_id": 831650424498946059,
   "name": "RC | Spermatron 🦍",
   "team": "RC",
-  "stats": {},
+  "stats": {
+    "main": "<:50_Greninja:1438572406410051707>"
+  },
   "stats_thread_id": 1539709658023985274
 }

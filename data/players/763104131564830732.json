@@ -3,5 +3,9 @@
   "name": "Yu",
   "team": "LT",
   "stats_thread_id": 1536050317576114177,
-  "stats": {}
+  "stats": {
+    "cb_joues": 0,
+    "stocks_pris": 0,
+    "stocks_par_adversaire": {}
+  }
 }

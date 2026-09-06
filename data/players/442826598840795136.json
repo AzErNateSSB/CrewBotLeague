@@ -2,6 +2,11 @@
   "discord_id": 442826598840795136,
   "name": "teclord_live",
   "team": "HoJ",
-  "stats": {},
+  "stats": {
+    "cb_joues": 0,
+    "stocks_pris": 0,
+    "main": "<:41_Lucario:1438446064754491473>",
+    "stocks_par_adversaire": {}
+  },
   "stats_thread_id": 1538149066091921479
 }

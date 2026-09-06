@@ -2,5 +2,12 @@
   "create_team_msg": 1533146262457815213,
   "join_team_msg": 1533146266232553654,
   "freeplay_panel_msg": 1533146263988605162,
-  "config_panel_msg": 1537234480442507287
+  "config_panel_msg": 1537234480442507287,
+  "season_panel_channel": 1541796781946572872,
+  "season_league_msgs": {
+    "Ligue-1": 1541796783729147926,
+    "Ligue-2": 1541796785037770764,
+    "Ligue-3": 1541796786174304419,
+    "Ligue-4": 1541796787289849987
+  }
 }

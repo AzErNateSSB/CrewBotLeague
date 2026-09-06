@@ -2,6 +2,11 @@
   "discord_id": 1325398811119456277,
   "name": "Lyh",
   "team": "HoJ",
-  "stats": {},
+  "stats": {
+    "cb_joues": 0,
+    "stocks_pris": 0,
+    "main": "<:54_Palutena:1438572599566139412>",
+    "stocks_par_adversaire": {}
+  },
   "stats_thread_id": 1536050239545286779
 }

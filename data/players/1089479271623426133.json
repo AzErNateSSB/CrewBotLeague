@@ -3,5 +3,9 @@
   "name": "Wanderer",
   "team": "RC",
   "stats_thread_id": 1536050624909549590,
-  "stats": {}
+  "stats": {
+    "cb_joues": 0,
+    "stocks_pris": 0,
+    "stocks_par_adversaire": {}
+  }
 }

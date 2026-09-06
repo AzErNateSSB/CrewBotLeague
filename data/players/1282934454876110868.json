@@ -3,5 +3,10 @@
   "name": "LT | RC | Pluck",
   "team": "HoJ",
   "stats_thread_id": 1536050240916951192,
-  "stats": {}
+  "stats": {
+    "cb_joues": 0,
+    "stocks_pris": 0,
+    "main": "<:05_Yoshi:1438443093694222398>",
+    "stocks_par_adversaire": {}
+  }
 }
