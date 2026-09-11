@@ -2,6 +2,8 @@
   "discord_id": 1341384704309334028,
   "name": "Mondiba",
   "team": "LT",
-  "stats": {},
+  "stats": {
+    "main": "<:64_Inkling:1438573153671708784>"
+  },
   "stats_thread_id": 1540442474726690828
 }

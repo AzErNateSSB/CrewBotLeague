@@ -491,13 +491,14 @@ class SeasonRosterSelectView(discord.ui.View):
         self.thread_id = thread_id
         self.side = side
         self.message: Optional[discord.Message] = None
+        self._base_options = options
         self.active_ids: list[str] = []
         self.sub_ids: list[str] = []
 
         self.active_select = discord.ui.Select(
             placeholder=f"Joueurs actifs ({NB_ACTIVE})",
             min_values=NB_ACTIVE, max_values=min(NB_ACTIVE, len(options)),
-            options=options,
+            options=self._mark_defaults(options, []),
             custom_id=f"season_roster_active_{thread_id}_{side}",
         )
         self.active_select.callback = self._on_active
@@ -506,7 +507,7 @@ class SeasonRosterSelectView(discord.ui.View):
         self.subs_select = discord.ui.Select(
             placeholder=f"Remplaçants (0 à {NB_SUBS_MAX})",
             min_values=0, max_values=min(NB_SUBS_MAX, len(options)),
-            options=options,
+            options=self._mark_defaults(options, []),
             custom_id=f"season_roster_subs_{thread_id}_{side}",
         )
         self.subs_select.callback = self._on_subs
@@ -523,6 +524,19 @@ class SeasonRosterSelectView(discord.ui.View):
         data = load_season_match(self.thread_id) or {}
         return data.get(f"{self.side}_sigle", "")
 
+    @staticmethod
+    def _mark_defaults(options: list[discord.SelectOption], selected: list[str]) -> list[discord.SelectOption]:
+        return [
+            discord.SelectOption(label=o.label, value=o.value, default=(o.value in selected))
+            for o in options
+        ]
+
+    def _refresh_select_options(self):
+        """Réaffiche la sélection courante dans les 2 menus (sinon ils semblent
+        se vider après chaque choix, alors que l'état est bien conservé)."""
+        self.active_select.options = self._mark_defaults(self._base_options, self.active_ids)
+        self.subs_select.options   = self._mark_defaults(self._base_options, self.sub_ids)
+
     def _update_confirm_state(self):
         active_ok = len(self.active_ids) == NB_ACTIVE
         overlap = bool(set(self.active_ids) & set(self.sub_ids))
@@ -537,6 +551,7 @@ class SeasonRosterSelectView(discord.ui.View):
             await interaction.response.send_message("❌ Seul le leader peut composer l'équipe.", ephemeral=True)
             return
         self.active_ids = interaction.data["values"]
+        self._refresh_select_options()
         self._update_confirm_state()
         await interaction.response.edit_message(view=self)
 
@@ -545,6 +560,7 @@ class SeasonRosterSelectView(discord.ui.View):
             await interaction.response.send_message("❌ Seul le leader peut composer l'équipe.", ephemeral=True)
             return
         self.sub_ids = interaction.data["values"]
+        self._refresh_select_options()
         self._update_confirm_state()
         await interaction.response.edit_message(view=self)
 
@@ -710,11 +726,36 @@ async def restore_all_season_matches(bot: commands.Bot) -> int:
             continue
 
         if not data.get("confirmed_date"):
+            home_ch = away_ch = None
             for side in ("home", "away"):
                 msg_id = data.get(f"avail_msg_{side}_id")
-                if msg_id:
-                    bot.add_view(SeasonDateSelectView(thread_id, side), message_id=msg_id)
-                    count += 1
+                if not msg_id:
+                    continue
+                view = SeasonDateSelectView(thread_id, side)
+                bot.add_view(view, message_id=msg_id)
+                count += 1
+
+                # Filet de rattrapage : si ce message a été créé par une version
+                # antérieure du code qui ne fixait pas de custom_id explicite,
+                # ses boutons sont figés avec des IDs aléatoires qui ne
+                # matcheront jamais la vue ci-dessus — on les réattache.
+                if home_ch is None and away_ch is None:
+                    home_ch, away_ch = await _tasks_channels(guild, data)
+                ch = home_ch if side == "home" else away_ch
+                if not ch:
+                    continue
+                try:
+                    live_msg  = await ch.fetch_message(msg_id)
+                    live_ids  = {
+                        getattr(c, "custom_id", None)
+                        for row in live_msg.components
+                        for c in getattr(row, "children", [])
+                    }
+                    expected_ids = {item.custom_id for item in view.children}
+                    if live_ids != expected_ids:
+                        await live_msg.edit(view=view)
+                except Exception:
+                    pass
             propose_msg_id = data.get("propose_msg_id")
             propose_date   = data.get("propose_date")
             if propose_msg_id and propose_date:
@@ -722,6 +763,7 @@ async def restore_all_season_matches(bot: commands.Bot) -> int:
                 count += 1
             continue
 
+        roster_home = roster_away = None
         for side in ("home", "away"):
             if data.get(f"roster_{side}"):
                 continue
@@ -738,14 +780,57 @@ async def restore_all_season_matches(bot: commands.Bot) -> int:
                 options.append(discord.SelectOption(
                     label=(member.display_name if member else str(mid))[:100], value=str(mid),
                 ))
-            bot.add_view(SeasonRosterSelectView(thread_id, side, options), message_id=msg_id)
+            view = SeasonRosterSelectView(thread_id, side, options)
+            bot.add_view(view, message_id=msg_id)
             count += 1
 
+            # Même filet de rattrapage que pour les messages de dispos : réattache
+            # une vue fraîche si les custom_id figés sur le message sont obsolètes.
+            if roster_home is None and roster_away is None:
+                roster_home, roster_away = await _tasks_channels(guild, data)
+            ch = roster_home if side == "home" else roster_away
+            if not ch:
+                continue
+            try:
+                live_msg = await ch.fetch_message(msg_id)
+                live_ids = {
+                    getattr(c, "custom_id", None)
+                    for row in live_msg.components
+                    for c in getattr(row, "children", [])
+                }
+                expected_ids = {item.custom_id for item in view.children}
+                if live_ids != expected_ids:
+                    await live_msg.edit(view=view)
+            except Exception:
+                pass
+
+        ready_home = ready_away = None
         for side in ("home", "away"):
             if not data.get(f"roster_{side}") or data.get(f"ready_{side}"):
                 continue
             msg_id = data.get(f"ready_msg_{side}_id")
-            if msg_id:
-                bot.add_view(SeasonReadyView(thread_id, side), message_id=msg_id)
-                count += 1
+            if not msg_id:
+                continue
+            view = SeasonReadyView(thread_id, side)
+            bot.add_view(view, message_id=msg_id)
+            count += 1
+
+            if ready_home is None and ready_away is None:
+                ready_home, ready_away = await _tasks_channels(guild, data)
+            ch = ready_home if side == "home" else ready_away
+            if not ch:
+                continue
+            try:
+                live_msg = await ch.fetch_message(msg_id)
+                live_ids = {
+                    getattr(c, "custom_id", None)
+                    for row in live_msg.components
+                    for c in getattr(row, "children", [])
+                }
+                expected_ids = {item.custom_id for item in view.children}
+                if live_ids != expected_ids:
+                    await live_msg.edit(view=view)
+            except Exception:
+                pass
+    print(f"{count} vue(s) de CB de saison réenregistrée(s)")
     return count
