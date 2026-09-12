@@ -67,9 +67,9 @@ class CreateTeamModal(discord.ui.Modal, title="Créer mon équipe"):
         # Déterminer si on crée l'équipe A ou B
         existing_a = load_team(raw_sigle)
         if existing_a:
-            # L'équipe A existe — seul son leader (ou l'admin) peut créer la B
-            from cogs.crewbattle import is_authorized
-            if not is_authorized(user.id, existing_a["leader_id"]):
+            # L'équipe A existe — seul son leader/admin (ou l'admin bot) peut créer la B
+            from cogs.crewbattle import is_team_authorized
+            if not is_team_authorized(user.id, existing_a):
                 await interaction.followup.send(t(gid, "team_already_exists"), ephemeral=True)
                 await log_command(user.display_name, f"cbl_newteam **{raw_sigle}**", "Failed",
                                   f"La Team **{raw_sigle}** existe déjà")

@@ -165,6 +165,16 @@ def is_authorized(user_id: int, *allowed_ids: int) -> bool:
     return user_id == ADMIN_ID or user_id in allowed_ids
 
 
+def is_team_authorized(user_id: int, team: dict) -> bool:
+    """Retourne True si l'utilisateur est le leader de l'équipe, l'un de ses
+    admins d'équipe (team['admin_ids'], 2 max), ou l'admin bot. Les admins
+    d'équipe ont les mêmes pouvoirs que le leader PARTOUT sauf pour dissoudre
+    l'équipe ou transférer le leadership — ces deux actions doivent continuer
+    à vérifier `user_id == team['leader_id']` (ou is_authorized avec le seul
+    leader_id) directement plutôt que d'utiliser cette fonction."""
+    return is_authorized(user_id, team.get("leader_id"), *team.get("admin_ids", []))
+
+
 @dataclass
 class Player:
     name: str

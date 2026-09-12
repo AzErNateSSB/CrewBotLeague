@@ -74,6 +74,49 @@ def tasks_channel_overwrites(guild: discord.Guild, role: Optional[discord.Role],
     return overwrites
 
 
+def settings_channel_overwrites(
+    guild: discord.Guild,
+    leader: Optional[discord.Member],
+    admins: list = (),
+):
+    """Le salon settings n'est visible que par le leader et les admins
+    d'équipe — pas par le rôle de l'équipe entière."""
+    overwrites = {
+        guild.default_role: discord.PermissionOverwrite(view_channel=False),
+        guild.me: discord.PermissionOverwrite(
+            view_channel=True, send_messages=True,
+            read_message_history=True, manage_channels=True,
+        ),
+    }
+    if leader:
+        overwrites[leader] = discord.PermissionOverwrite(
+            view_channel=True, send_messages=False, read_message_history=True,
+        )
+    for adm in admins:
+        if adm:
+            overwrites[adm] = discord.PermissionOverwrite(
+                view_channel=True, send_messages=False, read_message_history=True,
+            )
+    return overwrites
+
+
+async def sync_settings_channel_permissions(guild: discord.Guild, team: dict):
+    """Réapplique les permissions du salon settings d'une équipe (à appeler
+    après un changement de leader ou d'admins)."""
+    ch_id = team["channels"].get("settings")
+    if not ch_id:
+        return
+    channel = guild.get_channel(ch_id)
+    if not channel:
+        return
+    leader = guild.get_member(team.get("leader_id"))
+    admins = [guild.get_member(mid) for mid in team.get("admin_ids", [])]
+    try:
+        await channel.edit(overwrites=settings_channel_overwrites(guild, leader, admins))
+    except Exception:
+        pass
+
+
 def players_forum_overwrites(guild: discord.Guild, role: Optional[discord.Role], leader: Optional[discord.Member]):
     overwrites = {
         guild.default_role: discord.PermissionOverwrite(view_channel=False),
@@ -254,6 +297,10 @@ async def cbl_newteam(
             forum_b = await guild.create_forum(
                 name=f"〔{sigle}²〕historique", category=category
             )
+            settings_b = await guild.create_text_channel(
+                name=f"〔{full_sigle}〕settings", category=category,
+                overwrites=settings_channel_overwrites(guild, user, []),
+            )
         except Exception as e:
             await interaction.followup.send(f"❌ Erreur création du salon : {e}", ephemeral=True)
             await log_command(user.display_name, cmd_label, "Failed", str(e))
@@ -263,6 +310,7 @@ async def cbl_newteam(
             team_data = {
                 "sigle":       full_sigle,
                 "leader_id":   user.id,
+                "admin_ids":   [],
                 "role_id":     team_a["role_id"],
                 "category_id": team_a["category_id"],
                 "channels": {
@@ -270,6 +318,7 @@ async def cbl_newteam(
                     "historique":    forum_b.id,
                     "vocal":         team_a["channels"]["vocal"],
                     "tasks":         team_a["channels"].get("tasks"),
+                    "settings":      settings_b.id,
                     "players_stats": team_a["channels"].get("players_stats"),
                 },
                 "members":    [user.id],
@@ -282,6 +331,8 @@ async def cbl_newteam(
             save_player(player)
             await refresh_team_lu(interaction.client, interaction.guild_id, team_data)
             await create_team_stats_post(interaction.client, interaction.guild_id, team_data)
+            from cogs.team_settings import post_team_settings_panel
+            await post_team_settings_panel(guild, team_data)
             # L'équipe A gagne le bouton "Déplacer vers B" sur ses membres existants
             await refresh_team_stats_post(interaction.client, interaction.guild_id, sigle)
 
@@ -299,7 +350,7 @@ async def cbl_newteam(
             await log_command(user.display_name, cmd_label, "Completed",
                               f"La Team **{full_sigle}** créée (équipe B de **{sigle}**) — leader : **{user.display_name}**")
         except Exception as e:
-            await rollback_new_team(channels=[forum_b])
+            await rollback_new_team(channels=[forum_b, settings_b])
             await interaction.followup.send(f"❌ Erreur lors de la création de l'équipe : {e}", ephemeral=True)
             await log_command(user.display_name, cmd_label, "Failed", f"Erreur après création du salon : {e}")
             await alert_error(
@@ -342,6 +393,10 @@ async def cbl_newteam(
             name=f"〔{sigle}〕tasks", category=category,
             overwrites=tasks_channel_overwrites(guild, role, user),
         )
+        settings     = await guild.create_text_channel(
+            name=f"〔{sigle}〕settings", category=category,
+            overwrites=settings_channel_overwrites(guild, user, []),
+        )
         general      = await guild.create_text_channel( name=f"〔{sigle}〕général",    category=category)
         forum        = await guild.create_forum(         name=f"〔{sigle}〕historique", category=category)
         players_stat = await guild.create_forum(
@@ -367,10 +422,12 @@ async def cbl_newteam(
             "leader_id":   user.id,
             "role_id":     role.id,
             "category_id": category.id,
+            "admin_ids": [],
             "channels": {
                 "general":       general.id,
                 "historique":    forum.id,
                 "tasks":         tasks.id,
+                "settings":      settings.id,
                 "players_stats": players_stat.id,
                 "vocal":         vocal.id,
             },
@@ -385,6 +442,8 @@ async def cbl_newteam(
         save_player(player)
         await refresh_team_lu(interaction.client, interaction.guild_id, team_data)
         await create_team_stats_post(interaction.client, interaction.guild_id, team_data)
+        from cogs.team_settings import post_team_settings_panel
+        await post_team_settings_panel(guild, team_data)
         # Recharger team_data après create_team_stats_post (qui enregistre le stats_thread_id)
         team_data = load_team(sigle) or team_data
         await create_player_stats_post(interaction.client, interaction.guild_id, team_data, user)
@@ -411,7 +470,7 @@ async def cbl_newteam(
             f"La Team **{sigle}** a été créée avec **{user.display_name}** pour Leader"
         )
     except Exception as e:
-        await rollback_new_team(role=role, category=category, channels=[general, forum, players_stat, vocal, tasks])
+        await rollback_new_team(role=role, category=category, channels=[general, forum, players_stat, vocal, tasks, settings])
         await interaction.followup.send(f"❌ Erreur lors de la création de l'équipe : {e}", ephemeral=True)
         await log_command(user.display_name, cmd_label, "Failed", f"Erreur après création des salons : {e}")
         await alert_error(
@@ -420,6 +479,33 @@ async def cbl_newteam(
             f"Commande `{cmd_label}` par **{user.display_name}**\nErreur : `{e}`\n"
             f"Rôle, catégorie et salons ont été supprimés (rollback).",
         )
+
+async def add_member_to_team(bot: commands.Bot, guild: discord.Guild, team: dict, applicant: discord.Member) -> dict:
+    """Ajoute applicant à team (membres, rôle, profil joueur, post de stats,
+    teams-lu) et retourne le dict d'équipe rechargé. Ne vérifie pas que le
+    joueur n'est pas déjà dans une équipe — c'est à l'appelant de le faire."""
+    team = load_team(team["sigle"])
+    if applicant.id not in team["members"]:
+        team["members"].append(applicant.id)
+        save_team(team)
+
+    player = load_player(applicant.id) or {
+        "discord_id": applicant.id, "name": applicant.display_name
+    }
+    player["team"] = team["sigle"]
+    save_player(player)
+
+    role = guild.get_role(team["role_id"])
+    if role:
+        try:
+            await applicant.add_roles(role)
+        except discord.Forbidden:
+            pass
+
+    await refresh_team_lu(bot, guild.id, team)
+    await create_player_stats_post(bot, guild.id, team, applicant)
+    return team
+
 
 # ---------------------------------------------------------------------------
 # /cbl_join
@@ -448,8 +534,8 @@ class JoinRequestView(discord.ui.View):
 
     @discord.ui.button(label="✅ Accepter", style=discord.ButtonStyle.success)
     async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
-        from cogs.crewbattle import is_authorized
-        if not is_authorized(interaction.user.id, self.team["leader_id"]):
+        from cogs.crewbattle import is_team_authorized
+        if not is_team_authorized(interaction.user.id, self.team):
             await interaction.response.send_message("❌ Seul le leader peut valider.", ephemeral=True)
             return
 
@@ -465,26 +551,7 @@ class JoinRequestView(discord.ui.View):
 
         await interaction.response.defer()
 
-        team = load_team(self.team["sigle"])
-        if self.applicant.id not in team["members"]:
-            team["members"].append(self.applicant.id)
-            save_team(team)
-
-        player = load_player(self.applicant.id) or {
-            "discord_id": self.applicant.id, "name": self.applicant.display_name
-        }
-        player["team"] = team["sigle"]
-        save_player(player)
-
-        role = interaction.guild.get_role(team["role_id"])
-        if role:
-            try:
-                await self.applicant.add_roles(role)
-            except discord.Forbidden:
-                pass
-
-        await refresh_team_lu(interaction.client, interaction.guild_id, team)
-        await create_player_stats_post(interaction.client, interaction.guild_id, team, self.applicant)
+        team = await add_member_to_team(interaction.client, interaction.guild, self.team, self.applicant)
         await self._resolve(button)
         await interaction.followup.send(
             t(self.gid, "join_accepted", player=self.applicant.display_name, team=team["sigle"])
@@ -502,8 +569,8 @@ class JoinRequestView(discord.ui.View):
 
     @discord.ui.button(label="❌ Refuser", style=discord.ButtonStyle.danger)
     async def refuse(self, interaction: discord.Interaction, button: discord.ui.Button):
-        from cogs.crewbattle import is_authorized
-        if not is_authorized(interaction.user.id, self.team["leader_id"]):
+        from cogs.crewbattle import is_team_authorized
+        if not is_team_authorized(interaction.user.id, self.team):
             await interaction.response.send_message("❌ Seul le leader peut refuser.", ephemeral=True)
             return
 
@@ -761,9 +828,9 @@ async def cbl_remove_player(interaction: discord.Interaction, joueur: discord.Me
 
     team = load_team(team_sigle)
 
-    # Vérifier que l'auteur est le leader de cette équipe (ou l'admin)
-    from cogs.crewbattle import is_authorized
-    if not is_authorized(interaction.user.id, team["leader_id"]):
+    # Vérifier que l'auteur est le leader (ou un admin) de cette équipe
+    from cogs.crewbattle import is_team_authorized
+    if not is_team_authorized(interaction.user.id, team):
         await interaction.followup.send(
             "❌ Tu n'es pas le leader de l'équipe de ce joueur.", ephemeral=True
         )
@@ -931,6 +998,63 @@ async def cbl_rebuild_stats(interaction: discord.Interaction):
 
 
 @app_commands.command(
+    name="cbl_add_settings_channels",
+    description="[ADMIN] Crée le salon settings (leader+admins) pour toutes les équipes existantes",
+)
+async def cbl_add_settings_channels(interaction: discord.Interaction):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("❌ Réservé aux administrateurs.", ephemeral=True)
+        return
+
+    await interaction.response.send_message(
+        "⏳ Création des salons settings manquants...", ephemeral=True
+    )
+
+    guild   = interaction.guild
+    created = 0
+    skipped = 0
+    errors  = []
+
+    for filename in os.listdir(TEAMS_DIR):
+        if not filename.endswith(".json"):
+            continue
+        with open(os.path.join(TEAMS_DIR, filename), encoding="utf-8") as f:
+            team = json.load(f)
+
+        if "admin_ids" not in team:
+            team["admin_ids"] = []
+
+        existing_id = team["channels"].get("settings")
+        if existing_id and guild.get_channel(existing_id):
+            skipped += 1
+            save_team(team)
+            continue
+
+        cat_id   = team.get("category_id")
+        category = guild.get_channel(cat_id) if cat_id else None
+        leader   = guild.get_member(team.get("leader_id"))
+        admins   = [guild.get_member(mid) for mid in team.get("admin_ids", [])]
+        try:
+            ch = await guild.create_text_channel(
+                name=f"〔{team['sigle']}〕settings", category=category,
+                overwrites=settings_channel_overwrites(guild, leader, admins),
+            )
+            team["channels"]["settings"] = ch.id
+            save_team(team)
+            from cogs.team_settings import post_team_settings_panel
+            await post_team_settings_panel(guild, team)
+            created += 1
+        except Exception as e:
+            errors.append(f"❌ **{team.get('sigle')}** : {e}")
+
+    report = f"**{created}** salon(s) créé(s), **{skipped}** déjà existant(s)."
+    if errors:
+        report += "\n" + "\n".join(errors)
+    await interaction.channel.send(f"✅ {interaction.user.mention} — {report}")
+    await log_command(interaction.user.display_name, "cbl_add_settings_channels", "Completed", report)
+
+
+@app_commands.command(
     name="cbl_refresh_buttons",
     description="[ADMIN] Corrige les boutons manquants/obsolètes des posts players-stats",
 )
@@ -1078,6 +1202,7 @@ class Teams(commands.Cog):
         self.bot.tree.add_command(cbl_rebuild_stats)
         self.bot.tree.add_command(cbl_refresh_buttons)
         self.bot.tree.add_command(cbl_reset_stats)
+        self.bot.tree.add_command(cbl_add_settings_channels)
         self.bot.loop.create_task(restore_all_join_requests(self.bot))
 
 

@@ -56,16 +56,14 @@ async def _tasks_channels(guild: discord.Guild, data: dict):
     return home_ch, away_ch
 
 
-def _leader_id(side_sigle: str) -> Optional[int]:
+def _is_authorized(user_id: int, side_sigle: str) -> bool:
+    """Vrai si user_id est le leader ou un admin de side_sigle, ou l'admin bot."""
+    from cogs.crewbattle import is_authorized, is_team_authorized
     from cogs.teams import load_team
     team = load_team(side_sigle)
-    return team["leader_id"] if team else None
-
-
-def _is_authorized(user_id: int, side_sigle: str) -> bool:
-    """Vrai si user_id est le leader de side_sigle, ou l'admin."""
-    from cogs.crewbattle import is_authorized
-    return is_authorized(user_id, _leader_id(side_sigle))
+    if not team:
+        return is_authorized(user_id)
+    return is_team_authorized(user_id, team)
 
 # ---------------------------------------------------------------------------
 # Point d'entrée : appelé à la création du thread de match (cf admin_panel.py)

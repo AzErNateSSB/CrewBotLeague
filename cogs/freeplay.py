@@ -391,10 +391,10 @@ class TeamConfirmView(discord.ui.View):
             await interaction.response.edit_message(content="⌛ Cette demande n'est plus valide.", view=self)
             return
 
-        from cogs.crewbattle import is_authorized
+        from cogs.crewbattle import is_team_authorized
 
         team = load_team(data["team_sigle"])
-        if not team or not is_authorized(interaction.user.id, team["leader_id"]):
+        if not team or not is_team_authorized(interaction.user.id, team):
             await interaction.response.send_message(
                 "❌ Seul le leader de l'équipe peut confirmer.", ephemeral=True
             )
@@ -414,10 +414,10 @@ class TeamConfirmView(discord.ui.View):
 
     async def _refuse(self, interaction: discord.Interaction):
         data = _load_team_confirm(self.msg_id)
-        from cogs.crewbattle import is_authorized
+        from cogs.crewbattle import is_team_authorized
 
         team = load_team(data["team_sigle"]) if data else None
-        if not team or not is_authorized(interaction.user.id, team["leader_id"]):
+        if not team or not is_team_authorized(interaction.user.id, team):
             await interaction.response.send_message(
                 "❌ Seul le leader de l'équipe peut refuser.", ephemeral=True
             )

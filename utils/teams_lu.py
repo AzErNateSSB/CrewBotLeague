@@ -43,9 +43,21 @@ def _make_embed(team: dict) -> discord.Embed:
     if league:
         embed.add_field(name="Ligue", value=league, inline=True)
 
+    from cogs.teams import load_player
+    admin_ids = set(team.get("admin_ids", []))
+
     lines = []
     for m_id in members:
-        lines.append(f"<@{m_id}> 👑" if m_id == leader_id else f"<@{m_id}>")
+        player = load_player(m_id)
+        main = player.get("stats", {}).get("main") if player else None
+        prefix = f"{main} " if main else ""
+        if m_id == leader_id:
+            suffix = " 👑"
+        elif m_id in admin_ids:
+            suffix = " 🛡️"
+        else:
+            suffix = ""
+        lines.append(f"{prefix}<@{m_id}>{suffix}")
 
     embed.add_field(
         name=f"Effectif ({len(members)})",

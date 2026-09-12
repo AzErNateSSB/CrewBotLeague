@@ -64,6 +64,7 @@ async def on_app_command_error(interaction: discord.Interaction, error: Exceptio
 async def load_cogs():
     await bot.load_extension("cogs.config")
     await bot.load_extension("cogs.teams")
+    await bot.load_extension("cogs.team_settings")
     await bot.load_extension("cogs.league")
     await bot.load_extension("cogs.panels")
     await bot.load_extension("cogs.freeplay")

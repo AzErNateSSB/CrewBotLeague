@@ -323,9 +323,20 @@ class TeamStatsView(discord.ui.View):
         self.add_item(rename)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        from cogs.crewbattle import is_authorized
+        from cogs.crewbattle import is_authorized, is_team_authorized
         team = _load_team(self.sigle)
-        if not team or not is_authorized(interaction.user.id, team["leader_id"]):
+        if not team:
+            await interaction.response.send_message("❌ Équipe introuvable.", ephemeral=True)
+            return False
+
+        custom_id = interaction.data.get("custom_id", "") if interaction.data else ""
+        if custom_id.startswith("ts_dissolve:"):
+            # Dissoudre reste réservé au leader (les admins d'équipe n'ont pas ce pouvoir).
+            allowed = is_authorized(interaction.user.id, team["leader_id"])
+        else:
+            allowed = is_team_authorized(interaction.user.id, team)
+
+        if not allowed:
             await interaction.response.send_message("❌ Réservé au leader de l'équipe.", ephemeral=True)
             return False
         return True
@@ -446,9 +457,9 @@ class TeamMemberView(discord.ui.View):
             self.add_item(_MoveTeamBtn(sigle, member_id, twin_sigle))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        from cogs.crewbattle import is_authorized
+        from cogs.crewbattle import is_team_authorized
         team = _load_team(self.sigle)
-        if not team or not is_authorized(interaction.user.id, team["leader_id"]):
+        if not team or not is_team_authorized(interaction.user.id, team):
             await interaction.response.send_message("❌ Réservé au leader de l'équipe.", ephemeral=True)
             return False
         return True
@@ -709,13 +720,14 @@ async def _transfer_leadership(interaction: discord.Interaction, team_sigle: str
                                 new_leader_id: int, old_leader_id: int):
     """Change le leader d'une équipe et notifie dans le salon tasks. Ne fait rien d'autre
     (le nouvel ex-leader reste membre de l'équipe — c'est à l'appelant de décider s'il part)."""
-    from cogs.teams import load_team, save_team
+    from cogs.teams import load_team, save_team, sync_settings_channel_permissions
     from utils.teams_lu import refresh_team_lu
 
     team = load_team(team_sigle)
     team["leader_id"] = new_leader_id
     save_team(team)
     await refresh_team_lu(interaction.client, interaction.guild_id, team)
+    await sync_settings_channel_permissions(interaction.guild, team)
 
     guild       = interaction.guild
     new_leader  = guild.get_member(new_leader_id)
@@ -761,87 +773,6 @@ class _SuccessorPickView(discord.ui.View):
         await _leave_team(interaction, self.player_id, self.team_sigle)
 
 
-class _TransferConfirmView(discord.ui.View):
-    """Confirmation avant de faire de view.player_id le nouveau leader (bouton dédié dans le post joueur)."""
-
-    def __init__(self, team_sigle: str, old_leader_id: int, new_leader_id: int):
-        super().__init__(timeout=120)
-        self.team_sigle    = team_sigle
-        self.old_leader_id = old_leader_id
-        self.new_leader_id = new_leader_id
-
-    @discord.ui.button(label="✅ Confirmer", style=discord.ButtonStyle.success)
-    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
-        from cogs.crewbattle import is_authorized
-        if not is_authorized(interaction.user.id, self.old_leader_id):
-            await interaction.response.send_message("❌ Action non autorisée.", ephemeral=True)
-            return
-        for item in self.children:
-            item.disabled = True
-        await interaction.response.edit_message(view=self)
-
-        await _transfer_leadership(interaction, self.team_sigle, self.new_leader_id, self.old_leader_id)
-
-        new_leader = interaction.guild.get_member(self.new_leader_id)
-        await interaction.followup.send(
-            f"✅ Leadership transféré à **{new_leader.display_name if new_leader else self.new_leader_id}**.",
-            ephemeral=True,
-        )
-
-    @discord.ui.button(label="Annuler", style=discord.ButtonStyle.secondary)
-    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
-        from cogs.crewbattle import is_authorized
-        if not is_authorized(interaction.user.id, self.old_leader_id):
-            await interaction.response.send_message("❌ Action non autorisée.", ephemeral=True)
-            return
-        for item in self.children:
-            item.disabled = True
-        await interaction.response.edit_message(content="Annulé.", view=self)
-
-
-class _TransferLeadershipBtn(discord.ui.Button):
-    def __init__(self, player_id: int):
-        super().__init__(
-            label="🔄 Transférer le leadership",
-            style=discord.ButtonStyle.primary,
-            custom_id=f"ps_transfer:{player_id}",
-            row=1,
-        )
-
-    async def callback(self, interaction: discord.Interaction):
-        from cogs.teams import find_team_of_player, load_team
-
-        view: PlayerStatsView = self.view
-        team_sigle = find_team_of_player(view.player_id)
-        if not team_sigle:
-            await interaction.response.send_message("❌ Ce joueur n'est dans aucune équipe.", ephemeral=True)
-            return
-
-        team = load_team(team_sigle)
-        old_leader_id = team["leader_id"]
-        if old_leader_id == view.player_id:
-            await interaction.response.send_message(
-                "❌ Ce joueur est déjà le leader de l'équipe.", ephemeral=True
-            )
-            return
-
-        from cogs.crewbattle import is_authorized
-        if not is_authorized(interaction.user.id, old_leader_id):
-            await interaction.response.send_message(
-                "❌ Seul le leader de l'équipe peut transférer le leadership.", ephemeral=True
-            )
-            return
-
-        target = interaction.guild.get_member(view.player_id)
-        target_name = target.display_name if target else str(view.player_id)
-
-        await interaction.response.send_message(
-            f"⚠️ Confirmer le transfert du leadership de **{team_sigle}** à **{target_name}** ?",
-            view=_TransferConfirmView(team_sigle, old_leader_id, view.player_id),
-            ephemeral=True,
-        )
-
-
 # ---------------------------------------------------------------------------
 # View persistante
 # ---------------------------------------------------------------------------
@@ -853,7 +784,6 @@ class PlayerStatsView(discord.ui.View):
         self.add_item(_MainBtn(player_id))
         self.add_item(_StatsBtn(player_id))
         self.add_item(_LeaveBtn(player_id))
-        self.add_item(_TransferLeadershipBtn(player_id))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         from cogs.crewbattle import is_authorized
