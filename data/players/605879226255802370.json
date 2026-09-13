@@ -2,6 +2,8 @@
   "discord_id": 605879226255802370,
   "name": "SSL | Flaym !",
   "team": "OXVI²",
-  "stats": {},
+  "stats": {
+    "main": "<:61_Cloud:1438573023996149824>"
+  },
   "stats_thread_id": 1543722241378881538
 }

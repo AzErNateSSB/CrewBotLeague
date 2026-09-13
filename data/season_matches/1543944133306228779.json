@@ -5,7 +5,10 @@
   "away_sigle": "OX",
   "period_start": "2026-08-31",
   "deadline": "2026-09-20",
-  "avail_home": null,
+  "avail_home": [
+    "2026-09-19",
+    "2026-09-20"
+  ],
   "avail_away": null,
   "confirmed_date": null,
   "roster_home": null,

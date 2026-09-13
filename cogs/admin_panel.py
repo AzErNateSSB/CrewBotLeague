@@ -1054,6 +1054,31 @@ async def _republish_all_panels(bot: discord.Client, guild: discord.Guild) -> li
     return report
 
 
+def _config_panel_embed() -> discord.Embed:
+    return discord.Embed(
+        title="⚙️ Panel de Configuration",
+        description=(
+            "Bienvenue dans le panel admin du CrewBotLeague.\n\n"
+            "**Gestion des équipes**\n"
+            "🗑️ Retirer une Équipe — dissout une équipe complètement\n"
+            "👤 Retirer un Joueur — supprime un joueur du bot\n"
+            "✏️ Renommer une Équipe — change le sigle d'une équipe\n\n"
+            "**Maintenance**\n"
+            "📊 Rafraîchir les Stats — recrée tous les posts players-stats\n"
+            "🔄 Rafraîchir les LU — reconstruit les embeds du salon teams-lu\n"
+            "📋 Republier les Panels — reposte les 3 panels interactifs\n"
+            "🔍 Analyser les CB — état d'avancement des CB de saison "
+            "(rattrape le post des LineUp manquées)\n\n"
+            "**Saison**\n"
+            "🗓️ Setup la Saison — crée le panel de configuration de saison\n\n"
+            "**Serveur**\n"
+            "🌐 Définir la Langue — change la langue du bot\n"
+            "⏹️ Éteindre le bot — arrêt propre *(AzErNate uniquement)*"
+        ),
+        color=discord.Color.dark_grey(),
+    )
+
+
 # ─── Config Panel View (persistent) ──────────────────────────────────────────
 
 class ConfigPanelView(discord.ui.View):
@@ -1070,6 +1095,7 @@ class ConfigPanelView(discord.ui.View):
             ("📊 Rafraîchir les Stats", discord.ButtonStyle.primary,   "cfg_refresh_stats", 1, self._refresh_stats),
             ("🔄 Rafraîchir les LU",    discord.ButtonStyle.primary,   "cfg_refresh_lu",    1, self._refresh_lu),
             ("📋 Republier les Panels", discord.ButtonStyle.primary,   "cfg_republish",     1, self._republish),
+            ("🔍 Analyser les CB",      discord.ButtonStyle.primary,   "cfg_analyze_cb",    1, self._analyze_cb),
             ("🗓️ Setup la Saison",      discord.ButtonStyle.success,   "cfg_setup_season",  2, self._setup_season),
             ("🌐 Définir la Langue",    discord.ButtonStyle.secondary, "cfg_set_lang",      2, self._set_lang),
             ("⏹️ Éteindre le bot",      discord.ButtonStyle.danger,    "cfg_shutdown",      2, self._shutdown),
@@ -1129,6 +1155,15 @@ class ConfigPanelView(discord.ui.View):
         await interaction.followup.send("\n".join(lines), ephemeral=True)
         await log_command(interaction.user.display_name, "cfg_republish", "Completed", " | ".join(lines))
 
+    async def _analyze_cb(self, interaction: discord.Interaction):
+        await interaction.response.send_message(
+            "⏳ Analyse des CB de saison en cours...", ephemeral=True
+        )
+        from cogs.season_match import analyze_season_matches
+        report = await analyze_season_matches(interaction.client, interaction.guild)
+        await interaction.channel.send(f"🔍 {interaction.user.mention} —\n{report}")
+        await log_command(interaction.user.display_name, "cfg_analyze_cb", "Completed", report)
+
     async def _setup_season(self, interaction: discord.Interaction):
         await interaction.response.send_modal(SetupSeasonModal())
 
@@ -1170,6 +1205,32 @@ async def _resync_start_season_message(bot: commands.Bot):
         pass
 
 
+async def _resync_config_panel_message(bot: commands.Bot):
+    """Réattache une vue et un embed ConfigPanelView à jour sur le panel déjà
+    posté dans CHANNEL_CONFIG, pour que les boutons ajoutés après coup (ex:
+    'Analyser les CB') apparaissent sans recréer le panel."""
+    await bot.wait_until_ready()
+    from utils.config import GUILD_ID
+    guild = bot.get_guild(GUILD_ID)
+    if not guild:
+        return
+
+    channel = guild.get_channel(CHANNEL_CONFIG)
+    if not channel:
+        return
+
+    panels = _load_panels()
+    msg_id = panels.get("config_panel_msg")
+    if not msg_id:
+        return
+
+    try:
+        msg = await channel.fetch_message(msg_id)
+        await msg.edit(embed=_config_panel_embed(), view=ConfigPanelView())
+    except Exception:
+        pass
+
+
 # ─── Cog ─────────────────────────────────────────────────────────────────────
 
 class AdminPanel(commands.Cog):
@@ -1188,6 +1249,7 @@ class AdminPanel(commands.Cog):
         from cogs.season_match import restore_all_season_matches
         self.bot.loop.create_task(restore_all_season_matches(self.bot))
         self.bot.loop.create_task(_resync_start_season_message(self.bot))
+        self.bot.loop.create_task(_resync_config_panel_message(self.bot))
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -1222,28 +1284,7 @@ async def cbl_setup_config(interaction: discord.Interaction):
         except Exception:
             pass
 
-    embed = discord.Embed(
-        title="⚙️ Panel de Configuration",
-        description=(
-            "Bienvenue dans le panel admin du CrewBotLeague.\n\n"
-            "**Gestion des équipes**\n"
-            "🗑️ Retirer une Équipe — dissout une équipe complètement\n"
-            "👤 Retirer un Joueur — supprime un joueur du bot\n"
-            "✏️ Renommer une Équipe — change le sigle d'une équipe\n\n"
-            "**Maintenance**\n"
-            "📊 Rafraîchir les Stats — recrée tous les posts players-stats\n"
-            "🔄 Rafraîchir les LU — reconstruit les embeds du salon teams-lu\n"
-            "📋 Republier les Panels — reposte les 3 panels interactifs\n\n"
-            "**Saison**\n"
-            "🗓️ Setup la Saison — crée le panel de configuration de saison\n\n"
-            "**Serveur**\n"
-            "🌐 Définir la Langue — change la langue du bot\n"
-            "⏹️ Éteindre le bot — arrêt propre *(AzErNate uniquement)*"
-        ),
-        color=discord.Color.dark_grey(),
-    )
-
-    msg = await channel.send(embed=embed, view=ConfigPanelView())
+    msg = await channel.send(embed=_config_panel_embed(), view=ConfigPanelView())
     panels["config_panel_msg"] = msg.id
     _save_panels(panels)
 

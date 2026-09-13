@@ -379,6 +379,109 @@ NB_ACTIVE   = 5
 NB_SUBS_MAX = 2
 
 
+async def _post_lineups_if_both_ready(bot, guild: discord.Guild, thread_id: int):
+    """Poste le récap des 2 LineUp (joueurs + main) dans le salon de match dès
+    que les 2 équipes ont envoyé leur composition. Idempotent (ne poste qu'une
+    fois, marqué via data['lineups_posted'])."""
+    data = load_season_match(thread_id)
+    if not data or data.get("lineups_posted"):
+        return
+    if not data.get("roster_home") or not data.get("roster_away"):
+        return
+
+    from utils.players_stats import _get_thread
+    from cogs.teams import load_player
+
+    thread = await _get_thread(guild, thread_id)
+    if not thread:
+        return
+
+    def _format_side(active_ids: list, sub_ids: list) -> str:
+        lines = []
+        for pid_str in active_ids:
+            pid = int(pid_str)
+            member = guild.get_member(pid)
+            player = load_player(pid)
+            main = player.get("stats", {}).get("main") if player else None
+            name = member.mention if member else ((player or {}).get("name") or str(pid))
+            lines.append(f"{main + ' ' if main else ''}{name}")
+        if sub_ids:
+            lines.append("*Remplaçant(s) :*")
+            for pid_str in sub_ids:
+                pid = int(pid_str)
+                member = guild.get_member(pid)
+                player = load_player(pid)
+                main = player.get("stats", {}).get("main") if player else None
+                name = member.mention if member else ((player or {}).get("name") or str(pid))
+                lines.append(f"{main + ' ' if main else ''}{name}")
+        return "\n".join(lines) if lines else "*Aucun joueur*"
+
+    embed = discord.Embed(title="📋 LineUps confirmées", color=discord.Color.gold())
+    embed.add_field(
+        name=data["home_sigle"],
+        value=_format_side(data["roster_home"], data.get("roster_subs_home") or []),
+        inline=True,
+    )
+    embed.add_field(
+        name=data["away_sigle"],
+        value=_format_side(data["roster_away"], data.get("roster_subs_away") or []),
+        inline=True,
+    )
+
+    try:
+        await thread.send(embed=embed)
+    except Exception:
+        return
+
+    data = load_season_match(thread_id)
+    if data:
+        data["lineups_posted"] = True
+        save_season_match(thread_id, data)
+
+
+async def analyze_season_matches(bot, guild: discord.Guild) -> str:
+    """Parcourt tous les CB de saison en négociation/préparation, rattrape le
+    post des LineUp dans le salon de match si les 2 compositions sont déjà
+    envoyées mais que ça n'avait pas été fait, et retourne un rapport
+    d'avancement (composition/prêt) par match."""
+    if not os.path.exists(SEASON_MATCHES_DIR):
+        return "Aucune CB de saison en cours."
+
+    def _state(flag) -> str:
+        return "✅" if flag else "❌"
+
+    lines: list[str] = []
+    posted = 0
+    for fn in sorted(os.listdir(SEASON_MATCHES_DIR)):
+        if not fn.endswith(".json"):
+            continue
+        thread_id = int(fn[:-5])
+        data = load_season_match(thread_id)
+        if not data:
+            continue
+
+        home, away = data["home_sigle"], data["away_sigle"]
+
+        if not data.get("confirmed_date"):
+            lines.append(f"⏳ **{home} 🆚 {away}** — date pas encore confirmée")
+            continue
+
+        if data.get("roster_home") and data.get("roster_away") and not data.get("lineups_posted"):
+            await _post_lineups_if_both_ready(bot, guild, thread_id)
+            data = load_season_match(thread_id) or data
+            if data.get("lineups_posted"):
+                posted += 1
+
+        lines.append(
+            f"**{home} 🆚 {away}** — Composition : {home} {_state(data.get('roster_home'))} "
+            f"/ {away} {_state(data.get('roster_away'))} · "
+            f"Prêt : {home} {_state(data.get('ready_home'))} / {away} {_state(data.get('ready_away'))}"
+        )
+
+    header = f"**{posted}** LineUp(s) rattrapée(s) et postée(s) dans leur salon de match.\n\n" if posted else ""
+    return header + ("\n".join(lines) if lines else "Aucune CB de saison en cours.")
+
+
 async def _confirm_date(bot, guild: discord.Guild, thread_id: int, chosen_date: str):
     from cogs.teams import load_team
 
@@ -579,6 +682,8 @@ class SeasonRosterSelectView(discord.ui.View):
         data[f"roster_{self.side}"] = self.active_ids
         data[f"roster_subs_{self.side}"] = self.sub_ids
         save_season_match(self.thread_id, data)
+
+        await _post_lineups_if_both_ready(interaction.client, interaction.guild, self.thread_id)
 
         ready_view = SeasonReadyView(self.thread_id, self.side)
         try:

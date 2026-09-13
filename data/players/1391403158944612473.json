@@ -2,6 +2,8 @@
   "discord_id": 1391403158944612473,
   "name": "Kitana",
   "team": "MST",
-  "stats": {},
+  "stats": {
+    "main": "<:76_MinMin:1438573821710962842>"
+  },
   "stats_thread_id": 1546230707427221527
 }
