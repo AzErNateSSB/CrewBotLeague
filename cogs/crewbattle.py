@@ -1685,6 +1685,77 @@ async def announce_set(channel: discord.TextChannel, match: Match):
         views[1].sibling_message = views[0].message
 
 
+def _historique_set_line(player_a: str, char_a: str, score_a: int, score_b: int,
+                          player_b: str, char_b: str) -> str:
+    """Perso à l'extérieur de chaque nom : [perso] Nom  score-score  Nom [perso]."""
+    left  = f"{char_display(char_a)} **{player_a}**" if char_a else f"**{player_a}**"
+    right = f"**{player_b}** {char_display(char_b)}" if char_b else f"**{player_b}**"
+    return f"{left}  {score_a}-{score_b}  {right}"
+
+
+def build_historique_embed(match: "Match", guild: Optional[discord.Guild],
+                            winner: "Team", loser: "Team") -> discord.Embed:
+    embed = discord.Embed(
+        title=f"🆚 {match.team_a.name} vs {match.team_b.name}",
+        color=discord.Color.gold(),
+    )
+    lines = [
+        _historique_set_line(rec.player_a, rec.char_a, rec.score_a, rec.score_b, rec.player_b, rec.char_b)
+        for rec in match.set_history
+    ]
+    embed.description = "\n".join(lines) if lines else "*Aucun set détaillé enregistré.*"
+    embed.add_field(
+        name="Score final",
+        value=f"**{match.team_a.name}** `{match.team_a.total_lives}` — "
+              f"`{match.team_b.total_lives}` **{match.team_b.name}**",
+        inline=False,
+    )
+    embed.add_field(name="Résultat", value=f"🏆 **{winner.name}** remporte la CrewBattle !", inline=False)
+    return embed
+
+
+async def _post_historique_entry(
+    guild: discord.Guild, team_sigle: str, season_name: str,
+    content: Optional[str] = None, embed: Optional[discord.Embed] = None,
+):
+    """Poste `content`/`embed` dans le post historique (forum 'historique' de
+    l'équipe) dédié à la saison `season_name` — le crée s'il n'existe pas
+    encore, le réutilise sinon (un seul post par saison et par équipe, qui
+    s'enrichit à chaque match)."""
+    from cogs.teams import load_team, save_team
+
+    team = load_team(team_sigle)
+    if not team:
+        return
+    forum_id = team.get("channels", {}).get("historique")
+    if not forum_id:
+        return
+    forum = guild.get_channel(forum_id)
+    if not isinstance(forum, discord.ForumChannel):
+        return
+
+    thread_ids = team.setdefault("historique_threads", {})
+    thread_id = thread_ids.get(season_name)
+    thread = None
+    if thread_id:
+        thread = guild.get_thread(thread_id)
+        if not thread:
+            try:
+                thread = await guild.fetch_channel(thread_id)
+            except Exception:
+                thread = None
+
+    try:
+        if thread:
+            await thread.send(content=content, embed=embed)
+        else:
+            twm = await forum.create_thread(name=season_name, content=content or "​", embed=embed)
+            thread_ids[season_name] = twm.thread.id
+            save_team(team)
+    except Exception as e:
+        print(f"[WARN] _post_historique_entry ({team_sigle}): {e}")
+
+
 async def end_crewbattle(channel: discord.TextChannel, match: Match):
     guild = getattr(channel, "guild", None)
     match.state = State.FINISHED
@@ -1740,6 +1811,11 @@ async def end_crewbattle(channel: discord.TextChannel, match: Match):
                     await refresh_team_stats_post(_bot_ref, guild.id, winner.name)
                     await refresh_team_stats_post(_bot_ref, guild.id, loser.name)
                 await refresh_standings_channel(guild)
+
+                hist_embed = build_historique_embed(match, guild, winner, loser)
+                season_name = season.get("name", "saison")
+                await _post_historique_entry(guild, winner.name, season_name, embed=hist_embed)
+                await _post_historique_entry(guild, loser.name, season_name, embed=hist_embed)
 
         delete_official_match(match.channel_id)
 
@@ -1883,6 +1959,19 @@ async def cbl_force_match_result(interaction: discord.Interaction, vainqueur: st
             await refresh_team_stats_post(interaction.client, guild.id, loser_sigle)
             await refresh_standings_channel(guild)
 
+            hist_embed = discord.Embed(
+                title=f"🆚 {home_sigle} vs {away_sigle}",
+                description="*Résultat saisi manuellement par un admin (match joué hors du moteur du bot).*",
+                color=discord.Color.gold(),
+            )
+            hist_embed.add_field(
+                name="Score final", value=f"**{vainqueur}** `{vies_restantes}` — `0` **{loser_sigle}**", inline=False,
+            )
+            hist_embed.add_field(name="Résultat", value=f"🏆 **{vainqueur}** remporte la CrewBattle !", inline=False)
+            season_name = season.get("name", "saison")
+            await _post_historique_entry(guild, vainqueur, season_name, embed=hist_embed)
+            await _post_historique_entry(guild, loser_sigle, season_name, embed=hist_embed)
+
     delete_official_match(interaction.channel_id)
     if interaction.channel_id in active_matches:
         del active_matches[interaction.channel_id]
@@ -1911,6 +2000,77 @@ async def cbl_force_match_result(interaction: discord.Interaction, vainqueur: st
 
     await log_command(interaction.user.display_name, "cbl_force_match_result", "Completed",
                       f"**{vainqueur}** bat **{loser_sigle}** ({vies_restantes}-0) — saisi manuellement")
+
+
+@app_commands.command(
+    name="cbl_backfill_historique_26aut",
+    description="[ADMIN] Ponctuel : poste les 3 résumés de CB déjà jouées dans l'historique",
+)
+async def cbl_backfill_historique_26aut(interaction: discord.Interaction):
+    """Commande temporaire, à retirer une fois utilisée : rattrape les posts
+    historique pour les 3 CB de saison jouées avant la mise en place du
+    système de post automatique (HoJ vs SSL, JRJ² vs RC, OXVI² vs MST)."""
+    if interaction.user.id != ADMIN_ID:
+        await interaction.response.send_message("❌ Commande réservée à l'admin.", ephemeral=True)
+        return
+
+    await interaction.response.defer(ephemeral=True)
+    guild = interaction.guild
+    season_name = "26aut"
+
+    # Supprime d'abord les anciens messages (erronés/en double) dans les
+    # threads historique concernés avant de relancer cette commande, sinon ça
+    # s'ajoute en double plutôt que de remplacer.
+    entries = [
+        ("HoJ", "SSL", 0, 10, [
+            (f"{char_display('17_Zelda')} <@258217574540640256>", "1-3", f"<@1071468692254240921> {char_display('21e_Lucina')}"),
+            (f"{char_display('68_Isabelle')} <@540915499698225162>", "0-3", f"<@1071468692254240921> {char_display('21e_Lucina')}"),
+            (f"{char_display('39_KingDedede')} <@461601543121010691>", "2-2", f"<@1071468692254240921> {char_display('21e_Lucina')}"),
+            (f"{char_display('39_KingDedede')} <@461601543121010691>", "0-1", f"<@471657156051992577> {char_display('20_Falco')}"),
+            (f"{char_display('41_Lucario')} <@442826598840795136>", "1-3", f"<@471657156051992577> {char_display('20_Falco')}"),
+            (f"{char_display('75_Byleth')} <@748114629586321469>", "1-3", f"<@471657156051992577> {char_display('20_Falco')}"),
+        ]),
+        ("JRJ²", "RC", 4, 0, [
+            (f"{char_display('03_Link')} <@1056593347541741600>", "3-1", f"<@1536268440027795546> {char_display('39_KingDedede')}"),
+            (f"{char_display('03_Link')} <@1056593347541741600>", "2-2", f"<@811581202318229554> {char_display('19_Pichu')}"),
+            (f"{char_display('04_Samus')} <@221602360965857281>", "1-0", f"<@811581202318229554> {char_display('19_Pichu')}"),
+            (f"{char_display('04_Samus')} <@221602360965857281>", "3-2", f"<@635456069984059405> {char_display('64_Inkling')}"),
+            (f"{char_display('04_Samus')} <@221602360965857281>", "0-1", f"<@1161362172664885268> {char_display('52_MiiSwordfighter')}"),
+            (f"{char_display('44_Wolf')} <@524742723828187151>", "2-3", f"<@1161362172664885268> {char_display('52_MiiSwordfighter')}"),
+            (f"{char_display('19_Pichu')} <@825836794360233984>", "1-1", f"<@1161362172664885268> {char_display('52_MiiSwordfighter')}"),
+            (f"{char_display('19_Pichu')} <@825836794360233984>", "3-1", f"<@894597808039002232> {char_display('09_Luigi')}"),
+        ]),
+        ("OXVI²", "MST", 0, 4, [
+            (f"{char_display('76_MinMin')} <@464762116885446667>", "2-3", f"<@917863307719884882> {char_display('44_Wolf')}"),
+            (f"{char_display('19_Pichu')} <@893593497909723136>", "1-0", f"<@917863307719884882> {char_display('44_Wolf')}"),
+            (f"{char_display('19_Pichu')} <@893593497909723136>", "2-3", f"<@1233924950755119157> {char_display('55_PacMan')}"),
+            (f"{char_display('61_Cloud')} <@605879226255802370>", "0-3", f"<@1233924950755119157> {char_display('55_PacMan')}"),
+            (f"{char_display('28e_DarkPit')} <@1186353312795213906>", "1-0", f"<@1233924950755119157> {char_display('55_PacMan')}"),
+            (f"{char_display('28e_DarkPit')} <@1186353312795213906>", "3-2", f"<@936719018537152532> {char_display('11_CaptainFalcon')}"),
+            (f"{char_display('28e_DarkPit')} <@1186353312795213906>", "1-1", f"<@194090309364350976> {char_display('64_Inkling')}"),
+            (f"{char_display('09_Luigi')} <@1292405826312601601>", "1-3", f"<@194090309364350976> {char_display('64_Inkling')}"),
+        ]),
+    ]
+
+    posted = []
+    for team_a, team_b, lives_a, lives_b, sets in entries:
+        winner = team_a if lives_a > lives_b else team_b
+        embed = discord.Embed(title=f"🆚 {team_a} vs {team_b}", color=discord.Color.gold())
+        embed.description = "\n".join(f"{p_a}  {sc}  {p_b}" for p_a, sc, p_b in sets)
+        embed.add_field(
+            name="Score final", value=f"**{team_a}** `{lives_a}` — `{lives_b}` **{team_b}**", inline=False,
+        )
+        embed.add_field(name="Résultat", value=f"🏆 **{winner}** remporte la CrewBattle !", inline=False)
+
+        await _post_historique_entry(guild, team_a, season_name, embed=embed)
+        await _post_historique_entry(guild, team_b, season_name, embed=embed)
+        posted.append(f"{team_a} vs {team_b}")
+
+    await interaction.followup.send(
+        f"✅ Résumés postés dans l'historique de : {', '.join(posted)}.", ephemeral=True
+    )
+    await log_command(interaction.user.display_name, "cbl_backfill_historique_26aut", "Completed",
+                      "Backfill historique des 3 premières CB de saison")
 
 
 @app_commands.command(name="cbl_force_score", description="[ADMIN] Saisie manuelle du score du set en cours")
@@ -2164,6 +2324,7 @@ class CrewBattle(commands.Cog):
         self.bot.add_view(MatchControlView())
         self.bot.tree.add_command(cbl_force_score)
         self.bot.tree.add_command(cbl_force_match_result)
+        self.bot.tree.add_command(cbl_backfill_historique_26aut)
 
 
 async def setup(bot: commands.Bot):
