@@ -34,8 +34,8 @@
     "680072392139472971",
     "467763560638840863"
   ],
-  "ready_home": false,
-  "ready_away": false,
+  "ready_home": true,
+  "ready_away": true,
   "avail_msg_home_id": 1543944157331062825,
   "avail_msg_away_id": 1543944158350418012,
   "propose_msg_id": null,

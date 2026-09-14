@@ -134,7 +134,7 @@ def parse_players(text: str, guild: Optional[discord.Guild]) -> list["Player"]:
 
 
 def build_history_lines(match: "Match", guild: Optional[discord.Guild] = None) -> list[str]:
-    initial = len(match.team_a.all_players) * 3
+    initial = len(match.team_a.players) * 3
     lines = [f"**{match.team_a.name}** [{initial}-{initial}] **{match.team_b.name}**"]
     for rec in match.set_history:
         stage_emoji = get_stage_emoji(rec.stage, guild) if guild else None
@@ -175,6 +175,20 @@ def is_team_authorized(user_id: int, team: dict) -> bool:
     return is_authorized(user_id, team.get("leader_id"), *team.get("admin_ids", []))
 
 
+def _captain_authorized(user_id: int, team: "Team") -> bool:
+    """Comme is_team_authorized, mais pour une Team de match (crewbattle),
+    identifiée par son nom (= sigle si c'est une vraie équipe enregistrée).
+    Recharge les données d'équipe à jour (leader/admins actuels) plutôt que de
+    ne comparer qu'au captain_id figé au lancement du match. Si `team.name` ne
+    correspond à aucune équipe enregistrée (Freeplay avec un nom personnalisé),
+    retombe sur la simple vérification du captain_id du match."""
+    from cogs.teams import load_team
+    team_data = load_team(team.name)
+    if team_data:
+        return is_team_authorized(user_id, team_data)
+    return is_authorized(user_id, team.captain_id)
+
+
 @dataclass
 class Player:
     name: str
@@ -205,7 +219,9 @@ class Team:
 
     @property
     def total_lives(self) -> int:
-        return sum(p.lives for p in self.players + self.subs)
+        """Vies restantes des titulaires uniquement (5v5 = 15 vies, peu importe
+        les remplaçants) — sert au score affiché et à winner_lives (classement)."""
+        return sum(p.lives for p in self.players)
 
     @property
     def all_players(self) -> list[Player]:
@@ -402,13 +418,11 @@ async def _restore_match_view(bot: commands.Bot, match: "Match"):
 
     elif state in (State.BAN_FIRST, State.BAN_SECOND, State.STAGE_PICK):
         view = StageBanView(match=match, guild=guild)
-        active_side = view._active_side()
-        active_ch = _side_channel(match, guild, active_side) or channel
-        other_ch  = _other_side_channel(match, guild, active_side)
-        if active_ch:
-            view.message = await active_ch.send(embed=view._make_embed(), view=view)
-        if other_ch:
-            view.summary_message = await other_ch.send(embed=view._make_embed())
+        match_ch = (
+            (guild.get_channel(match.channel_id) or guild.get_thread(match.channel_id)) if guild else None
+        ) or channel
+        if match_ch:
+            view.message = await match_ch.send(content=view._active_mention(), embed=view._make_embed(), view=view)
 
     elif state == State.WAITING_RESULT:
         ca, cb = match.current_a, match.current_b
@@ -514,7 +528,7 @@ class PlayerSelectView(discord.ui.View):
     def _make_select_cb(self, player: Player):
         async def cb(interaction: discord.Interaction):
             team = self.match.team_a if self.side == "A" else self.match.team_b
-            if not is_authorized(interaction.user.id, team.captain_id):
+            if not _captain_authorized(interaction.user.id, team):
                 await interaction.response.send_message("❌ Ce n'est pas votre tour.", ephemeral=True)
                 return
             self.selected = player
@@ -524,7 +538,7 @@ class PlayerSelectView(discord.ui.View):
 
     async def _confirm(self, interaction: discord.Interaction):
         team = self.match.team_a if self.side == "A" else self.match.team_b
-        if not is_authorized(interaction.user.id, team.captain_id):
+        if not _captain_authorized(interaction.user.id, team):
             await interaction.response.send_message("❌ Ce n'est pas votre tour.", ephemeral=True)
             return
 
@@ -537,14 +551,23 @@ class PlayerSelectView(discord.ui.View):
         )
 
         # Le personnage est choisi par le joueur lui-même, pas par le leader —
-        # il faut donc un nouveau message PUBLIC (le leader a un message éphémère
-        # que le joueur sélectionné ne peut pas voir).
+        # posté dans le salon du match (public), pas dans tasks, avec sa
+        # mention (le leader n'a qu'un message éphémère que le joueur
+        # sélectionné ne peut pas voir). Pour Freeplay/match unique, le salon
+        # du match EST déjà tasks/le salon partagé, donc rien ne change.
         char_view = CharacterSelectView(
             self.match, self.side, player, self.parent_view, self, self.mode, interaction.client
         )
         member = interaction.guild.get_member(player.discord_id) if player.discord_id else None
         mention = member.mention if member else f"**{player.name}**"
-        msg = await interaction.channel.send(
+
+        match_channel = (
+            interaction.guild.get_channel(self.match.channel_id)
+            or interaction.guild.get_thread(self.match.channel_id)
+            or interaction.channel
+        )
+
+        msg = await match_channel.send(
             f"{mention} — Quel personnage vas-tu jouer ?",
             view=char_view,
         )
@@ -989,7 +1012,7 @@ class ScoreDisputeView(discord.ui.View):
 
     async def _dispute(self, interaction: discord.Interaction):
         team = self._disputer_team()
-        if not is_authorized(interaction.user.id, team.captain_id):
+        if not _captain_authorized(interaction.user.id, team):
             await interaction.response.send_message("❌ Seul le leader peut contester.", ephemeral=True)
             return
 
@@ -1056,7 +1079,7 @@ class DisputeScoreEntryView(discord.ui.View):
 
     async def _open(self, interaction: discord.Interaction):
         team = self.match.team_a if self.side == "A" else self.match.team_b
-        if not is_authorized(interaction.user.id, team.captain_id):
+        if not _captain_authorized(interaction.user.id, team):
             await interaction.response.send_message("❌ Ce n'est pas à ton équipe de ressaisir.", ephemeral=True)
             return
         if self.match.state != State.WAITING_RESULT:
@@ -1165,7 +1188,7 @@ class ScoreProposalView(discord.ui.View):
 
     async def _accept(self, interaction: discord.Interaction):
         team = self._responder_team()
-        if not is_authorized(interaction.user.id, team.captain_id):
+        if not _captain_authorized(interaction.user.id, team):
             await interaction.response.send_message("❌ Seul le leader peut accepter.", ephemeral=True)
             return
         if self.match.state != State.WAITING_RESULT:
@@ -1184,7 +1207,7 @@ class ScoreProposalView(discord.ui.View):
 
     async def _contest(self, interaction: discord.Interaction):
         team = self._responder_team()
-        if not is_authorized(interaction.user.id, team.captain_id):
+        if not _captain_authorized(interaction.user.id, team):
             await interaction.response.send_message("❌ Seul le leader peut contester.", ephemeral=True)
             return
         if self.match.state != State.WAITING_RESULT:
@@ -1231,7 +1254,7 @@ class ScoreEndConfirmView(discord.ui.View):
 
     async def _confirm(self, interaction: discord.Interaction):
         team = self._confirmer_team()
-        if not is_authorized(interaction.user.id, team.captain_id):
+        if not _captain_authorized(interaction.user.id, team):
             await interaction.response.send_message("❌ Seul le leader peut confirmer.", ephemeral=True)
             return
         if self.match.state != State.PENDING_END:
@@ -1249,7 +1272,7 @@ class ScoreEndConfirmView(discord.ui.View):
 
     async def _contest(self, interaction: discord.Interaction):
         team = self._confirmer_team()
-        if not is_authorized(interaction.user.id, team.captain_id):
+        if not _captain_authorized(interaction.user.id, team):
             await interaction.response.send_message("❌ Seul le leader peut contester.", ephemeral=True)
             return
         if self.match.state != State.PENDING_END:
@@ -1301,7 +1324,7 @@ class FirstPickView(discord.ui.View):
         self.add_item(self.btn_b)
 
     async def _pick_a(self, interaction: discord.Interaction):
-        if not is_authorized(interaction.user.id, self.match.team_a.captain_id):
+        if not _captain_authorized(interaction.user.id, self.match.team_a):
             await interaction.response.send_message("❌ Seul le capitaine de l'équipe A peut agir ici.", ephemeral=True)
             return
         if self.match.picked_a:
@@ -1315,7 +1338,7 @@ class FirstPickView(discord.ui.View):
         view.message = await interaction.original_response()
 
     async def _pick_b(self, interaction: discord.Interaction):
-        if not is_authorized(interaction.user.id, self.match.team_b.captain_id):
+        if not _captain_authorized(interaction.user.id, self.match.team_b):
             await interaction.response.send_message("❌ Seul le capitaine de l'équipe B peut agir ici.", ephemeral=True)
             return
         if self.match.picked_b:
@@ -1346,7 +1369,7 @@ class LoserPickView(discord.ui.View):
 
     async def _pick(self, interaction: discord.Interaction):
         team = self.match.team_a if self.loser_side == "A" else self.match.team_b
-        if not is_authorized(interaction.user.id, team.captain_id):
+        if not _captain_authorized(interaction.user.id, team):
             await interaction.response.send_message("❌ Seul le capitaine de votre équipe peut agir ici.", ephemeral=True)
             return
         available = [p for p in team.all_players if p.lives > 0]
@@ -1368,15 +1391,15 @@ class StageButton(discord.ui.Button):
 
 
 class StageBanView(discord.ui.View):
+    """Bans/pick de stage — posté dans le salon du match (public), avec la
+    mention du joueur dont c'est le tour, plutôt que dans les salons tasks."""
+
     def __init__(self, match: Match, guild: Optional[discord.Guild] = None):
         super().__init__(timeout=None)
         self.match = match
         self.guild = guild
         self.selected: list[str] = []
         self.message: Optional[discord.Message] = None
-        # Salon miroir (lecture seule) de l'équipe qui n'est pas active,
-        # uniquement pour les matchs à salons distincts (saison).
-        self.summary_message: Optional[discord.Message] = None
         self._build()
 
     def _build(self):
@@ -1437,13 +1460,18 @@ class StageBanView(discord.ui.View):
         side = self._active_side()
         return self.match.team_a.name if side == "A" else self.match.team_b.name
 
-    async def _sync_summary(self):
-        """Met à jour le message miroir en lecture seule de l'équipe non active, si présent."""
-        if self.summary_message:
-            try:
-                await self.summary_message.edit(embed=self._make_embed())
-            except Exception:
-                pass
+    def _active_mention(self) -> str:
+        pid = self._active_player_id()
+        member = self.guild.get_member(pid) if self.guild and pid else None
+        who = member.mention if member else f"**{self._active_team_name()}**"
+        state = self.match.state
+        if state == State.BAN_FIRST:
+            return f"{who} — bannis 3 stages."
+        if state == State.BAN_SECOND:
+            return f"{who} — bannis 4 stages."
+        if state == State.STAGE_PICK:
+            return f"{who} — choisis le stage."
+        return ""
 
     async def on_stage_click(self, interaction: discord.Interaction, stage: str):
         if not is_authorized(interaction.user.id, self._active_player_id()):
@@ -1459,8 +1487,7 @@ class StageBanView(discord.ui.View):
                 self.selected.append(stage)
 
         self._build()
-        await interaction.response.edit_message(embed=self._make_embed(), view=self)
-        await self._sync_summary()
+        await interaction.response.edit_message(content=self._active_mention(), embed=self._make_embed(), view=self)
 
     async def _validate(self, interaction: discord.Interaction):
         if not is_authorized(interaction.user.id, self._active_player_id()):
@@ -1468,7 +1495,6 @@ class StageBanView(discord.ui.View):
             return
 
         state = self.match.state
-        old_side = self._active_side()
 
         if state == State.BAN_FIRST:
             self.match.banned_stages.extend(self.selected)
@@ -1489,32 +1515,13 @@ class StageBanView(discord.ui.View):
             for item in self.children:
                 item.disabled = True
             await interaction.response.edit_message(embed=self._make_embed(), view=self)
-            await self._sync_summary()
             await announce_set(interaction.channel, self.match)
             return
 
-        new_side = self._active_side()
+        # Toujours le même salon (le salon du match) — on édite juste la
+        # mention et l'embed pour refléter le nouveau joueur/état actif.
         self._build()
-
-        if new_side == old_side or not _is_dual_channel(self.match):
-            # Même équipe qui continue, ou salon unique (Freeplay/match unique) : on édite sur place.
-            await interaction.response.edit_message(embed=self._make_embed(), view=self)
-            await self._sync_summary()
-            return
-
-        # Salons distincts et le tour change de camp : on verrouille l'ancien
-        # message et on republie l'interface active dans le nouveau salon.
-        for item in self.children:
-            item.disabled = True
-        await interaction.response.edit_message(view=self)
-
-        self._build()
-        active_ch = _side_channel(self.match, self.guild, new_side)
-        other_ch  = _other_side_channel(self.match, self.guild, new_side)
-        if active_ch:
-            self.message = await active_ch.send(embed=self._make_embed(), view=self)
-        if other_ch:
-            self.summary_message = await other_ch.send(embed=self._make_embed())
+        await interaction.response.edit_message(content=self._active_mention(), embed=self._make_embed(), view=self)
 
     def _make_embed(self) -> discord.Embed:
         state = self.match.state
@@ -1578,8 +1585,9 @@ class ScoreView(discord.ui.View):
         self.add_item(btn)
 
     async def _open_modal(self, interaction: discord.Interaction):
-        valid = {self.match.team_a.captain_id, self.match.team_b.captain_id}
-        if not is_authorized(interaction.user.id, *valid):
+        allowed = (_captain_authorized(interaction.user.id, self.match.team_a)
+                   or _captain_authorized(interaction.user.id, self.match.team_b))
+        if not allowed:
             await interaction.response.send_message("❌ Seuls les capitaines peuvent entrer les scores.", ephemeral=True)
             return
         if self.match.state != State.WAITING_RESULT:
@@ -1620,17 +1628,16 @@ async def start_ban_phase(channel: discord.TextChannel, match: Match):
         color=discord.Color.blue(),
     )
 
-    active_ch = _side_channel(match, guild, match.first_banner) or channel
-    other_ch  = _other_side_channel(match, guild, match.first_banner)
+    # Bans/pick de stage : toujours dans le salon du match (public), avec la
+    # mention du joueur actif — pas dans les salons tasks.
+    match_ch = (
+        (guild.get_channel(match.channel_id) or guild.get_thread(match.channel_id)) if guild else None
+    ) or channel
 
-    await active_ch.send(embed=embed)
-    if other_ch:
-        await other_ch.send(embed=embed)
+    await match_ch.send(embed=embed)
 
     view = StageBanView(match=match, guild=guild)
-    view.message = await active_ch.send(embed=view._make_embed(), view=view)
-    if other_ch:
-        view.summary_message = await other_ch.send(embed=view._make_embed())
+    view.message = await match_ch.send(content=view._active_mention(), embed=view._make_embed(), view=view)
 
 
 async def announce_set(channel: discord.TextChannel, match: Match):
@@ -1814,6 +1821,97 @@ async def end_crewbattle(channel: discord.TextChannel, match: Match):
 # ---------------------------------------------------------------------------
 # Commands
 # ---------------------------------------------------------------------------
+
+@app_commands.command(
+    name="cbl_force_match_result",
+    description="[ADMIN] Enregistre le résultat final d'un match joué hors du moteur du bot",
+)
+@app_commands.describe(
+    vainqueur="Sigle de l'équipe gagnante",
+    vies_restantes="Vies restantes du vainqueur à la fin (0 à 15)",
+)
+async def cbl_force_match_result(interaction: discord.Interaction, vainqueur: str, vies_restantes: int):
+    """À lancer dans le thread du match. Pour un match joué manuellement
+    (ex: via un tableur, avec des pseudos différents du roster enregistré) —
+    évite d'avoir à rejouer set par set dans le moteur du bot."""
+    if interaction.user.id != ADMIN_ID:
+        await interaction.response.send_message("❌ Commande réservée à l'admin.", ephemeral=True)
+        return
+
+    channel = interaction.channel
+    official = load_official_match(interaction.channel_id)
+    if not official:
+        await interaction.response.send_message(
+            "❌ Ce salon n'est pas enregistré comme match officiel.", ephemeral=True
+        )
+        return
+
+    league = official["league"]
+    home_sigle, away_sigle = official["home"], official["away"]
+    if vainqueur not in (home_sigle, away_sigle):
+        await interaction.response.send_message(
+            f"❌ **{vainqueur}** ne correspond à aucune des 2 équipes de ce match "
+            f"({home_sigle} / {away_sigle}).", ephemeral=True
+        )
+        return
+    if not (0 <= vies_restantes <= 15):
+        await interaction.response.send_message(
+            "❌ Les vies restantes doivent être entre 0 et 15 (5 titulaires × 3 vies).", ephemeral=True
+        )
+        return
+    loser_sigle = away_sigle if vainqueur == home_sigle else home_sigle
+
+    await interaction.response.defer()
+
+    season = load_season()
+    if season:
+        update_standings(season, league, vainqueur, loser_sigle, vies_restantes)
+        ji, mi = official["journee_idx"], official["match_idx"]
+        try:
+            season["calendar"][league][ji][mi]["result"] = {
+                "winner": vainqueur, "loser": loser_sigle, "winner_lives": vies_restantes,
+            }
+        except (IndexError, KeyError):
+            pass
+        save_season(season)
+
+        guild = interaction.guild
+        if guild:
+            from utils.players_stats import refresh_team_stats_post
+            from utils.standings_channel import refresh_standings_channel
+            await refresh_team_stats_post(interaction.client, guild.id, vainqueur)
+            await refresh_team_stats_post(interaction.client, guild.id, loser_sigle)
+            await refresh_standings_channel(guild)
+
+    delete_official_match(interaction.channel_id)
+    if interaction.channel_id in active_matches:
+        del active_matches[interaction.channel_id]
+        save_matches()
+    from cogs.season_match import del_season_match
+    del_season_match(interaction.channel_id)
+
+    embed = discord.Embed(
+        title="🏆 Fin de la CrewBattle !",
+        description=(
+            f"🏆 **{vainqueur}** remporte la CrewBattle ! Score final : **{vies_restantes}-0**\n"
+            f"*Résultat saisi manuellement par un admin (match joué hors du moteur du bot).*"
+        ),
+        color=discord.Color.gold(),
+    )
+    await interaction.followup.send(embed=embed)
+
+    if isinstance(channel, discord.Thread):
+        try:
+            new_name = channel.name
+            if new_name and new_name[0] in ("🔴", "🟠"):
+                new_name = "🟢" + new_name[1:]
+            await channel.edit(name=new_name, archived=True)
+        except Exception:
+            pass
+
+    await log_command(interaction.user.display_name, "cbl_force_match_result", "Completed",
+                      f"**{vainqueur}** bat **{loser_sigle}** ({vies_restantes}-0) — saisi manuellement")
+
 
 @app_commands.command(name="cbl_force_score", description="[ADMIN] Saisie manuelle du score du set en cours")
 @app_commands.describe(
@@ -2065,6 +2163,7 @@ class CrewBattle(commands.Cog):
         self.bot.loop.create_task(restore_all_matches(self.bot))
         self.bot.add_view(MatchControlView())
         self.bot.tree.add_command(cbl_force_score)
+        self.bot.tree.add_command(cbl_force_match_result)
 
 
 async def setup(bot: commands.Bot):

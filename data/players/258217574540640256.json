@@ -4,9 +4,11 @@
   "team": "HoJ",
   "stats": {
     "main": "<:17_Zelda:1438444240014278707>",
-    "cb_joues": 0,
-    "stocks_pris": 0,
-    "stocks_par_adversaire": {}
+    "cb_joues": 1,
+    "stocks_pris": 1,
+    "stocks_par_adversaire": {
+      "1071468692254240921": 1
+    }
   },
   "stats_thread_id": 1536874000007823431
 }

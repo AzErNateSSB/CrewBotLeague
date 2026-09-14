@@ -3,7 +3,14 @@
   "name": "pkmkeke",
   "team": "SSL",
   "stats": {
-    "main": "<:21e_Lucina:1438444617551974493>"
+    "main": "<:21e_Lucina:1438444617551974493>",
+    "cb_joues": 3,
+    "stocks_pris": 8,
+    "stocks_par_adversaire": {
+      "258217574540640256": 3,
+      "540915499698225162": 3,
+      "461601543121010691": 2
+    }
   },
   "stats_thread_id": 1547320457764671592
 }

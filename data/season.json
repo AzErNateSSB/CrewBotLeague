@@ -67,19 +67,19 @@
           "home": "JRJ",
           "away": "KD",
           "result": null,
-          "channel_id": null
+          "channel_id": 1548977543028416554
         },
         {
           "home": "ARK",
           "away": "POM",
           "result": null,
-          "channel_id": null
+          "channel_id": 1548977550930354207
         },
         {
           "home": "R-B",
           "away": "SR",
           "result": null,
-          "channel_id": null
+          "channel_id": 1548977559595913256
         }
       ],
       [
@@ -148,7 +148,11 @@
         {
           "home": "JRJ²",
           "away": "RC",
-          "result": null,
+          "result": {
+            "winner": "JRJ²",
+            "loser": "RC",
+            "winner_lives": 4
+          },
           "channel_id": 1543944124825084035
         },
         {
@@ -169,19 +173,19 @@
           "home": "JRJ²",
           "away": "D2S",
           "result": null,
-          "channel_id": null
+          "channel_id": 1548977566524645396
         },
         {
           "home": "RC",
           "away": "OX",
           "result": null,
-          "channel_id": null
+          "channel_id": 1548977574229581864
         },
         {
           "home": "OXVI",
           "away": "LT",
           "result": null,
-          "channel_id": null
+          "channel_id": 1548977580458385450
         }
       ],
       [
@@ -265,13 +269,13 @@
           "home": "SU",
           "away": "ADN",
           "result": null,
-          "channel_id": null
+          "channel_id": 1548977586695049216
         },
         {
           "home": "3QI",
           "away": "4B",
           "result": null,
-          "channel_id": null
+          "channel_id": 1548977594098253827
         }
       ],
       [
@@ -322,13 +326,21 @@
         {
           "home": "HoJ",
           "away": "SSL",
-          "result": null,
+          "result": {
+            "winner": "SSL",
+            "loser": "HoJ",
+            "winner_lives": 10
+          },
           "channel_id": 1543944151807172689
         },
         {
           "home": "OXVI²",
           "away": "MST",
-          "result": null,
+          "result": {
+            "winner": "MST",
+            "loser": "OXVI²",
+            "winner_lives": 4
+          },
           "channel_id": 1543944155632242739
         }
       ],
@@ -337,13 +349,13 @@
           "home": "LA",
           "away": "SSL",
           "result": null,
-          "channel_id": null
+          "channel_id": 1548977614058946590
         },
         {
           "home": "HoJ",
           "away": "OXVI²",
           "result": null,
-          "channel_id": null
+          "channel_id": 1548977621793120297
         }
       ],
       [
@@ -437,10 +449,10 @@
     },
     "Ligue-2": {
       "JRJ²": {
-        "pts": 0,
-        "wins": 0,
+        "pts": 19,
+        "wins": 1,
         "losses": 0,
-        "lives_scored": 0,
+        "lives_scored": 4,
         "lives_conceded": 0
       },
       "OXVI": {
@@ -472,11 +484,11 @@
         "lives_conceded": 0
       },
       "RC": {
-        "pts": 0,
+        "pts": 11,
         "wins": 0,
-        "losses": 0,
+        "losses": 1,
         "lives_scored": 0,
-        "lives_conceded": 0
+        "lives_conceded": 4
       }
     },
     "Ligue-3": {
@@ -525,35 +537,35 @@
         "lives_conceded": 0
       },
       "HoJ": {
-        "pts": 0,
+        "pts": 5,
         "wins": 0,
-        "losses": 0,
+        "losses": 1,
         "lives_scored": 0,
-        "lives_conceded": 0
+        "lives_conceded": 10
       },
       "OXVI²": {
-        "pts": 0,
+        "pts": 11,
         "wins": 0,
-        "losses": 0,
+        "losses": 1,
         "lives_scored": 0,
-        "lives_conceded": 0
+        "lives_conceded": 4
       },
       "MST": {
-        "pts": 0,
-        "wins": 0,
+        "pts": 19,
+        "wins": 1,
         "losses": 0,
-        "lives_scored": 0,
+        "lives_scored": 4,
         "lives_conceded": 0
       },
       "SSL": {
-        "pts": 0,
-        "wins": 0,
+        "pts": 25,
+        "wins": 1,
         "losses": 0,
-        "lives_scored": 0,
+        "lives_scored": 10,
         "lives_conceded": 0
       }
     }
   },
   "barrages": [],
-  "current_journee": 1
+  "current_journee": 2
 }

@@ -3,7 +3,12 @@
   "name": "jojopikmin",
   "team": "HoJ",
   "stats": {
-    "main": "<:16_Sheik:1438444172855083028>"
+    "main": "<:16_Sheik:1438444172855083028>",
+    "cb_joues": 1,
+    "stocks_pris": 1,
+    "stocks_par_adversaire": {
+      "471657156051992577": 1
+    }
   },
   "stats_thread_id": 1536913794201030737
 }
