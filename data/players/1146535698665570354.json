@@ -2,6 +2,8 @@
   "discord_id": 1146535698665570354,
   "name": "Ça se voit T Chauve",
   "team": "MST",
-  "stats": {},
+  "stats": {
+    "main": "<:39_KingDedede:1438445972874072157>"
+  },
   "stats_thread_id": 1536050357522669681
 }

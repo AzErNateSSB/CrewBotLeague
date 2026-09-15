@@ -3,5 +3,10 @@
   "name": "Mathieu",
   "team": "LT",
   "stats_thread_id": 1536050286638927949,
-  "stats": {}
+  "stats": {
+    "cb_joues": 0,
+    "stocks_pris": 0,
+    "stocks_par_adversaire": {},
+    "main": "<:08_Pikachu:1438443372150001766>"
+  }
 }

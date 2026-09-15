@@ -4,6 +4,11 @@
   "team": "HoJ",
   "stats_thread_id": 1536050237939122228,
   "stats": {
-    "main": "<:39_KingDedede:1438445972874072157>"
+    "main": "<:39_KingDedede:1438445972874072157>",
+    "cb_joues": 2,
+    "stocks_pris": 2,
+    "stocks_par_adversaire": {
+      "1071468692254240921": 2
+    }
   }
 }

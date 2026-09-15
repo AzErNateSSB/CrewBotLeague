@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import date, timedelta
 from typing import Optional
 
 SEASON_FILE          = os.path.join("data", "season.json")
@@ -13,6 +14,20 @@ LEAGUE_CATEGORY_IDS: dict[str, int] = {
     "Ligue-2": 1476175167163207781,
     "Ligue-3": 1476175247651901492,
     "Ligue-4": 1476175322855510158,
+}
+
+LEAGUE_EMOJIS: dict[str, str] = {
+    "Ligue-1": "🟨",
+    "Ligue-2": "🟦",
+    "Ligue-3": "🟥",
+    "Ligue-4": "🟩",
+}
+
+LEAGUE_SHORT: dict[str, str] = {
+    "Ligue-1": "L1",
+    "Ligue-2": "L2",
+    "Ligue-3": "L3",
+    "Ligue-4": "L4",
 }
 
 # ---------------------------------------------------------------------------
@@ -30,15 +45,31 @@ def save_season(data: dict):
     with open(SEASON_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-def new_season(name: str) -> dict:
+def new_season(name: str, start_date: str) -> dict:
+    """start_date : date ISO (AAAA-MM-JJ) de début de la journée 1."""
     return {
-        "name":     name,
-        "status":   "registration",   # registration | active | finished
-        "leagues":  {lg: [] for lg in LEAGUE_NAMES},
-        "calendar": {lg: [] for lg in LEAGUE_NAMES},
-        "standings":{lg: {} for lg in LEAGUE_NAMES},
-        "barrages": [],
+        "name":       name,
+        "start_date": start_date,
+        "status":     "registration",   # registration | active | finished
+        "leagues":    {lg: [] for lg in LEAGUE_NAMES},
+        "calendar":   {lg: [] for lg in LEAGUE_NAMES},
+        "standings":  {lg: {} for lg in LEAGUE_NAMES},
+        "barrages":   [],
+        "forums":     {lg: None for lg in LEAGUE_NAMES},
     }
+
+# ---------------------------------------------------------------------------
+# Fenêtres de dates par journée
+# ---------------------------------------------------------------------------
+
+def round_window(start_date_str: str, round_idx: int) -> tuple[date, date]:
+    """Fenêtre de sélection de dates pour la journée round_idx (0-indexée) :
+    2 semaines de période normale, + 1 semaine de grâce sur la période suivante.
+    Retourne (début de période, date limite)."""
+    start = date.fromisoformat(start_date_str)
+    period_start = start + timedelta(days=round_idx * 14)
+    deadline     = period_start + timedelta(days=20)
+    return period_start, deadline
 
 # ---------------------------------------------------------------------------
 # Round-robin calendar
