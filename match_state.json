@@ -221,6 +221,7 @@
     "first_banner": "",
     "picker": "",
     "pending_end_acting_side": null,
+    "pending_char_picks": {},
     "log_row": 631,
     "set_history": []
   }

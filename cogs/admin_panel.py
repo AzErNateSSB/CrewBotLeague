@@ -460,7 +460,7 @@ async def _create_journee_threads(
     place (channel_id) ; ne sauvegarde PAS season.json (à la charge de l'appelant)."""
     from utils.season_data import save_official_match, round_window
     from cogs.crewbattle import STAGES, get_stage_emoji
-    from cogs.season_match import post_date_selection
+    from cogs.season_match import start_season_match
     import os as _os
 
     errors: list[str] = []
@@ -485,7 +485,7 @@ async def _create_journee_threads(
             teams_data[td["sigle"]] = td
 
     stage_line = " ".join(str(get_stage_emoji(s, guild) or f":{s}:") for s in STAGES)
-    period_start, deadline = round_window(season["start_date"], ji - 1)
+    _period_start, deadline = round_window(season["start_date"], ji - 1)
 
     count = 0
     for mi, match in enumerate(journee, 1):
@@ -511,9 +511,7 @@ async def _create_journee_threads(
             f"**Maps disponibles :** {stage_line}\n\n"
             f"🗺️ Bans en **3-4-Pick** pour le premier match, "
             f"puis en **3-Pick** à partir du 2e match.\n\n"
-            f"📅 Date limite pour jouer cette CB : **{deadline.strftime('%d/%m/%Y')}**\n"
-            f"*(dates sélectionnables du {period_start.strftime('%d/%m')} "
-            f"au {deadline.strftime('%d/%m')})*"
+            f"📅 Date limite pour jouer cette CB : **{deadline.strftime('%d/%m/%Y')}**"
         )
 
         try:
@@ -526,7 +524,7 @@ async def _create_journee_threads(
                 "match_idx":   mi - 1,
                 "is_barrage":  False,
             })
-            await post_date_selection(guild, thread.id, lg, home, away, period_start, deadline)
+            await start_season_match(guild, thread.id, lg, home, away)
             count += 1
         except Exception as e:
             errors.append(f"❌ Thread `{thread_name}` : {e}")

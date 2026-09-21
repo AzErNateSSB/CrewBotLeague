@@ -3,7 +3,9 @@
   "name": "OuhPa",
   "team": "ARK",
   "stats": {
-    "main": "<:67_KingKRool:1438573369715855461>"
+    "main": "<:67_KingKRool:1438573369715855461>",
+    "cb_joues": 1,
+    "stocks_pris": 0
   },
   "stats_thread_id": 1536293239815147541
 }

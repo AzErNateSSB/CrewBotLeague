@@ -105,17 +105,20 @@ async def _start_report(interaction: discord.Interaction, info: dict):
     ta = Team(name=info["home"], captain_id=home_team_data.get("leader_id", 0))
     tb = Team(name=info["away"], captain_id=away_team_data.get("leader_id", 0))
     match = Match(team_a=ta, team_b=tb, channel_id=channel_id)
-    match.log_row = await log_command(
-        interaction.user.display_name, f"admin_report {ta.name} vs {tb.name}", "In Progress",
-        f"Rapport manuel de score pour {ta.name} vs {tb.name} (salon {channel_id})",
-    )
 
     session = _ReportSession(
         admin_id=interaction.user.id, match=match,
         home_members=home_team_data.get("members", []),
         away_members=away_team_data.get("members", []),
     )
+    # On répond d'abord (fenêtre de 3s Discord) — l'appel réseau vers Google
+    # Sheets (souvent > 3s) ne doit jamais bloquer la première réponse.
     await session.prompt_player(interaction, "A", first_response=True)
+
+    match.log_row = await log_command(
+        interaction.user.display_name, f"admin_report {ta.name} vs {tb.name}", "In Progress",
+        f"Rapport manuel de score pour {ta.name} vs {tb.name} (salon {channel_id})",
+    )
 
 
 class _ReportSession:

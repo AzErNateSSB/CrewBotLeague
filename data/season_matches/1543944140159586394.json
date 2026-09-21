@@ -17,7 +17,7 @@
     "2026-09-19",
     "2026-09-20"
   ],
-  "confirmed_date": null,
+  "confirmed_date": "2026-09-21",
   "roster_home": null,
   "roster_subs_home": null,
   "roster_away": null,
@@ -29,8 +29,8 @@
   "propose_msg_id": null,
   "propose_by": null,
   "propose_date": null,
-  "roster_msg_home_id": null,
-  "roster_msg_away_id": null,
+  "roster_msg_home_id": 1551521653459128343,
+  "roster_msg_away_id": 1551521654809821195,
   "ready_msg_home_id": null,
   "ready_msg_away_id": null
 }

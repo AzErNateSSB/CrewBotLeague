@@ -46,7 +46,11 @@
         {
           "home": "JRJ",
           "away": "ARK",
-          "result": null,
+          "result": {
+            "winner": "JRJ",
+            "loser": "ARK",
+            "winner_lives": 15
+          },
           "channel_id": 1543944108932993044
         },
         {
@@ -405,10 +409,10 @@
   "standings": {
     "Ligue-1": {
       "JRJ": {
-        "pts": 0,
-        "wins": 0,
+        "pts": 30,
+        "wins": 1,
         "losses": 0,
-        "lives_scored": 0,
+        "lives_scored": 15,
         "lives_conceded": 0
       },
       "R-B": {
@@ -442,9 +446,9 @@
       "ARK": {
         "pts": 0,
         "wins": 0,
-        "losses": 0,
+        "losses": 1,
         "lives_scored": 0,
-        "lives_conceded": 0
+        "lives_conceded": 15
       }
     },
     "Ligue-2": {
