@@ -1063,6 +1063,9 @@ def _config_panel_embed() -> discord.Embed:
             "🗑️ Retirer une Équipe — dissout une équipe complètement\n"
             "👤 Retirer un Joueur — supprime un joueur du bot\n"
             "✏️ Renommer une Équipe — change le sigle d'une équipe\n\n"
+            "**CB**\n"
+            "📝 Rapporter un Score — saisit le résultat set par set d'une CB "
+            "jouée hors du moteur du bot (le salon de la CB doit être ouvert)\n\n"
             "**Maintenance**\n"
             "📊 Rafraîchir les Stats — recrée tous les posts players-stats\n"
             "🔄 Rafraîchir les LU — reconstruit les embeds du salon teams-lu\n"
@@ -1072,7 +1075,9 @@ def _config_panel_embed() -> discord.Embed:
             "🔁 Rafraîchir le Classement — reposte le classement/calendrier "
             "à jour dans le salon CrewBotLeague\n"
             "👥 Rafraîchir les Compositions — efface et reposte les messages "
-            "de composition (roster) encore en attente, avec les joueurs à jour\n\n"
+            "de composition (roster) encore en attente, avec les joueurs à jour\n"
+            "🆘 Relancer les CB bloquées — reposte la vue en cours (choix de "
+            "joueur, personnage, bans, score...) de chaque CB active\n\n"
             "**Saison**\n"
             "🗓️ Setup la Saison — crée le panel de configuration de saison\n\n"
             "**Serveur**\n"
@@ -1096,6 +1101,7 @@ class ConfigPanelView(discord.ui.View):
             ("🗑️ Retirer une Équipe",   discord.ButtonStyle.danger,    "cfg_del_team",      0, self._del_team),
             ("👤 Retirer un Joueur",    discord.ButtonStyle.danger,    "cfg_del_player",    0, self._del_player),
             ("✏️ Renommer une Équipe",  discord.ButtonStyle.secondary, "cfg_rename_team",   0, self._rename_team),
+            ("📝 Rapporter un Score",   discord.ButtonStyle.success,   "cfg_report_score",  0, self._report_score),
             ("📊 Rafraîchir les Stats", discord.ButtonStyle.primary,   "cfg_refresh_stats", 1, self._refresh_stats),
             ("🔄 Rafraîchir les LU",    discord.ButtonStyle.primary,   "cfg_refresh_lu",    1, self._refresh_lu),
             ("📋 Republier les Panels", discord.ButtonStyle.primary,   "cfg_republish",     1, self._republish),
@@ -1103,6 +1109,7 @@ class ConfigPanelView(discord.ui.View):
             ("🔁 Rafraîchir le Classement", discord.ButtonStyle.primary, "cfg_refresh_standings", 1, self._refresh_standings),
             ("🗓️ Setup la Saison",      discord.ButtonStyle.success,   "cfg_setup_season",  2, self._setup_season),
             ("👥 Rafraîchir les Compositions", discord.ButtonStyle.primary, "cfg_refresh_rosters", 2, self._refresh_rosters),
+            ("🆘 Relancer les CB bloquées", discord.ButtonStyle.primary, "cfg_refresh_matches", 2, self._refresh_matches),
             ("🌐 Définir la Langue",    discord.ButtonStyle.secondary, "cfg_set_lang",      2, self._set_lang),
             ("⏹️ Éteindre le bot",      discord.ButtonStyle.danger,    "cfg_shutdown",      2, self._shutdown),
         ]
@@ -1142,6 +1149,19 @@ class ConfigPanelView(discord.ui.View):
         await interaction.response.send_message(
             "Sélectionne l'équipe à renommer :", view=_TeamSelectForRenameView(teams), ephemeral=True
         )
+
+    async def _report_score(self, interaction: discord.Interaction):
+        from utils.admin_report import eligible_matches, AdminReportMatchSelectView
+        matches = eligible_matches(interaction.user.id)
+        if not matches:
+            await interaction.response.send_message(
+                "ℹ️ Aucune CB éligible : il faut qu'un salon de match soit ouvert "
+                "et que son résultat ne soit pas déjà enregistré.",
+                ephemeral=True,
+            )
+            return
+        view = AdminReportMatchSelectView(interaction.user.id, matches)
+        await interaction.response.send_message("Choisis la CB à rapporter :", view=view, ephemeral=True)
 
     async def _refresh_stats(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
@@ -1187,6 +1207,15 @@ class ConfigPanelView(discord.ui.View):
         report = await refresh_pending_rosters(interaction.guild)
         await interaction.channel.send(f"👥 {interaction.user.mention} —\n{report}")
         await log_command(interaction.user.display_name, "cfg_refresh_rosters", "Completed", report)
+
+    async def _refresh_matches(self, interaction: discord.Interaction):
+        await interaction.response.send_message(
+            "⏳ Recherche des CB bloquées...", ephemeral=True
+        )
+        from cogs.crewbattle import refresh_stuck_match_views
+        report = await refresh_stuck_match_views(interaction.client)
+        await interaction.channel.send(f"🆘 {interaction.user.mention} —\n{report}")
+        await log_command(interaction.user.display_name, "cfg_refresh_matches", "Completed", report)
 
     async def _setup_season(self, interaction: discord.Interaction):
         await interaction.response.send_modal(SetupSeasonModal())

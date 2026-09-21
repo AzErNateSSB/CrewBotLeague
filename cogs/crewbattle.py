@@ -139,10 +139,13 @@ def build_history_lines(match: "Match", guild: Optional[discord.Guild] = None) -
     for rec in match.set_history:
         stage_emoji = get_stage_emoji(rec.stage, guild) if guild else None
         stage_str = str(stage_emoji) if stage_emoji else rec.stage
-        lines.append(
+        line = (
             f"**{rec.player_a}** {char_display(rec.char_a)} {rec.score_a}-{rec.score_b}"
-            f" {char_display(rec.char_b)} **{rec.player_b}**  |  {stage_str}"
+            f" {char_display(rec.char_b)} **{rec.player_b}**"
         )
+        if stage_str:
+            line += f"  |  {stage_str}"
+        lines.append(line)
     return lines
 
 # ---------------------------------------------------------------------------
@@ -280,6 +283,12 @@ class Match:
     picker: str = ""
     # Côté qui a soumis le score en attente de confirmation (State.PENDING_END).
     pending_end_acting_side: Optional[str] = None
+    # Sélection de personnage en cours par côté ("A"/"B" -> {discord_id, mode}),
+    # tant que le joueur n'a pas confirmé — permet de reposter ce menu après un
+    # redémarrage du bot (sinon le message posté avant reste orphelin : ses
+    # custom_id générés aléatoirement ne sont rattachés à rien dans le nouveau
+    # processus, et plus personne ne peut y cliquer).
+    pending_char_picks: dict = field(default_factory=dict)
     set_history: list[SetRecord] = field(default_factory=list)
     log_row: int = -1
 
@@ -331,6 +340,7 @@ def _match_to_dict(m: "Match") -> dict:
         "first_banner": m.first_banner,
         "picker":       m.picker,
         "pending_end_acting_side": m.pending_end_acting_side,
+        "pending_char_picks": m.pending_char_picks,
         "log_row":     m.log_row,
         "set_history": [
             {"player_a": r.player_a, "char_a": r.char_a,
@@ -359,6 +369,7 @@ def _match_from_dict(d: dict) -> "Match":
         first_banner=d["first_banner"],
         picker      =d["picker"],
         pending_end_acting_side=d.get("pending_end_acting_side"),
+        pending_char_picks=d.get("pending_char_picks", {}),
         set_history =[SetRecord(**r) for r in d["set_history"]],
         log_row     =d.get("log_row", -1),
     )
@@ -382,6 +393,41 @@ def _load_matches_from_file() -> dict[int, "Match"]:
         print(f"[WARN] load_matches: {e}")
         return {}
 
+async def _restore_pending_char_pick(
+    bot: commands.Bot, match: "Match", guild: Optional[discord.Guild],
+    fallback_channel, side: str, pending: dict,
+):
+    """Reposte le menu de sélection de personnage pour un joueur qui était en
+    train de choisir au moment du redémarrage — le message précédent est
+    orphelin (ses custom_id générés aléatoirement ne sont rattachés à rien
+    dans le nouveau processus, donc plus personne ne peut y cliquer)."""
+    team = match.team_a if side == "A" else match.team_b
+    player = next((p for p in team.all_players if p.discord_id == pending.get("discord_id")), None)
+    if not player:
+        match.pending_char_picks.pop(side, None)
+        save_matches()
+        return
+
+    mode = pending.get("mode", "first")
+    if mode == "loser":
+        parent_view = LoserPickView(match=match, loser_side=side)
+    elif _is_dual_channel(match):
+        from cogs.season_match import SeasonFirstPickView
+        parent_view = SeasonFirstPickView(match, side, team.name)
+    else:
+        parent_view = FirstPickView(match=match)
+
+    char_view = CharacterSelectView(match, side, player, parent_view, None, mode, bot)
+    member = guild.get_member(player.discord_id) if guild and player.discord_id else None
+    mention = member.mention if member else f"**{player.name}**"
+
+    match_ch = (
+        (guild.get_channel(match.channel_id) or guild.get_thread(match.channel_id)) if guild else None
+    ) or fallback_channel
+    if match_ch:
+        char_view.message = await match_ch.send(f"{mention} — Quel personnage vas-tu jouer ?", view=char_view)
+
+
 async def _restore_match_view(bot: commands.Bot, match: "Match"):
     """Envoie la bonne vue dans le(s) salon(s) en fonction de l'état sauvegardé."""
     channel = bot.get_channel(match.channel_id)
@@ -401,6 +447,10 @@ async def _restore_match_view(bot: commands.Bot, match: "Match"):
         if _is_dual_channel(match):
             from cogs.season_match import SeasonFirstPickView
             for side, picked in (("A", match.picked_a), ("B", match.picked_b)):
+                pending = match.pending_char_picks.get(side)
+                if pending:
+                    await _restore_pending_char_pick(bot, match, guild, channel, side, pending)
+                    continue
                 if picked:
                     continue
                 team = match.team_a if side == "A" else match.team_b
@@ -410,29 +460,47 @@ async def _restore_match_view(bot: commands.Bot, match: "Match"):
                 view = SeasonFirstPickView(match, side, team.name)
                 view.message = await ch.send("📢 Choisissez votre premier joueur !", view=view)
         else:
-            cap_a = guild.get_member(match.team_a.captain_id) if guild else None
-            cap_b = guild.get_member(match.team_b.captain_id) if guild else None
-            view = FirstPickView(match=match)
-            msg = await channel.send(
-                f"📢 {cap_a.mention if cap_a else ''} ({match.team_a.name}) "
-                f"et {cap_b.mention if cap_b else ''} ({match.team_b.name}), choisissez votre premier joueur !",
-                view=view,
-            )
-            view.message = msg
+            pending_a = match.pending_char_picks.get("A")
+            pending_b = match.pending_char_picks.get("B")
+            if pending_a:
+                await _restore_pending_char_pick(bot, match, guild, channel, "A", pending_a)
+            if pending_b:
+                await _restore_pending_char_pick(bot, match, guild, channel, "B", pending_b)
+
+            need_a = not match.picked_a and not pending_a
+            need_b = not match.picked_b and not pending_b
+            if need_a or need_b:
+                cap_a = guild.get_member(match.team_a.captain_id) if guild else None
+                cap_b = guild.get_member(match.team_b.captain_id) if guild else None
+                view = FirstPickView(match=match)
+                if not need_a:
+                    view.btn_a.disabled = True
+                if not need_b:
+                    view.btn_b.disabled = True
+                msg = await channel.send(
+                    f"📢 {cap_a.mention if cap_a and need_a else ''} ({match.team_a.name}) "
+                    f"et {cap_b.mention if cap_b and need_b else ''} ({match.team_b.name}), choisissez votre premier joueur !",
+                    view=view,
+                )
+                view.message = msg
 
     elif state == State.LOSER_PICK:
         loser_side = match.picker
-        loser_team = match.team_a if loser_side == "A" else match.team_b
-        loser_ch  = _side_channel(match, guild, loser_side) or channel
-        winner_ch = _other_side_channel(match, guild, loser_side)
-        if loser_ch:
-            view = LoserPickView(match=match, loser_side=loser_side)
-            view.message = await loser_ch.send(f"⚔️ **{loser_team.name}** — choisissez votre prochain joueur !", view=view)
-        if winner_ch:
-            try:
-                await winner_ch.send(f"⏳ En attente du prochain joueur de **{loser_team.name}**...")
-            except Exception:
-                pass
+        pending = match.pending_char_picks.get(loser_side)
+        if pending:
+            await _restore_pending_char_pick(bot, match, guild, channel, loser_side, pending)
+        else:
+            loser_team = match.team_a if loser_side == "A" else match.team_b
+            loser_ch  = _side_channel(match, guild, loser_side) or channel
+            winner_ch = _other_side_channel(match, guild, loser_side)
+            if loser_ch:
+                view = LoserPickView(match=match, loser_side=loser_side)
+                view.message = await loser_ch.send(f"⚔️ **{loser_team.name}** — choisissez votre prochain joueur !", view=view)
+            if winner_ch:
+                try:
+                    await winner_ch.send(f"⏳ En attente du prochain joueur de **{loser_team.name}**...")
+                except Exception:
+                    pass
 
     elif state in (State.BAN_FIRST, State.BAN_SECOND, State.STAGE_PICK):
         view = StageBanView(match=match, guild=guild)
@@ -477,6 +545,47 @@ async def _restore_match_view(bot: commands.Bot, match: "Match"):
                 f"ce qui termine la CrewBattle ! Confirmer ?",
                 view=view,
             )
+
+
+async def refresh_stuck_match_views(bot: commands.Bot) -> str:
+    """Reposte, pour chaque CB en cours, la vue correspondant à l'état actuel
+    du match dans son salon (choix de joueur, personnage, bans, score...) —
+    exactement ce que fait un redémarrage du bot pour chaque match actif, mais
+    sans avoir à redémarrer tout le bot. Utile quand une vue devient orpheline
+    (ses boutons ont des custom_id générés aléatoirement, non rattachés après
+    un redémarrage). Les anciens messages ne sont pas supprimés, seulement
+    remplacés par un nouveau message fonctionnel ; les salons de match où rien
+    n'a encore été envoyé après le message d'ouverture sont ignorés."""
+    if not active_matches:
+        return "Aucune CB en cours."
+
+    lines: list[str] = []
+    refreshed = 0
+    for match in list(active_matches.values()):
+        channel = bot.get_channel(match.channel_id)
+        if not channel:
+            try:
+                channel = await bot.fetch_channel(match.channel_id)
+            except Exception:
+                lines.append(f"⚠️ Salon introuvable pour `{match.team_a.name}` vs `{match.team_b.name}`.")
+                continue
+
+        try:
+            newest = [m async for m in channel.history(limit=1)]
+            oldest = [m async for m in channel.history(limit=1, oldest_first=True)]
+        except Exception as e:
+            lines.append(f"⚠️ **{match.team_a.name}** vs **{match.team_b.name}** — historique illisible ({e})")
+            continue
+
+        if not newest or not oldest or newest[0].id == oldest[0].id:
+            continue  # rien envoyé après le message d'ouverture du salon
+
+        await _restore_match_view(bot, match)
+        refreshed += 1
+        lines.append(f"✅ **{match.team_a.name}** vs **{match.team_b.name}** — vue relancée")
+
+    header = f"**{refreshed}** CB rafraîchie(s).\n\n" if refreshed else ""
+    return header + ("\n".join(lines) if lines else "Aucune CB bloquée détectée.")
 
 # ---------------------------------------------------------------------------
 # Routage salon(s) — matchs à salons distincts par équipe (saison)
@@ -585,6 +694,11 @@ class PlayerSelectView(discord.ui.View):
             or interaction.channel
         )
 
+        self.match.pending_char_picks[self.side] = {
+            "discord_id": player.discord_id, "mode": self.mode,
+        }
+        save_matches()
+
         msg = await match_channel.send(
             f"{mention} — Quel personnage vas-tu jouer ?",
             view=char_view,
@@ -692,6 +806,7 @@ class CharacterSelectView(discord.ui.View):
         match = self.match
         side = self.side
         player.character = char
+        match.pending_char_picks.pop(side, None)
 
         for item in self.children:
             item.disabled = True
@@ -1995,6 +2110,15 @@ async def cbl_force_match_result(interaction: discord.Interaction, vainqueur: st
             season_name = season.get("name", "saison")
             await _post_historique_entry(guild, vainqueur, season_name, embed=hist_embed)
             await _post_historique_entry(guild, loser_sigle, season_name, embed=hist_embed)
+
+            if isinstance(channel, discord.Thread):
+                try:
+                    new_name = channel.name
+                    if new_name and new_name[0] in ("🔴", "🟠"):
+                        new_name = "🟢" + new_name[1:]
+                    await channel.edit(name=new_name, archived=True)
+                except Exception:
+                    pass
 
     delete_official_match(interaction.channel_id)
     if interaction.channel_id in active_matches:
