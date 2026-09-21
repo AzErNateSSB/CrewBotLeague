@@ -1068,7 +1068,11 @@ def _config_panel_embed() -> discord.Embed:
             "🔄 Rafraîchir les LU — reconstruit les embeds du salon teams-lu\n"
             "📋 Republier les Panels — reposte les 3 panels interactifs\n"
             "🔍 Analyser les CB — état d'avancement des CB de saison "
-            "(rattrape le post des LineUp manquées)\n\n"
+            "(rattrape le post des LineUp manquées)\n"
+            "🔁 Rafraîchir le Classement — reposte le classement/calendrier "
+            "à jour dans le salon CrewBotLeague\n"
+            "👥 Rafraîchir les Compositions — efface et reposte les messages "
+            "de composition (roster) encore en attente, avec les joueurs à jour\n\n"
             "**Saison**\n"
             "🗓️ Setup la Saison — crée le panel de configuration de saison\n\n"
             "**Serveur**\n"
@@ -1096,7 +1100,9 @@ class ConfigPanelView(discord.ui.View):
             ("🔄 Rafraîchir les LU",    discord.ButtonStyle.primary,   "cfg_refresh_lu",    1, self._refresh_lu),
             ("📋 Republier les Panels", discord.ButtonStyle.primary,   "cfg_republish",     1, self._republish),
             ("🔍 Analyser les CB",      discord.ButtonStyle.primary,   "cfg_analyze_cb",    1, self._analyze_cb),
+            ("🔁 Rafraîchir le Classement", discord.ButtonStyle.primary, "cfg_refresh_standings", 1, self._refresh_standings),
             ("🗓️ Setup la Saison",      discord.ButtonStyle.success,   "cfg_setup_season",  2, self._setup_season),
+            ("👥 Rafraîchir les Compositions", discord.ButtonStyle.primary, "cfg_refresh_rosters", 2, self._refresh_rosters),
             ("🌐 Définir la Langue",    discord.ButtonStyle.secondary, "cfg_set_lang",      2, self._set_lang),
             ("⏹️ Éteindre le bot",      discord.ButtonStyle.danger,    "cfg_shutdown",      2, self._shutdown),
         ]
@@ -1163,6 +1169,24 @@ class ConfigPanelView(discord.ui.View):
         report = await analyze_season_matches(interaction.client, interaction.guild)
         await interaction.channel.send(f"🔍 {interaction.user.mention} —\n{report}")
         await log_command(interaction.user.display_name, "cfg_analyze_cb", "Completed", report)
+
+    async def _refresh_standings(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        from utils.standings_channel import refresh_standings_channel
+        await refresh_standings_channel(interaction.guild)
+        await interaction.followup.send(
+            "✅ Classement et calendrier rafraîchis dans le salon CrewBotLeague.", ephemeral=True
+        )
+        await log_command(interaction.user.display_name, "cfg_refresh_standings", "Completed", "")
+
+    async def _refresh_rosters(self, interaction: discord.Interaction):
+        await interaction.response.send_message(
+            "⏳ Rafraîchissement des compositions en attente...", ephemeral=True
+        )
+        from cogs.season_match import refresh_pending_rosters
+        report = await refresh_pending_rosters(interaction.guild)
+        await interaction.channel.send(f"👥 {interaction.user.mention} —\n{report}")
+        await log_command(interaction.user.display_name, "cfg_refresh_rosters", "Completed", report)
 
     async def _setup_season(self, interaction: discord.Interaction):
         await interaction.response.send_modal(SetupSeasonModal())

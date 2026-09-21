@@ -189,6 +189,24 @@ def _captain_authorized(user_id: int, team: "Team") -> bool:
     return is_authorized(user_id, team.captain_id)
 
 
+def _sync_team_subs(team: "Team", guild: Optional[discord.Guild] = None) -> None:
+    """Ajoute au vivier de remplaçants du match les membres de l'équipe qui
+    l'ont rejointe après le lancement de la CB (LineUp figée au démarrage) —
+    sans toucher aux titulaires ni aux vies déjà en jeu des joueurs déjà
+    présents. Appelé juste avant d'ouvrir le menu de sélection du joueur à
+    envoyer, pour que ce menu reflète la composition actuelle de l'équipe."""
+    from cogs.teams import load_team
+    team_data = load_team(team.name)
+    if not team_data:
+        return
+    known_ids = {p.discord_id for p in team.all_players if p.discord_id}
+    for pid in team_data.get("members", []):
+        if pid in known_ids:
+            continue
+        member = guild.get_member(pid) if guild else None
+        team.subs.append(Player(name=member.display_name if member else str(pid), discord_id=pid))
+
+
 @dataclass
 class Player:
     name: str
@@ -1330,6 +1348,8 @@ class FirstPickView(discord.ui.View):
         if self.match.picked_a:
             await interaction.response.send_message("✅ Joueur déjà soumis.", ephemeral=True)
             return
+        _sync_team_subs(self.match.team_a, interaction.guild)
+        save_matches()
         view = PlayerSelectView(self.match, "A", self, self.match.team_a.all_players)
         await interaction.response.send_message(
             f"**{self.match.team_a.name}** — Quel joueur envoyer ?",
@@ -1344,6 +1364,8 @@ class FirstPickView(discord.ui.View):
         if self.match.picked_b:
             await interaction.response.send_message("✅ Joueur déjà soumis.", ephemeral=True)
             return
+        _sync_team_subs(self.match.team_b, interaction.guild)
+        save_matches()
         view = PlayerSelectView(self.match, "B", self, self.match.team_b.all_players)
         await interaction.response.send_message(
             f"**{self.match.team_b.name}** — Quel joueur envoyer ?",
@@ -1372,6 +1394,8 @@ class LoserPickView(discord.ui.View):
         if not _captain_authorized(interaction.user.id, team):
             await interaction.response.send_message("❌ Seul le capitaine de votre équipe peut agir ici.", ephemeral=True)
             return
+        _sync_team_subs(team, interaction.guild)
+        save_matches()
         available = [p for p in team.all_players if p.lives > 0]
         view = PlayerSelectView(self.match, self.loser_side, self, available, mode="loser")
         await interaction.response.send_message(

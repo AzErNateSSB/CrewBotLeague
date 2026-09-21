@@ -6,9 +6,7 @@
   "period_start": "2026-08-31",
   "deadline": "2026-09-20",
   "avail_home": [
-    "2026-09-19",
-    "2026-09-20",
-    "2026-09-18"
+    "2026-09-19"
   ],
   "avail_away": [
     "2026-09-04",
@@ -19,11 +17,20 @@
     "2026-09-19",
     "2026-09-20"
   ],
-  "confirmed_date": null,
+  "confirmed_date": "2026-09-19",
   "roster_home": null,
   "roster_subs_home": null,
-  "roster_away": null,
-  "roster_subs_away": null,
+  "roster_away": [
+    "407917771591254049",
+    "811552096637681684",
+    "1243113075486359597",
+    "1150134729845243954",
+    "694237373893967900"
+  ],
+  "roster_subs_away": [
+    "1167095894093594666",
+    "868475443228049488"
+  ],
   "ready_home": false,
   "ready_away": false,
   "avail_msg_home_id": 1543944130122489897,
@@ -31,8 +38,8 @@
   "propose_msg_id": null,
   "propose_by": null,
   "propose_date": null,
-  "roster_msg_home_id": null,
-  "roster_msg_away_id": null,
+  "roster_msg_home_id": 1551168182193234042,
+  "roster_msg_away_id": 1550857444153102429,
   "ready_msg_home_id": null,
-  "ready_msg_away_id": null
+  "ready_msg_away_id": 1550874752275447858
 }

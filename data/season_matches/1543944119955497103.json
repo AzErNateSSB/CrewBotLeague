@@ -6,12 +6,12 @@
   "period_start": "2026-08-31",
   "deadline": "2026-09-20",
   "avail_home": [
-    "2026-09-18",
-    "2026-09-19",
-    "2026-09-20"
+    "2026-09-19"
   ],
-  "avail_away": null,
-  "confirmed_date": null,
+  "avail_away": [
+    "2026-09-19"
+  ],
+  "confirmed_date": "2026-09-19",
   "roster_home": null,
   "roster_subs_home": null,
   "roster_away": null,
@@ -23,8 +23,8 @@
   "propose_msg_id": null,
   "propose_by": null,
   "propose_date": null,
-  "roster_msg_home_id": null,
-  "roster_msg_away_id": null,
+  "roster_msg_home_id": 1551168178560831499,
+  "roster_msg_away_id": 1551168180414844931,
   "ready_msg_home_id": null,
   "ready_msg_away_id": null
 }

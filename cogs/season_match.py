@@ -482,6 +482,82 @@ async def analyze_season_matches(bot, guild: discord.Guild) -> str:
     return header + ("\n".join(lines) if lines else "Aucune CB de saison en cours.")
 
 
+async def refresh_pending_rosters(guild: discord.Guild) -> str:
+    """Efface et reposte les messages de composition (SeasonRosterSelectView)
+    encore en attente, avec une liste de joueurs sélectionnables à jour —
+    utile quand un joueur a rejoint une équipe après l'envoi du message
+    (le menu déroulant est figé sur les membres au moment du post)."""
+    if not os.path.exists(SEASON_MATCHES_DIR):
+        return "Aucune CB de saison en cours."
+    from cogs.teams import load_team
+
+    lines: list[str] = []
+    refreshed = 0
+    for fn in sorted(os.listdir(SEASON_MATCHES_DIR)):
+        if not fn.endswith(".json"):
+            continue
+        thread_id = int(fn[:-5])
+        data = load_season_match(thread_id)
+        if not data or not data.get("confirmed_date"):
+            continue
+
+        home_ch, away_ch = await _tasks_channels(guild, data)
+        for side, ch in (("home", home_ch), ("away", away_ch)):
+            if not ch or data.get(f"roster_{side}"):
+                continue
+
+            sigle = data.get(f"{side}_sigle", "")
+            team = load_team(sigle)
+            if not team:
+                continue
+            members = team.get("members", [])
+            if len(members) < NB_ACTIVE:
+                lines.append(
+                    f"❌ **{sigle}** — seulement {len(members)} membre(s), "
+                    f"il en faut au moins {NB_ACTIVE}."
+                )
+                continue
+
+            old_msg_id = data.get(f"roster_msg_{side}_id")
+            if old_msg_id:
+                try:
+                    old_msg = await ch.fetch_message(old_msg_id)
+                    await old_msg.delete()
+                except Exception:
+                    pass
+
+            options = []
+            for mid in members[:25]:
+                member = guild.get_member(mid)
+                options.append(discord.SelectOption(
+                    label=(member.display_name if member else str(mid))[:100], value=str(mid),
+                ))
+
+            view = SeasonRosterSelectView(thread_id, side, options)
+            try:
+                msg = await ch.send(
+                    "🔄 Composition à refaire (liste des joueurs mise à jour) : "
+                    f"**{NB_ACTIVE} titulaires** (obligatoire) "
+                    f"+ jusqu'à **{NB_SUBS_MAX} remplaçant(s)** (optionnel) :",
+                    view=view,
+                )
+                view.message = msg
+            except Exception as e:
+                lines.append(f"❌ **{sigle}** — envoi du nouveau message impossible ({e})")
+                continue
+
+            data2 = load_season_match(thread_id)
+            if data2:
+                data2[f"roster_msg_{side}_id"] = msg.id
+                save_season_match(thread_id, data2)
+
+            refreshed += 1
+            lines.append(f"✅ **{sigle}** ({data['home_sigle']} 🆚 {data['away_sigle']}) — composition rafraîchie")
+
+    header = f"**{refreshed}** composition(s) rafraîchie(s).\n\n" if refreshed else ""
+    return header + ("\n".join(lines) if lines else "Aucune composition en attente à rafraîchir.")
+
+
 async def _confirm_date(bot, guild: discord.Guild, thread_id: int, chosen_date: str):
     from cogs.teams import load_team
 
@@ -784,7 +860,7 @@ class SeasonFirstPickView(discord.ui.View):
             self.btn_b, self.btn_a = btn, discord.ui.Button()
 
     async def _pick(self, interaction: discord.Interaction):
-        from cogs.crewbattle import is_authorized, PlayerSelectView
+        from cogs.crewbattle import is_authorized, PlayerSelectView, _sync_team_subs, save_matches
 
         team = self.match.team_a if self.side == "A" else self.match.team_b
         if not is_authorized(interaction.user.id, team.captain_id):
@@ -795,6 +871,8 @@ class SeasonFirstPickView(discord.ui.View):
             await interaction.response.send_message("✅ Joueur déjà soumis.", ephemeral=True)
             return
 
+        _sync_team_subs(team, interaction.guild)
+        save_matches()
         view = PlayerSelectView(self.match, self.side, self, team.all_players, mode="first")
         await interaction.response.send_message(
             f"**{team.name}** — Quel joueur envoyer ?", view=view, ephemeral=True,
