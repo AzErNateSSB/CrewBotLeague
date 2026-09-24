@@ -1,0 +1,31 @@
+{
+  "1549834076767133706": {
+    "category_id": 1549834076767133706,
+    "slot": "Sam 19 Sep — Soir",
+    "side_a": {
+      "name": "MST",
+      "sigle": "MST",
+      "role_id": 1532897417538703361,
+      "captain_id": 792859756590137405,
+      "nb_avail": 5,
+      "subs_choice": 2,
+      "players": [],
+      "subs_list": []
+    },
+    "side_b": {
+      "name": "SSL",
+      "sigle": "SSL",
+      "role_id": 0,
+      "captain_id": 671725835514019840,
+      "nb_avail": 5,
+      "subs_choice": 1,
+      "players": [],
+      "subs_list": []
+    },
+    "ch_tasks": 1549834078583521290,
+    "ch_a": 1549834080118640711,
+    "ch_b": 1549834081959677992,
+    "ch_general": 1549834083629269002,
+    "nb_fight": 5
+  }
+}

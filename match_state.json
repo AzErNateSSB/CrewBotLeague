@@ -1,0 +1,228 @@
+{
+  "1543944133306228779": {
+    "channel_id": 1543944133306228779,
+    "channel_a_id": 1533811886565625946,
+    "channel_b_id": 1542903895876173844,
+    "set_number": 0,
+    "state": "FIRST_PICK",
+    "team_a": {
+      "name": "LT",
+      "captain_id": 847882608254910544,
+      "players": [
+        {
+          "name": "bomberKILL",
+          "lives": 3,
+          "character": "",
+          "discord_id": 842043813316263949
+        },
+        {
+          "name": "Ixauh",
+          "lives": 3,
+          "character": "",
+          "discord_id": 1158011197132652584
+        },
+        {
+          "name": "LuluX",
+          "lives": 3,
+          "character": "",
+          "discord_id": 431929276850241537
+        },
+        {
+          "name": "LT|ARK|Turbo",
+          "lives": 3,
+          "character": "",
+          "discord_id": 1496562128428073202
+        },
+        {
+          "name": "Cailloux",
+          "lives": 3,
+          "character": "",
+          "discord_id": 663342221252231180
+        }
+      ],
+      "subs": [
+        {
+          "name": "chrysanthe",
+          "lives": 3,
+          "character": "",
+          "discord_id": 537682091098505216
+        },
+        {
+          "name": "Mondiba",
+          "lives": 3,
+          "character": "50_Greninja",
+          "discord_id": 1341384704309334028
+        },
+        {
+          "name": "Shishi",
+          "lives": 3,
+          "character": "",
+          "discord_id": 847882608254910544
+        },
+        {
+          "name": "skyRaX",
+          "lives": 3,
+          "character": "",
+          "discord_id": 474636251933179905
+        },
+        {
+          "name": "ORBR | BigFroa",
+          "lives": 3,
+          "character": "",
+          "discord_id": 1131872505636868156
+        },
+        {
+          "name": "Mathieu",
+          "lives": 3,
+          "character": "",
+          "discord_id": 294188051146735616
+        },
+        {
+          "name": "Phaal",
+          "lives": 3,
+          "character": "",
+          "discord_id": 699694209950548069
+        },
+        {
+          "name": "LT | D2S | Bill Wick",
+          "lives": 3,
+          "character": "",
+          "discord_id": 877506317076541440
+        },
+        {
+          "name": "Yugl0ve",
+          "lives": 3,
+          "character": "",
+          "discord_id": 763104131564830732
+        },
+        {
+          "name": "❥₊˚ʚ 𝕱𝖑𝖔𝖗𝖊𝖗𝖊₊➻",
+          "lives": 3,
+          "character": "",
+          "discord_id": 858063509899051018
+        },
+        {
+          "name": "LT | Ninolemechant",
+          "lives": 3,
+          "character": "",
+          "discord_id": 1406607498214899837
+        }
+      ]
+    },
+    "team_b": {
+      "name": "OX",
+      "captain_id": 417458798349910018,
+      "players": [
+        {
+          "name": "'Xenesic ✞",
+          "lives": 3,
+          "character": "",
+          "discord_id": 328121348725407744
+        },
+        {
+          "name": "Tofchrist",
+          "lives": 3,
+          "character": "",
+          "discord_id": 201378552891965440
+        },
+        {
+          "name": "OX Lapin",
+          "lives": 3,
+          "character": "",
+          "discord_id": 228998767536373760
+        },
+        {
+          "name": "Reyasuu",
+          "lives": 3,
+          "character": "",
+          "discord_id": 584014320732471317
+        },
+        {
+          "name": "Raymesis",
+          "lives": 3,
+          "character": "",
+          "discord_id": 405846835521912834
+        }
+      ],
+      "subs": [
+        {
+          "name": "MobutuLeMaudit",
+          "lives": 3,
+          "character": "",
+          "discord_id": 659445633014300672
+        },
+        {
+          "name": "Ismaaa",
+          "lives": 3,
+          "character": "",
+          "discord_id": 936227676497272832
+        },
+        {
+          "name": "Kuze",
+          "lives": 3,
+          "character": "",
+          "discord_id": 216301792600915969
+        },
+        {
+          "name": "HL7",
+          "lives": 3,
+          "character": "",
+          "discord_id": 338662535467237376
+        },
+        {
+          "name": "Hugrelin",
+          "lives": 3,
+          "character": "",
+          "discord_id": 417458798349910018
+        },
+        {
+          "name": "Djol",
+          "lives": 3,
+          "character": "",
+          "discord_id": 364729103628107776
+        },
+        {
+          "name": "OX | Rengoku",
+          "lives": 3,
+          "character": "",
+          "discord_id": 806499748156145684
+        },
+        {
+          "name": "OX|Naga",
+          "lives": 3,
+          "character": "",
+          "discord_id": 699330695926906981
+        },
+        {
+          "name": "Gzana",
+          "lives": 3,
+          "character": "",
+          "discord_id": 338355768614977536
+        },
+        {
+          "name": "OX | 477",
+          "lives": 3,
+          "character": "",
+          "discord_id": 690272988976775715
+        }
+      ]
+    },
+    "current_a": {
+      "name": "Mondiba",
+      "lives": 3,
+      "character": "50_Greninja",
+      "discord_id": 1341384704309334028
+    },
+    "current_b": null,
+    "picked_a": true,
+    "picked_b": false,
+    "banned_stages": [],
+    "picked_stage": null,
+    "first_banner": "",
+    "picker": "",
+    "pending_end_acting_side": null,
+    "pending_char_picks": {},
+    "log_row": 631,
+    "set_history": []
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "thread_id": 1543944124825084035,
+  "league": "Ligue-2",
+  "home_sigle": "JRJ²",
+  "away_sigle": "RC",
+  "period_start": "2026-08-31",
+  "deadline": "2026-09-20",
+  "avail_home": [
+    "2026-09-13"
+  ],
+  "avail_away": [
+    "2026-09-06",
+    "2026-09-05"
+  ],
+  "confirmed_date": "2026-09-13",
+  "roster_home": [
+    "524742723828187151",
+    "825836794360233984",
+    "238069918933843972",
+    "1056593347541741600",
+    "221602360965857281"
+  ],
+  "roster_subs_home": [
+    "259248210319507457",
+    "1524693034372038667"
+  ],
+  "roster_away": [
+    "894597808039002232",
+    "811581202318229554",
+    "1089479271623426133",
+    "1536268440027795546",
+    "1161362172664885268"
+  ],
+  "roster_subs_away": [
+    "635456069984059405",
+    "1180546191235227681"
+  ],
+  "ready_home": true,
+  "ready_away": true,
+  "avail_msg_home_id": 1543944126217715735,
+  "avail_msg_away_id": 1543944127400640563,
+  "propose_msg_id": null,
+  "propose_by": null,
+  "propose_date": null,
+  "roster_msg_home_id": 1548741420813389965,
+  "roster_msg_away_id": 1548741422772002860,
+  "ready_msg_home_id": 1548741790943813744,
+  "ready_msg_away_id": 1548745223734042635,
+  "lineups_posted": true
+}

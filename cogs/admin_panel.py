@@ -9,12 +9,16 @@ from discord.ext import commands
 from discord import app_commands
 import json
 import os
+from datetime import date
 
 from utils.i18n import set_lang
 from utils.sheets_log import log_command
 from utils.teams_lu import rebuild_teams_lu
 from utils.players_stats import rebuild_all_stats, delete_player_stats_post
-from utils.season_data import LEAGUE_NAMES, load_season, save_season, new_season
+from utils.season_data import (
+    LEAGUE_NAMES, LEAGUE_CATEGORY_IDS, LEAGUE_EMOJIS, LEAGUE_SHORT,
+    load_season, save_season, new_season, round_window,
+)
 
 CHANNEL_CONFIG        = 1537096187981594714
 OWNER_ID              = 461601543121010691
@@ -286,7 +290,9 @@ class SeasonLeagueView(discord.ui.View):
 
 
 class StartSeasonView(discord.ui.View):
-    """Bouton 'Démarrer la Saison' — réservé à OWNER_ID."""
+    """Boutons 'Démarrer la Saison' et 'Lancer le tour suivant' — réservés à OWNER_ID.
+    'Démarrer' ne crée que la journée 1 ; 'Lancer le tour suivant' crée la prochaine
+    journée non encore lancée, pour chaque ligue."""
 
     def __init__(self):
         super().__init__(timeout=None)
@@ -298,19 +304,72 @@ class StartSeasonView(discord.ui.View):
         btn.callback = self._callback
         self.add_item(btn)
 
+        next_btn = discord.ui.Button(
+            label="▶️ Lancer le tour suivant",
+            style=discord.ButtonStyle.primary,
+            custom_id="season_next_journee",
+        )
+        next_btn.callback = self._next_journee_callback
+        self.add_item(next_btn)
+
+    async def _next_journee_callback(self, interaction: discord.Interaction):
+        if interaction.user.id != OWNER_ID:
+            await interaction.response.send_message("❌ Réservé à AzErNate.", ephemeral=True)
+            return
+
+        season = load_season()
+        if not season or season.get("status") != "active":
+            await interaction.response.send_message("❌ Aucune saison active.", ephemeral=True)
+            return
+
+        next_ji = season.get("current_journee", 1) + 1
+
+        await interaction.response.send_message(
+            f"⏳ Lancement de la journée {next_ji} pour toutes les ligues...", ephemeral=True
+        )
+
+        guild  = interaction.guild
+        report = []
+        any_created = False
+
+        for lg in LEAGUE_NAMES:
+            calendar = season.get("calendar", {}).get(lg, [])
+            if next_ji > len(calendar):
+                report.append(f"ℹ️ **{lg}** : pas de journée {next_ji} (calendrier de {len(calendar)} journée(s)).")
+                continue
+
+            count, errors = await _create_journee_threads(guild, season, lg, next_ji)
+            report.extend(errors)
+            report.append(f"✅ **{lg}** : journée {next_ji} lancée ({count} thread(s)).")
+            any_created = True
+
+        if any_created:
+            season["current_journee"] = next_ji
+        save_season(season)
+
+        await interaction.channel.send(
+            f"✅ {interaction.user.mention} — Journée {next_ji} :\n" + "\n".join(report)
+        )
+        await log_command(interaction.user.display_name, "season_next_journee", "Completed",
+                          " | ".join(report))
+
     async def _callback(self, interaction: discord.Interaction):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("❌ Réservé à AzErNate.", ephemeral=True)
             return
 
-        await interaction.response.defer(ephemeral=True)
         season = load_season()
         if not season:
-            await interaction.followup.send("❌ Aucune saison configurée.", ephemeral=True)
+            await interaction.response.send_message("❌ Aucune saison configurée.", ephemeral=True)
             return
         if season["status"] == "active":
-            await interaction.followup.send("❌ La saison est déjà active.", ephemeral=True)
+            await interaction.response.send_message("❌ La saison est déjà active.", ephemeral=True)
             return
+
+        await interaction.response.send_message(
+            "⏳ Lancement de la saison en cours (création des forums + journée 1)...",
+            ephemeral=True,
+        )
 
         # Avertissement : équipes sans ligue
         all_teams = _load_all_teams()
@@ -319,25 +378,18 @@ class StartSeasonView(discord.ui.View):
         if unassigned:
             warning = f"\n\n⚠️ Équipes sans ligue : {', '.join(f'**{s}**' for s in unassigned)}"
 
-        # Déléguer au vrai démarrage de saison
-        from cogs.league import cbl_admin_start_season
-        # On passe par le handler existant (cbl_admin_start_season attend une interaction)
-        # Pour éviter de dupliquer la logique, on l'importe et appelle directement
-        # sa logique interne via les fonctions utilitaires
-        from utils.season_data import generate_round_robin, sorted_standings
+        from utils.season_data import generate_round_robin
         import os as _os
 
         guild  = interaction.guild
         report = []
 
-        teams_data: dict[str, dict] = {}
         if _os.path.exists(TEAMS_DIR):
             for fname in _os.listdir(TEAMS_DIR):
                 if not fname.endswith(".json"):
                     continue
                 with open(_os.path.join(TEAMS_DIR, fname), encoding="utf-8") as f:
                     td = json.load(f)
-                teams_data[td["sigle"]] = td
                 lg = td.get("league")
                 if lg and lg in LEAGUE_NAMES and td["sigle"] not in season["leagues"][lg]:
                     season["leagues"][lg].append(td["sigle"])
@@ -357,72 +409,307 @@ class StartSeasonView(discord.ui.View):
             calendar = generate_round_robin(teams)
             season["calendar"][lg] = calendar
 
-            from utils.season_data import LEAGUE_CATEGORY_IDS, save_official_match
-            cat_id   = LEAGUE_CATEGORY_IDS.get(lg)
-            category = guild.get_channel(cat_id) if cat_id else None
+            # Forum de la ligue (créé une fois, réutilisé si déjà présent)
+            forum_id = season["forums"].get(lg)
+            forum = guild.get_channel(forum_id) if forum_id else None
+            if not isinstance(forum, discord.ForumChannel):
+                cat_id   = LEAGUE_CATEGORY_IDS.get(lg)
+                category = guild.get_channel(cat_id) if cat_id else None
+                forum_name = f"〔{LEAGUE_EMOJIS[lg]}〕{lg.lower()}〔{season['name'].lower()}〕"
+                try:
+                    forum = await guild.create_forum(name=forum_name, category=category)
+                    season["forums"][lg] = forum.id
+                except Exception as e:
+                    report.append(f"❌ Forum **{lg}** : {e}")
+                    continue
 
-            nb_channels = 0
-            for ji, journee in enumerate(calendar, 1):
-                for match in journee:
-                    home, away = match["home"], match["away"]
-                    overwrites = {
-                        guild.default_role: discord.PermissionOverwrite(view_channel=False),
-                        guild.me: discord.PermissionOverwrite(
-                            view_channel=True, send_messages=True,
-                            read_message_history=True, manage_channels=True,
-                        ),
-                    }
-                    for sigle in (home, away):
-                        role = guild.get_role(teams_data.get(sigle, {}).get("role_id", 0))
-                        if role:
-                            overwrites[role] = discord.PermissionOverwrite(
-                                view_channel=True, send_messages=True, read_message_history=True,
-                            )
-                    ch_name = f"j{ji}-{home.lower()}-vs-{away.lower()}"
-                    try:
-                        ch = await guild.create_text_channel(
-                            name=ch_name, category=category, overwrites=overwrites
-                        )
-                        match["channel_id"] = ch.id
-                        save_official_match(ch.id, {
-                            "league": lg, "home": home, "away": away,
-                            "journee_idx": ji - 1,
-                            "match_idx":   calendar[ji - 1].index(match),
-                            "is_barrage":  False,
-                        })
-                        from cogs.crewbattle import MatchControlView
-                        await ch.send(
-                            f"⚔️ **{home}** vs **{away}** — Journée {ji} | **{lg}** — Saison {season['name']}\n"
-                            f"Utilisez `/cbl_uniquematch_setup` puis `/cbl_uniquematch_addteam` (×2), "
-                            f"ensuite lancez le match avec le bouton ci-dessous.",
-                            view=MatchControlView(),
-                        )
-                        nb_channels += 1
-                    except Exception as e:
-                        report.append(f"❌ Salon `{ch_name}` : {e}")
+            nb_channels, errors = await _create_journee_threads(guild, season, lg, 1)
+            report.extend(errors)
 
             nb_j = len(calendar)
             nb_m = sum(len(j) for j in calendar)
             report.append(
-                f"✅ **{lg}** : {len(teams)} équipes — {nb_j} journées, {nb_m} matchs, {nb_channels} salons"
+                f"✅ **{lg}** : {len(teams)} équipes — {nb_j} journées, {nb_m} matchs, "
+                f"{nb_channels} thread(s) créé(s) pour la journée 1 "
+                f"(utilise le bouton \"▶️ Lancer le tour suivant\" pour la suite)"
             )
 
         season["status"] = "active"
-        from utils.season_data import save_season as _ss
-        _ss(season)
+        season["current_journee"] = 1
+        save_season(season)
 
         from utils.standings_channel import refresh_standings_channel
-        await refresh_standings_channel(interaction.guild)
+        await refresh_standings_channel(guild)
 
         embed = discord.Embed(
             title=f"🚀 Saison **{season['name']}** lancée !",
             description="\n".join(report) + warning,
             color=discord.Color.green(),
         )
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.channel.send(content=interaction.user.mention, embed=embed)
         await log_command(interaction.user.display_name,
                           f"season_start {season['name']}", "Completed",
                           " | ".join(report))
+
+
+async def _create_journee_threads(
+    guild: discord.Guild, season: dict, lg: str, ji: int
+) -> tuple[int, list[str]]:
+    """Crée les threads de match pour la journée `ji` (1-indexée) de la ligue `lg`
+    qui n'ont pas encore de channel_id. Modifie season["calendar"][lg][ji-1] en
+    place (channel_id) ; ne sauvegarde PAS season.json (à la charge de l'appelant)."""
+    from utils.season_data import save_official_match, round_window
+    from cogs.crewbattle import STAGES, get_stage_emoji
+    from cogs.season_match import start_season_match
+    import os as _os
+
+    errors: list[str] = []
+    calendar = season.get("calendar", {}).get(lg, [])
+    if ji < 1 or ji > len(calendar):
+        return 0, errors
+    journee = calendar[ji - 1]
+
+    forum_id = season.get("forums", {}).get(lg)
+    forum = guild.get_channel(forum_id) if forum_id else None
+    if not isinstance(forum, discord.ForumChannel):
+        errors.append(f"❌ **{lg}** : forum introuvable, journée {ji} non créée")
+        return 0, errors
+
+    teams_data: dict[str, dict] = {}
+    if _os.path.exists(TEAMS_DIR):
+        for fname in _os.listdir(TEAMS_DIR):
+            if not fname.endswith(".json"):
+                continue
+            with open(_os.path.join(TEAMS_DIR, fname), encoding="utf-8") as f:
+                td = json.load(f)
+            teams_data[td["sigle"]] = td
+
+    stage_line = " ".join(str(get_stage_emoji(s, guild) or f":{s}:") for s in STAGES)
+    _period_start, deadline = round_window(season["start_date"], ji - 1)
+
+    count = 0
+    for mi, match in enumerate(journee, 1):
+        if match.get("channel_id"):
+            continue
+
+        home, away = match["home"], match["away"]
+        home_data  = teams_data.get(home, {})
+        away_data  = teams_data.get(away, {})
+        role_home  = guild.get_role(home_data.get("role_id", 0))
+        role_away  = guild.get_role(away_data.get("role_id", 0))
+        emoji_home = discord.utils.get(guild.emojis, name=home)
+        emoji_away = discord.utils.get(guild.emojis, name=away)
+
+        thread_name = (
+            f"🔴{LEAGUE_SHORT[lg]}-{season['name'].upper()} · "
+            f"Match {ji}-{mi} 〔{home} 🆚 {away}〕"
+        )[:100]
+
+        content = (
+            f"# {role_home.mention if role_home else f'**{home}**'} {emoji_home or ''}\n"
+            f"# {role_away.mention if role_away else f'**{away}**'} {emoji_away or ''}\n\n"
+            f"**Maps disponibles :** {stage_line}\n\n"
+            f"🗺️ Bans en **3-4-Pick** pour le premier match, "
+            f"puis en **3-Pick** à partir du 2e match.\n\n"
+            f"📅 Date limite pour jouer cette CB : **{deadline.strftime('%d/%m/%Y')}**"
+        )
+
+        try:
+            twm    = await forum.create_thread(name=thread_name, content=content)
+            thread = twm.thread
+            match["channel_id"] = thread.id
+            save_official_match(thread.id, {
+                "league": lg, "home": home, "away": away,
+                "journee_idx": ji - 1,
+                "match_idx":   mi - 1,
+                "is_barrage":  False,
+            })
+            await start_season_match(guild, thread.id, lg, home, away)
+            count += 1
+        except Exception as e:
+            errors.append(f"❌ Thread `{thread_name}` : {e}")
+
+    return count, errors
+
+
+
+
+class _CancelSeasonConfirmView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=60)
+
+    @discord.ui.button(label="✅ Oui, tout annuler", style=discord.ButtonStyle.danger)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != OWNER_ID:
+            await interaction.response.send_message("❌ Réservé à AzErNate.", ephemeral=True)
+            return
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(view=self)
+
+        report = await _do_cancel_season(interaction)
+        await interaction.followup.send(report, ephemeral=True)
+
+    @discord.ui.button(label="Annuler", style=discord.ButtonStyle.secondary)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != OWNER_ID:
+            await interaction.response.send_message("❌ Réservé à AzErNate.", ephemeral=True)
+            return
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(content="Annulé — rien n'a été touché.", view=self)
+
+
+async def _do_cancel_season(interaction: discord.Interaction) -> str:
+    """Supprime les forums de ligue (et leurs threads), les enregistrements
+    official_matches/season_matches associés, et remet season.json à l'état
+    'registration' (calendrier/classements/forums vidés, ligues conservées)."""
+    from utils.season_data import delete_official_match
+    from cogs.season_match import del_season_match, load_season_match, _tasks_channels
+
+    guild  = interaction.guild
+    season = load_season()
+    if not season:
+        return "❌ Aucune saison configurée."
+
+    deleted_forums = 0
+    deleted_matches = 0
+    deleted_task_msgs = 0
+
+    async def _try_delete(channel, msg_id):
+        nonlocal deleted_task_msgs
+        if not channel or not msg_id:
+            return
+        try:
+            msg = await channel.fetch_message(msg_id)
+            await msg.delete()
+            deleted_task_msgs += 1
+        except Exception:
+            pass
+
+    for lg in LEAGUE_NAMES:
+        for journee in season.get("calendar", {}).get(lg, []):
+            for match in journee:
+                ch_id = match.get("channel_id")
+                if not ch_id:
+                    continue
+
+                sm_data = load_season_match(ch_id)
+                if sm_data:
+                    home_ch, away_ch = await _tasks_channels(guild, sm_data)
+                    await _try_delete(home_ch, sm_data.get("avail_msg_home_id"))
+                    await _try_delete(away_ch, sm_data.get("avail_msg_away_id"))
+                    await _try_delete(home_ch, sm_data.get("roster_msg_home_id"))
+                    await _try_delete(away_ch, sm_data.get("roster_msg_away_id"))
+                    await _try_delete(home_ch, sm_data.get("ready_msg_home_id"))
+                    await _try_delete(away_ch, sm_data.get("ready_msg_away_id"))
+                    propose_by = sm_data.get("propose_by")
+                    propose_ch = away_ch if propose_by == "home" else home_ch
+                    await _try_delete(propose_ch, sm_data.get("propose_msg_id"))
+
+                delete_official_match(ch_id)
+                del_season_match(ch_id)
+                deleted_matches += 1
+
+        forum_id = season.get("forums", {}).get(lg)
+        if forum_id:
+            forum = guild.get_channel(forum_id)
+            if forum:
+                try:
+                    await forum.delete()
+                    deleted_forums += 1
+                except Exception:
+                    pass
+
+    season["status"]  = "registration"
+    season["forums"]  = {lg: None for lg in LEAGUE_NAMES}
+    season["calendar"] = {lg: [] for lg in LEAGUE_NAMES}
+    season["standings"] = {lg: {} for lg in LEAGUE_NAMES}
+    season.pop("current_journee", None)
+    save_season(season)
+
+    from utils.standings_channel import refresh_standings_channel
+    await refresh_standings_channel(guild)
+
+    await log_command(interaction.user.display_name, "cbl_cancel_season", "Completed",
+                      f"Saison **{season['name']}** annulée par **{interaction.user.display_name}**")
+
+    return (f"✅ Saison annulée : **{deleted_forums}** forum(s) supprimé(s), "
+            f"**{deleted_matches}** enregistrement(s) de match nettoyé(s), "
+            f"**{deleted_task_msgs}** message(s) de négociation supprimé(s) dans les salons tasks. "
+            f"Les ligues (équipes assignées) sont conservées — relance quand tu es prêt.")
+
+
+@app_commands.command(
+    name="cbl_cancel_season",
+    description="[ADMIN] Annule la saison active : supprime forums/threads et réinitialise le calendrier",
+)
+async def cbl_cancel_season(interaction: discord.Interaction):
+    if interaction.user.id != OWNER_ID:
+        await interaction.response.send_message("❌ Réservé à AzErNate.", ephemeral=True)
+        return
+
+    season = load_season()
+    if not season or season.get("status") != "active":
+        await interaction.response.send_message("❌ Aucune saison active à annuler.", ephemeral=True)
+        return
+
+    await interaction.response.send_message(
+        f"⚠️ Ça va **supprimer** les {sum(1 for lg in LEAGUE_NAMES if season.get('forums', {}).get(lg))} "
+        f"forum(s) de ligue créés (et tous leurs threads de match), et réinitialiser le calendrier/classement. "
+        f"Les équipes assignées aux ligues sont conservées. Confirmer ?",
+        view=_CancelSeasonConfirmView(),
+        ephemeral=True,
+    )
+
+
+@app_commands.command(
+    name="cbl_purge_season_messages",
+    description="[ADMIN] Supprime les messages 'CB de saison' orphelins dans les salons tasks",
+)
+async def cbl_purge_season_messages(interaction: discord.Interaction):
+    """Filet de rattrapage : supprime, par contenu (pas par ID stocké), les messages
+    de sélection de dispos de saison encore présents dans les salons tasks — utile
+    quand les données qui référençaient ces messages ont déjà été effacées (ex:
+    annulation de saison faite avant que le nettoyage des messages n'existe)."""
+    if interaction.user.id != OWNER_ID:
+        await interaction.response.send_message("❌ Réservé à AzErNate.", ephemeral=True)
+        return
+
+    await interaction.response.send_message(
+        "⏳ Recherche des messages orphelins dans les salons tasks de toutes les équipes...",
+        ephemeral=True,
+    )
+
+    guild = interaction.guild
+    deleted = 0
+    checked_channels = 0
+
+    for team in _load_all_teams():
+        ch_id = team["channels"].get("tasks") or team["channels"].get("general")
+        if not ch_id:
+            continue
+        channel = guild.get_channel(ch_id)
+        if not channel:
+            continue
+        checked_channels += 1
+        try:
+            async for msg in channel.history(limit=100):
+                if msg.author == guild.me and msg.content.startswith("📅 **CB de saison —"):
+                    try:
+                        await msg.delete()
+                        deleted += 1
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+    await interaction.channel.send(
+        f"✅ {interaction.user.mention} — **{deleted}** message(s) orphelin(s) supprimé(s) "
+        f"sur **{checked_channels}** salon(s) tasks vérifié(s)."
+    )
+    await log_command(interaction.user.display_name, "cbl_purge_season_messages", "Completed",
+                      f"{deleted} message(s) orphelin(s) supprimé(s) par **{interaction.user.display_name}**")
 
 
 # ─── Setup Season Modal ───────────────────────────────────────────────────────
@@ -434,11 +721,26 @@ class SetupSeasonModal(discord.ui.Modal, title="Configurer une saison"):
         min_length=2,
         max_length=20,
     )
+    date_debut = discord.ui.TextInput(
+        label="Date de début (journée 1)",
+        placeholder="JJ/MM/AAAA — ex : 31/08/2026",
+        min_length=8,
+        max_length=10,
+    )
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         guild  = interaction.guild
         name   = self.saison.value.strip()
+
+        try:
+            d, m, y = self.date_debut.value.strip().split("/")
+            start_date = date(int(y), int(m), int(d)).isoformat()
+        except Exception:
+            await interaction.followup.send(
+                "❌ Date invalide. Utilise le format JJ/MM/AAAA (ex : 31/08/2026).", ephemeral=True
+            )
+            return
 
         existing = load_season()
         if existing and existing["status"] == "active":
@@ -468,7 +770,7 @@ class SetupSeasonModal(discord.ui.Modal, title="Configurer une saison"):
         panels["season_panel_channel"] = chan.id
 
         # Créer / réinitialiser la saison dans les données
-        season = new_season(name)
+        season = new_season(name, start_date)
         # Récupérer les ligues déjà assignées depuis les JSONs d'équipes
         for t in _load_all_teams():
             lg = t.get("league")
@@ -750,6 +1052,40 @@ async def _republish_all_panels(bot: discord.Client, guild: discord.Guild) -> li
     return report
 
 
+def _config_panel_embed() -> discord.Embed:
+    return discord.Embed(
+        title="⚙️ Panel de Configuration",
+        description=(
+            "Bienvenue dans le panel admin du CrewBotLeague.\n\n"
+            "**Gestion des équipes**\n"
+            "🗑️ Retirer une Équipe — dissout une équipe complètement\n"
+            "👤 Retirer un Joueur — supprime un joueur du bot\n"
+            "✏️ Renommer une Équipe — change le sigle d'une équipe\n\n"
+            "**CB**\n"
+            "📝 Rapporter un Score — saisit le résultat set par set d'une CB "
+            "jouée hors du moteur du bot (le salon de la CB doit être ouvert)\n\n"
+            "**Maintenance**\n"
+            "📊 Rafraîchir les Stats — recrée tous les posts players-stats\n"
+            "🔄 Rafraîchir les LU — reconstruit les embeds du salon teams-lu\n"
+            "📋 Republier les Panels — reposte les 3 panels interactifs\n"
+            "🔍 Analyser les CB — état d'avancement des CB de saison "
+            "(rattrape le post des LineUp manquées)\n"
+            "🔁 Rafraîchir le Classement — reposte le classement/calendrier "
+            "à jour dans le salon CrewBotLeague\n"
+            "👥 Rafraîchir les Compositions — efface et reposte les messages "
+            "de composition (roster) encore en attente, avec les joueurs à jour\n"
+            "🆘 Relancer les CB bloquées — reposte la vue en cours (choix de "
+            "joueur, personnage, bans, score...) de chaque CB active\n\n"
+            "**Saison**\n"
+            "🗓️ Setup la Saison — crée le panel de configuration de saison\n\n"
+            "**Serveur**\n"
+            "🌐 Définir la Langue — change la langue du bot\n"
+            "⏹️ Éteindre le bot — arrêt propre *(AzErNate uniquement)*"
+        ),
+        color=discord.Color.dark_grey(),
+    )
+
+
 # ─── Config Panel View (persistent) ──────────────────────────────────────────
 
 class ConfigPanelView(discord.ui.View):
@@ -763,10 +1099,15 @@ class ConfigPanelView(discord.ui.View):
             ("🗑️ Retirer une Équipe",   discord.ButtonStyle.danger,    "cfg_del_team",      0, self._del_team),
             ("👤 Retirer un Joueur",    discord.ButtonStyle.danger,    "cfg_del_player",    0, self._del_player),
             ("✏️ Renommer une Équipe",  discord.ButtonStyle.secondary, "cfg_rename_team",   0, self._rename_team),
+            ("📝 Rapporter un Score",   discord.ButtonStyle.success,   "cfg_report_score",  0, self._report_score),
             ("📊 Rafraîchir les Stats", discord.ButtonStyle.primary,   "cfg_refresh_stats", 1, self._refresh_stats),
             ("🔄 Rafraîchir les LU",    discord.ButtonStyle.primary,   "cfg_refresh_lu",    1, self._refresh_lu),
             ("📋 Republier les Panels", discord.ButtonStyle.primary,   "cfg_republish",     1, self._republish),
+            ("🔍 Analyser les CB",      discord.ButtonStyle.primary,   "cfg_analyze_cb",    1, self._analyze_cb),
+            ("🔁 Rafraîchir le Classement", discord.ButtonStyle.primary, "cfg_refresh_standings", 1, self._refresh_standings),
             ("🗓️ Setup la Saison",      discord.ButtonStyle.success,   "cfg_setup_season",  2, self._setup_season),
+            ("👥 Rafraîchir les Compositions", discord.ButtonStyle.primary, "cfg_refresh_rosters", 2, self._refresh_rosters),
+            ("🆘 Relancer les CB bloquées", discord.ButtonStyle.primary, "cfg_refresh_matches", 2, self._refresh_matches),
             ("🌐 Définir la Langue",    discord.ButtonStyle.secondary, "cfg_set_lang",      2, self._set_lang),
             ("⏹️ Éteindre le bot",      discord.ButtonStyle.danger,    "cfg_shutdown",      2, self._shutdown),
         ]
@@ -807,6 +1148,19 @@ class ConfigPanelView(discord.ui.View):
             "Sélectionne l'équipe à renommer :", view=_TeamSelectForRenameView(teams), ephemeral=True
         )
 
+    async def _report_score(self, interaction: discord.Interaction):
+        from utils.admin_report import eligible_matches, AdminReportMatchSelectView
+        matches = eligible_matches(interaction.user.id)
+        if not matches:
+            await interaction.response.send_message(
+                "ℹ️ Aucune CB éligible : il faut qu'un salon de match soit ouvert "
+                "et que son résultat ne soit pas déjà enregistré.",
+                ephemeral=True,
+            )
+            return
+        view = AdminReportMatchSelectView(interaction.user.id, matches)
+        await interaction.response.send_message("Choisis la CB à rapporter :", view=view, ephemeral=True)
+
     async def _refresh_stats(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         report = await rebuild_all_stats(interaction.client, interaction.guild_id)
@@ -825,6 +1179,42 @@ class ConfigPanelView(discord.ui.View):
         await interaction.followup.send("\n".join(lines), ephemeral=True)
         await log_command(interaction.user.display_name, "cfg_republish", "Completed", " | ".join(lines))
 
+    async def _analyze_cb(self, interaction: discord.Interaction):
+        await interaction.response.send_message(
+            "⏳ Analyse des CB de saison en cours...", ephemeral=True
+        )
+        from cogs.season_match import analyze_season_matches
+        report = await analyze_season_matches(interaction.client, interaction.guild)
+        await interaction.channel.send(f"🔍 {interaction.user.mention} —\n{report}")
+        await log_command(interaction.user.display_name, "cfg_analyze_cb", "Completed", report)
+
+    async def _refresh_standings(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        from utils.standings_channel import refresh_standings_channel
+        await refresh_standings_channel(interaction.guild)
+        await interaction.followup.send(
+            "✅ Classement et calendrier rafraîchis dans le salon CrewBotLeague.", ephemeral=True
+        )
+        await log_command(interaction.user.display_name, "cfg_refresh_standings", "Completed", "")
+
+    async def _refresh_rosters(self, interaction: discord.Interaction):
+        await interaction.response.send_message(
+            "⏳ Rafraîchissement des compositions en attente...", ephemeral=True
+        )
+        from cogs.season_match import refresh_pending_rosters
+        report = await refresh_pending_rosters(interaction.guild)
+        await interaction.channel.send(f"👥 {interaction.user.mention} —\n{report}")
+        await log_command(interaction.user.display_name, "cfg_refresh_rosters", "Completed", report)
+
+    async def _refresh_matches(self, interaction: discord.Interaction):
+        await interaction.response.send_message(
+            "⏳ Recherche des CB bloquées...", ephemeral=True
+        )
+        from cogs.crewbattle import refresh_stuck_match_views
+        report = await refresh_stuck_match_views(interaction.client)
+        await interaction.channel.send(f"🆘 {interaction.user.mention} —\n{report}")
+        await log_command(interaction.user.display_name, "cfg_refresh_matches", "Completed", report)
+
     async def _setup_season(self, interaction: discord.Interaction):
         await interaction.response.send_modal(SetupSeasonModal())
 
@@ -839,6 +1229,59 @@ class ConfigPanelView(discord.ui.View):
         await interaction.client.close()
 
 
+async def _resync_start_season_message(bot: commands.Bot):
+    """Réattache une vue StartSeasonView à jour sur le message déjà posté du
+    panel de saison, pour que les boutons ajoutés après coup (ex: 'Lancer le
+    tour suivant') apparaissent sans avoir à recréer le panel."""
+    await bot.wait_until_ready()
+    from utils.config import GUILD_ID
+    guild = bot.get_guild(GUILD_ID)
+    if not guild:
+        return
+
+    panels = _load_panels()
+    chan_id = panels.get("season_panel_channel")
+    if not chan_id:
+        return
+    channel = guild.get_channel(chan_id)
+    if not channel:
+        return
+
+    try:
+        async for msg in channel.history(limit=30):
+            if msg.author == guild.me and msg.embeds and msg.embeds[0].title == "🚀 Démarrer la Saison":
+                await msg.edit(view=StartSeasonView())
+                break
+    except Exception:
+        pass
+
+
+async def _resync_config_panel_message(bot: commands.Bot):
+    """Réattache une vue et un embed ConfigPanelView à jour sur le panel déjà
+    posté dans CHANNEL_CONFIG, pour que les boutons ajoutés après coup (ex:
+    'Analyser les CB') apparaissent sans recréer le panel."""
+    await bot.wait_until_ready()
+    from utils.config import GUILD_ID
+    guild = bot.get_guild(GUILD_ID)
+    if not guild:
+        return
+
+    channel = guild.get_channel(CHANNEL_CONFIG)
+    if not channel:
+        return
+
+    panels = _load_panels()
+    msg_id = panels.get("config_panel_msg")
+    if not msg_id:
+        return
+
+    try:
+        msg = await channel.fetch_message(msg_id)
+        await msg.edit(embed=_config_panel_embed(), view=ConfigPanelView())
+    except Exception:
+        pass
+
+
 # ─── Cog ─────────────────────────────────────────────────────────────────────
 
 class AdminPanel(commands.Cog):
@@ -851,6 +1294,13 @@ class AdminPanel(commands.Cog):
             self.bot.add_view(SeasonLeagueView(lg))
         self.bot.add_view(StartSeasonView())
         self.bot.tree.add_command(cbl_setup_config)
+        self.bot.tree.add_command(cbl_cancel_season)
+        self.bot.tree.add_command(cbl_purge_season_messages)
+
+        from cogs.season_match import restore_all_season_matches
+        self.bot.loop.create_task(restore_all_season_matches(self.bot))
+        self.bot.loop.create_task(_resync_start_season_message(self.bot))
+        self.bot.loop.create_task(_resync_config_panel_message(self.bot))
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -885,28 +1335,7 @@ async def cbl_setup_config(interaction: discord.Interaction):
         except Exception:
             pass
 
-    embed = discord.Embed(
-        title="⚙️ Panel de Configuration",
-        description=(
-            "Bienvenue dans le panel admin du CrewBotLeague.\n\n"
-            "**Gestion des équipes**\n"
-            "🗑️ Retirer une Équipe — dissout une équipe complètement\n"
-            "👤 Retirer un Joueur — supprime un joueur du bot\n"
-            "✏️ Renommer une Équipe — change le sigle d'une équipe\n\n"
-            "**Maintenance**\n"
-            "📊 Rafraîchir les Stats — recrée tous les posts players-stats\n"
-            "🔄 Rafraîchir les LU — reconstruit les embeds du salon teams-lu\n"
-            "📋 Republier les Panels — reposte les 3 panels interactifs\n\n"
-            "**Saison**\n"
-            "🗓️ Setup la Saison — crée le panel de configuration de saison\n\n"
-            "**Serveur**\n"
-            "🌐 Définir la Langue — change la langue du bot\n"
-            "⏹️ Éteindre le bot — arrêt propre *(AzErNate uniquement)*"
-        ),
-        color=discord.Color.dark_grey(),
-    )
-
-    msg = await channel.send(embed=embed, view=ConfigPanelView())
+    msg = await channel.send(embed=_config_panel_embed(), view=ConfigPanelView())
     panels["config_panel_msg"] = msg.id
     _save_panels(panels)
 

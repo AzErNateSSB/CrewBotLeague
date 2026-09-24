@@ -3,5 +3,8 @@
   "name": "Doppler",
   "team": "ARK",
   "stats_thread_id": 1536050208289591317,
-  "stats": {}
+  "stats": {
+    "cb_joues": 1,
+    "stocks_pris": 0
+  }
 }

@@ -1,0 +1,28 @@
+{
+  "thread_id": 1543944108932993044,
+  "league": "Ligue-1",
+  "home_sigle": "JRJ",
+  "away_sigle": "ARK",
+  "period_start": "2026-08-31",
+  "deadline": "2026-09-20",
+  "avail_home": [
+    "2026-09-20"
+  ],
+  "avail_away": null,
+  "confirmed_date": "2026-09-21",
+  "roster_home": null,
+  "roster_subs_home": null,
+  "roster_away": null,
+  "roster_subs_away": null,
+  "ready_home": false,
+  "ready_away": false,
+  "avail_msg_home_id": 1543944112586235938,
+  "avail_msg_away_id": 1543944113618026659,
+  "propose_msg_id": null,
+  "propose_by": null,
+  "propose_date": null,
+  "roster_msg_home_id": 1551521640343674981,
+  "roster_msg_away_id": 1551521644638380096,
+  "ready_msg_home_id": null,
+  "ready_msg_away_id": null
+}

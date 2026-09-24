@@ -1,0 +1,49 @@
+{
+  "thread_id": 1543944155632242739,
+  "league": "Ligue-4",
+  "home_sigle": "OXVI²",
+  "away_sigle": "MST",
+  "period_start": "2026-08-31",
+  "deadline": "2026-09-20",
+  "avail_home": [
+    "2026-09-13"
+  ],
+  "avail_away": [
+    "2026-09-13"
+  ],
+  "confirmed_date": "2026-09-13",
+  "roster_home": [
+    "1292405826312601601",
+    "464762116885446667",
+    "1186353312795213906",
+    "531209977042436107",
+    "605879226255802370"
+  ],
+  "roster_subs_home": [
+    "1248421759506448537",
+    "893593497909723136"
+  ],
+  "roster_away": [
+    "551150851473801217",
+    "1233924950755119157",
+    "936719018537152532",
+    "917863307719884882",
+    "194090309364350976"
+  ],
+  "roster_subs_away": [
+    "680072392139472971",
+    "467763560638840863"
+  ],
+  "ready_home": true,
+  "ready_away": true,
+  "avail_msg_home_id": 1543944157331062825,
+  "avail_msg_away_id": 1543944158350418012,
+  "propose_msg_id": null,
+  "propose_by": null,
+  "propose_date": null,
+  "roster_msg_home_id": 1548736504921325581,
+  "roster_msg_away_id": 1548736506821083378,
+  "ready_msg_home_id": 1548736622634209421,
+  "ready_msg_away_id": 1548742003200893081,
+  "lineups_posted": true
+}

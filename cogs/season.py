@@ -1,3 +1,4 @@
+import asyncio
 import os
 import string
 import discord
@@ -69,6 +70,149 @@ def find_next_paste_col(sheet: "gspread.Worksheet") -> int:
             return col
 
 # ---------------------------------------------------------------------------
+# Google Sheets (bloquant — toujours exécuté dans un thread séparé via
+# run_in_executor, jamais directement sur la boucle asyncio du bot)
+# ---------------------------------------------------------------------------
+
+def _setup_season_sheets(season: str) -> list[str]:
+    report: list[str] = []
+
+    if not GSPREAD_AVAILABLE:
+        report.append("❌ Dépendances manquantes — installe : `pip install gspread google-auth`")
+        return report
+    if not os.path.exists(CREDENTIALS_FILE):
+        report.append(f"❌ Fichier `{CREDENTIALS_FILE}` introuvable à la racine du projet")
+        return report
+
+    try:
+        client      = get_sheets_client()
+        spreadsheet = client.open_by_key(SPREADSHEET_ID)
+
+        # 2a. Copier A–M vers le prochain bloc libre dans la feuille "Scores"
+        scores      = spreadsheet.worksheet("Scores")
+        dest_col    = find_next_paste_col(scores)
+        dest_letter = col_letter(dest_col)
+
+        # Ajouter 13 colonnes pour faire de la place au nouveau bloc
+        spreadsheet.batch_update({"requests": [{
+            "appendDimension": {
+                "sheetId":   scores.id,
+                "dimension": "COLUMNS",
+                "length":    BLOCK_SIZE,
+            }
+        }]})
+
+        # Copier A–M vers le bloc destination : contenu + largeurs de colonnes
+        source_range = {
+            "sheetId":          scores.id,
+            "startRowIndex":    0,
+            "endRowIndex":      scores.row_count,
+            "startColumnIndex": 0,
+            "endColumnIndex":   13,
+        }
+        dest_range = {
+            "sheetId":          scores.id,
+            "startRowIndex":    0,
+            "endRowIndex":      scores.row_count,
+            "startColumnIndex": dest_col - 1,
+            "endColumnIndex":   dest_col - 1 + BLOCK_SIZE,
+        }
+        # Largeurs des colonnes A–M (offset, taille en pixels)
+        # A=20, B-I=50, J=25, K=50, L-M=20
+        col_widths = [
+            (0,  1,  20),   # A
+            (1,  9,  50),   # B–I
+            (9,  10, 25),   # J
+            (10, 11, 50),   # K
+            (11, 13, 20),   # L–M
+        ]
+        width_requests = [
+            {
+                "updateDimensionProperties": {
+                    "range": {
+                        "sheetId":    scores.id,
+                        "dimension":  "COLUMNS",
+                        "startIndex": dest_col - 1 + start,
+                        "endIndex":   dest_col - 1 + end,
+                    },
+                    "properties": {"pixelSize": px},
+                    "fields": "pixelSize",
+                }
+            }
+            for start, end, px in col_widths
+        ]
+
+        spreadsheet.batch_update({"requests": [
+            {
+                "copyPaste": {
+                    "source":           source_range,
+                    "destination":      dest_range,
+                    "pasteType":        "PASTE_NORMAL",
+                    "pasteOrientation": "NORMAL",
+                }
+            },
+            *width_requests,
+        ]})
+        report.append(
+            f"✅ Colonnes A–M copiées → **{dest_letter}** "
+            f"(bloc {dest_letter}–{col_letter(dest_col + BLOCK_SIZE - 1)}) dans **Scores**"
+        )
+
+        # 2b. Dupliquer T_SEASONS et renommer en [season], puis afficher la feuille
+        t_seasons = spreadsheet.worksheet("T_SEASONS")
+        spreadsheet.duplicate_sheet(
+            source_sheet_id=t_seasons.id,
+            new_sheet_name=season,
+        )
+        season_sheet = spreadsheet.worksheet(season)
+        spreadsheet.batch_update({"requests": [{
+            "updateSheetProperties": {
+                "properties": {"sheetId": season_sheet.id, "hidden": False},
+                "fields": "hidden",
+            }
+        }]})
+        report.append(f"✅ Feuille **T_SEASONS** dupliquée → **{season}**")
+
+        # 2c. Dupliquer PlayersStocks et renommer en [season]_PStocks, puis afficher
+        pstocks_tmpl = spreadsheet.worksheet("PlayersStocks")
+        spreadsheet.duplicate_sheet(
+            source_sheet_id=pstocks_tmpl.id,
+            new_sheet_name=f"{season}_PStocks",
+        )
+        pstocks = spreadsheet.worksheet(f"{season}_PStocks")
+        spreadsheet.batch_update({"requests": [{
+            "updateSheetProperties": {
+                "properties": {"sheetId": pstocks.id, "hidden": False},
+                "fields": "hidden",
+            }
+        }]})
+        # Remplacer '26_SPR' par la nouvelle saison dans toutes les cellules concernées
+        # A-D, G-J, M-P, S-V (ligne 3)
+        TMPL_REF = "26_SPR"
+        formula_cells = (
+            "A3", "B3", "C3", "D3",
+            "G3", "H3", "I3", "J3",
+            "M3", "N3", "O3", "P3",
+            "S3", "T3", "U3", "V3",
+        )
+        for cell in formula_cells:
+            formula = pstocks.acell(cell, value_render_option="FORMULA").value
+            if formula and TMPL_REF in formula:
+                updated = formula.replace(f"'{TMPL_REF}'", f"'{season}'")
+                pstocks.update([[updated]], cell, value_input_option="USER_ENTERED")
+        report.append(
+            f"✅ Feuille **PlayersStocks** dupliquée → **{season}_PStocks** "
+            f"(références `{TMPL_REF}` → `{season}` mises à jour)"
+        )
+
+    except gspread.exceptions.WorksheetNotFound as e:
+        report.append(f"❌ Feuille introuvable dans le tableur : {e}")
+    except Exception as e:
+        report.append(f"❌ Erreur Google Sheets : {e}")
+
+    return report
+
+# ---------------------------------------------------------------------------
 # Commande
 # ---------------------------------------------------------------------------
 
@@ -97,137 +241,9 @@ async def cbl_setupseason(interaction: discord.Interaction, season: str):
         except Exception as e:
             report.append(f"❌ Erreur création **{channel_name}** : {e}")
 
-    # ── 2. Google Sheets ─────────────────────────────────────────────────────
-    if not GSPREAD_AVAILABLE:
-        report.append("❌ Dépendances manquantes — installe : `pip install gspread google-auth`")
-    elif not os.path.exists(CREDENTIALS_FILE):
-        report.append(f"❌ Fichier `{CREDENTIALS_FILE}` introuvable à la racine du projet")
-    else:
-        try:
-            client      = get_sheets_client()
-            spreadsheet = client.open_by_key(SPREADSHEET_ID)
-
-            # 2a. Copier A–M vers le prochain bloc libre dans la feuille "Scores"
-            scores      = spreadsheet.worksheet("Scores")
-            dest_col    = find_next_paste_col(scores)
-            dest_letter = col_letter(dest_col)
-
-            # Ajouter 13 colonnes pour faire de la place au nouveau bloc
-            spreadsheet.batch_update({"requests": [{
-                "appendDimension": {
-                    "sheetId":   scores.id,
-                    "dimension": "COLUMNS",
-                    "length":    BLOCK_SIZE,
-                }
-            }]})
-
-            # Copier A–M vers le bloc destination : contenu + largeurs de colonnes
-            source_range = {
-                "sheetId":          scores.id,
-                "startRowIndex":    0,
-                "endRowIndex":      scores.row_count,
-                "startColumnIndex": 0,
-                "endColumnIndex":   13,
-            }
-            dest_range = {
-                "sheetId":          scores.id,
-                "startRowIndex":    0,
-                "endRowIndex":      scores.row_count,
-                "startColumnIndex": dest_col - 1,
-                "endColumnIndex":   dest_col - 1 + BLOCK_SIZE,
-            }
-            # Largeurs des colonnes A–M (offset, taille en pixels)
-            # A=20, B-I=50, J=25, K=50, L-M=20
-            col_widths = [
-                (0,  1,  20),   # A
-                (1,  9,  50),   # B–I
-                (9,  10, 25),   # J
-                (10, 11, 50),   # K
-                (11, 13, 20),   # L–M
-            ]
-            width_requests = [
-                {
-                    "updateDimensionProperties": {
-                        "range": {
-                            "sheetId":    scores.id,
-                            "dimension":  "COLUMNS",
-                            "startIndex": dest_col - 1 + start,
-                            "endIndex":   dest_col - 1 + end,
-                        },
-                        "properties": {"pixelSize": px},
-                        "fields": "pixelSize",
-                    }
-                }
-                for start, end, px in col_widths
-            ]
-
-            spreadsheet.batch_update({"requests": [
-                {
-                    "copyPaste": {
-                        "source":           source_range,
-                        "destination":      dest_range,
-                        "pasteType":        "PASTE_NORMAL",
-                        "pasteOrientation": "NORMAL",
-                    }
-                },
-                *width_requests,
-            ]})
-            report.append(
-                f"✅ Colonnes A–M copiées → **{dest_letter}** "
-                f"(bloc {dest_letter}–{col_letter(dest_col + BLOCK_SIZE - 1)}) dans **Scores**"
-            )
-
-            # 2b. Dupliquer T_SEASONS et renommer en [season], puis afficher la feuille
-            t_seasons = spreadsheet.worksheet("T_SEASONS")
-            spreadsheet.duplicate_sheet(
-                source_sheet_id=t_seasons.id,
-                new_sheet_name=season,
-            )
-            season_sheet = spreadsheet.worksheet(season)
-            spreadsheet.batch_update({"requests": [{
-                "updateSheetProperties": {
-                    "properties": {"sheetId": season_sheet.id, "hidden": False},
-                    "fields": "hidden",
-                }
-            }]})
-            report.append(f"✅ Feuille **T_SEASONS** dupliquée → **{season}**")
-
-            # 2c. Dupliquer PlayersStocks et renommer en [season]_PStocks, puis afficher
-            pstocks_tmpl = spreadsheet.worksheet("PlayersStocks")
-            spreadsheet.duplicate_sheet(
-                source_sheet_id=pstocks_tmpl.id,
-                new_sheet_name=f"{season}_PStocks",
-            )
-            pstocks = spreadsheet.worksheet(f"{season}_PStocks")
-            spreadsheet.batch_update({"requests": [{
-                "updateSheetProperties": {
-                    "properties": {"sheetId": pstocks.id, "hidden": False},
-                    "fields": "hidden",
-                }
-            }]})
-            # Remplacer '26_SPR' par la nouvelle saison dans toutes les cellules concernées
-            # A-D, G-J, M-P, S-V (ligne 3)
-            TMPL_REF = "26_SPR"
-            formula_cells = (
-                "A3", "B3", "C3", "D3",
-                "G3", "H3", "I3", "J3",
-                "M3", "N3", "O3", "P3",
-                "S3", "T3", "U3", "V3",
-            )
-            for cell in formula_cells:
-                formula = pstocks.acell(cell, value_render_option="FORMULA").value
-                if formula and TMPL_REF in formula:
-                    updated = formula.replace(f"'{TMPL_REF}'", f"'{season}'")
-                    pstocks.update([[updated]], cell, value_input_option="USER_ENTERED")
-            report.append(
-                f"✅ Feuille **PlayersStocks** dupliquée → **{season}_PStocks** "
-                f"(références `{TMPL_REF}` → `{season}` mises à jour)"
-            )
-
-        except gspread.exceptions.WorksheetNotFound as e:
-            report.append(f"❌ Feuille introuvable dans le tableur : {e}")
-        except Exception as e:
-            report.append(f"❌ Erreur Google Sheets : {e}")
+    # ── 2. Google Sheets (dans un thread séparé pour ne pas geler le bot) ────
+    loop = asyncio.get_running_loop()
+    report.extend(await loop.run_in_executor(None, _setup_season_sheets, season))
 
     embed = discord.Embed(
         title=f"🔧 SetupSeason — {season}",

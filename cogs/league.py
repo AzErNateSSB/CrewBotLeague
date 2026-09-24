@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
+from typing import Optional
 
 from utils.season_data import (
     LEAGUE_NAMES, LEAGUE_CATEGORY_IDS,
@@ -176,7 +177,7 @@ async def cbl_leagueaddteam(interaction: discord.Interaction, ligue: str, sigle:
     season = load_season()
     if not season:
         await interaction.response.send_message(
-            "❌ Aucune saison en cours. Créez-en une d'abord avec `/cbl_admin_start_season`.",
+            "❌ Aucune saison en cours. Créez-en une d'abord avec `/cbl_setup_season`.",
             ephemeral=True,
         )
         return
@@ -261,135 +262,46 @@ async def cbl_leagueremoveteam(interaction: discord.Interaction, sigle: str):
                       f"**{sigle}** retirée de **{current_league}**")
 
 # ---------------------------------------------------------------------------
-# /cbl_admin_start_season
+# /cbl_standings
 # ---------------------------------------------------------------------------
 
-@app_commands.command(name="cbl_admin_start_season", description="[ADMIN] Lance la saison, génère le calendrier et crée les salons de match")
-@app_commands.describe(saison="Identifiant de la saison (ex: aut26)")
-async def cbl_admin_start_season(interaction: discord.Interaction, saison: str):
-    if not _is_admin(interaction.user):
-        await interaction.response.send_message("❌ Commande réservée aux administrateurs.", ephemeral=True)
-        return
-
-    await interaction.response.defer()
-
+@app_commands.command(name="cbl_standings", description="Affiche le classement d'une ligue")
+@app_commands.describe(ligue="Ligue à afficher (toutes si vide)")
+async def cbl_standings(interaction: discord.Interaction, ligue: Optional[str] = None):
     season = load_season()
-    if season and season["status"] == "active":
-        await interaction.followup.send("❌ Une saison est déjà en cours.")
+    if not season:
+        await interaction.response.send_message("❌ Aucune saison en cours.", ephemeral=True)
         return
 
-    season = new_season(saison)
-    guild  = interaction.guild
+    if ligue:
+        if ligue not in LEAGUE_NAMES:
+            await interaction.response.send_message(
+                f"❌ Ligue invalide. Disponibles : {', '.join(LEAGUE_NAMES)}", ephemeral=True
+            )
+            return
+        await interaction.response.send_message(embed=_standings_embed(season, ligue))
+    else:
+        embeds = [_standings_embed(season, lg) for lg in LEAGUE_NAMES]
+        await interaction.response.send_message(embeds=embeds)
 
-    # Récupérer les équipes déjà assignées à chaque ligue
-    import os, json
-    teams_dir = os.path.join("data", "teams")
-    teams_data: dict[str, dict] = {}
-    if os.path.exists(teams_dir):
-        for fname in os.listdir(teams_dir):
-            if not fname.endswith(".json"):
-                continue
-            with open(os.path.join(teams_dir, fname), encoding="utf-8") as f:
-                t = json.load(f)
-            teams_data[t["sigle"]] = t
-            lg = t.get("league")
-            if lg and lg in LEAGUE_NAMES and t["sigle"] not in season["leagues"][lg]:
-                season["leagues"][lg].append(t["sigle"])
+# ---------------------------------------------------------------------------
+# /cbl_schedule
+# ---------------------------------------------------------------------------
 
-    report = []
-    for lg in LEAGUE_NAMES:
-        teams = season["leagues"][lg]
-        if len(teams) < 2:
-            report.append(f"⚠️ **{lg}** : {len(teams)} équipe(s), calendrier ignoré (min. 2)")
-            continue
-
-        # Initialiser le classement
-        for t in teams:
-            season["standings"][lg][t] = {
-                "pts": 0, "wins": 0, "losses": 0,
-                "lives_scored": 0, "lives_conceded": 0,
-            }
-
-        # Générer le calendrier round-robin
-        calendar = generate_round_robin(teams)
-        season["calendar"][lg] = calendar
-
-        # Trouver la catégorie Discord de cette ligue
-        cat_id   = LEAGUE_CATEGORY_IDS.get(lg)
-        category = guild.get_channel(cat_id) if cat_id else None
-
-        # Créer un salon par match
-        nb_channels = 0
-        for ji, journee in enumerate(calendar, 1):
-            for match in journee:
-                home, away = match["home"], match["away"]
-
-                # Permissions : les deux rôles d'équipe + bot
-                overwrites = {
-                    guild.default_role: discord.PermissionOverwrite(view_channel=False),
-                    guild.me:           discord.PermissionOverwrite(
-                        view_channel=True, send_messages=True,
-                        read_message_history=True, manage_channels=True,
-                    ),
-                }
-                for sigle in (home, away):
-                    td = teams_data.get(sigle, {})
-                    role = guild.get_role(td.get("role_id", 0))
-                    if role:
-                        overwrites[role] = discord.PermissionOverwrite(
-                            view_channel=True, send_messages=True, read_message_history=True,
-                        )
-
-                channel_name = f"j{ji}-{home.lower()}-vs-{away.lower()}"
-                try:
-                    ch = await guild.create_text_channel(
-                        name=channel_name,
-                        category=category,
-                        overwrites=overwrites,
-                    )
-                    match["channel_id"] = ch.id
-
-                    # Lier ce salon à son match officiel
-                    save_official_match(ch.id, {
-                        "league":      lg,
-                        "home":        home,
-                        "away":        away,
-                        "journee_idx": ji - 1,
-                        "match_idx":   calendar[ji - 1].index(match),
-                        "is_barrage":  False,
-                    })
-
-                    # Message d'accueil dans le salon
-                    from cogs.crewbattle import MatchControlView
-                    await ch.send(
-                        f"⚔️ **{home}** vs **{away}** — Journée {ji} | **{lg}** — Saison {saison}\n"
-                        f"Utilisez `/cbl_uniquematch_setup` puis `/cbl_uniquematch_addteam` (×2), "
-                        f"ensuite lancez le match avec le bouton ci-dessous.",
-                        view=MatchControlView(),
-                    )
-                    nb_channels += 1
-                except Exception as e:
-                    report.append(f"❌ Salon `{channel_name}` : {e}")
-
-        nb_journees = len(calendar)
-        nb_matchs   = sum(len(j) for j in calendar)
-        report.append(
-            f"✅ **{lg}** : {len(teams)} équipes — {nb_journees} journées, "
-            f"{nb_matchs} matchs, {nb_channels} salons créés"
+@app_commands.command(name="cbl_schedule", description="Affiche le calendrier des matchs d'une ligue")
+@app_commands.describe(ligue="Ligue à afficher")
+async def cbl_schedule(interaction: discord.Interaction, ligue: str):
+    season = load_season()
+    if not season:
+        await interaction.response.send_message("❌ Aucune saison en cours.", ephemeral=True)
+        return
+    if ligue not in LEAGUE_NAMES:
+        await interaction.response.send_message(
+            f"❌ Ligue invalide. Disponibles : {', '.join(LEAGUE_NAMES)}", ephemeral=True
         )
+        return
+    await interaction.response.send_message(embed=_schedule_embed(season, ligue))
 
-    season["status"] = "active"
-    save_season(season)
-
-    embed = discord.Embed(
-        title=f"🚀 Saison **{saison}** lancée !",
-        description="\n".join(report),
-        color=discord.Color.green(),
-    )
-    await interaction.followup.send(embed=embed)
-    await log_command(interaction.user.display_name,
-                      f"cbl_admin_start_season **{saison}**", "Completed",
-                      " | ".join(report))
 
 # ---------------------------------------------------------------------------
 # /cbl_admin_end_season
@@ -480,7 +392,8 @@ class League(commands.Cog):
         self.bot.tree.add_command(cbl_teaminfo)
         self.bot.tree.add_command(cbl_leagueaddteam)
         self.bot.tree.add_command(cbl_leagueremoveteam)
-        self.bot.tree.add_command(cbl_admin_start_season)
+        self.bot.tree.add_command(cbl_standings)
+        self.bot.tree.add_command(cbl_schedule)
         self.bot.tree.add_command(cbl_admin_end_season)
         self.bot.tree.add_command(cbl_barrages)
 

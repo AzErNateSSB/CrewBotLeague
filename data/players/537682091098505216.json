@@ -2,6 +2,8 @@
   "discord_id": 537682091098505216,
   "name": "chrysanthe",
   "team": "LT",
-  "stats": {},
+  "stats": {
+    "main": "<:72_Hero:1438573640978530484>"
+  },
   "stats_thread_id": 1536050278011248673
 }

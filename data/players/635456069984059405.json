@@ -3,5 +3,11 @@
   "name": "RC | AxelSwitch",
   "team": "RC",
   "stats_thread_id": 1536050611374657647,
-  "stats": {}
+  "stats": {
+    "cb_joues": 1,
+    "stocks_pris": 2,
+    "stocks_par_adversaire": {
+      "221602360965857281": 2
+    }
+  }
 }

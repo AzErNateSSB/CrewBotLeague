@@ -2,6 +2,8 @@
   "discord_id": 551150851473801217,
   "name": "PaffMagik",
   "team": "MST",
-  "stats": {},
+  "stats": {
+    "main": "<:37_Lucas:1438445872244588606>"
+  },
   "stats_thread_id": 1536050540721610853
 }
